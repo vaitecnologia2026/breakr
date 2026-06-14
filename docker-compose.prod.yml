@@ -1,0 +1,49 @@
+# Breakr OS — stack de produção (Postgres + Redis + API + Web).
+# Numa VPS:  cp .env.prod.example .env  &&  docker compose -f docker-compose.prod.yml up -d --build
+# Depois (uma vez), popular a demo / importar do ClickUp:
+#   docker compose -f docker-compose.prod.yml exec api npm run seed:demo
+#   docker compose -f docker-compose.prod.yml exec -e CLICKUP_TOKEN=pk_... api npm run import:clickup
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-breakr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-breakr}
+      POSTGRES_DB: ${POSTGRES_DB:-breakr_os}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on: [postgres, redis]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-breakr}:${POSTGRES_PASSWORD:-breakr}@postgres:5432/${POSTGRES_DB:-breakr_os}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES: ${JWT_EXPIRES:-1d}
+      API_PORT: "3000"
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    ports:
+      - "3000:3000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    restart: unless-stopped
+    depends_on: [api]
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
