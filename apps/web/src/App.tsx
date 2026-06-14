@@ -8,6 +8,7 @@ import { Clientes } from './pages/Clientes';
 import { Contratos } from './pages/Contratos';
 import { Cobrancas } from './pages/Cobrancas';
 import { Conteudos } from './pages/Conteudos';
+import { Trafego } from './pages/Trafego';
 import { Comercial } from './pages/Comercial';
 import { Recrutamento } from './pages/Recrutamento';
 import { Compras } from './pages/Compras';
@@ -46,6 +47,7 @@ export function App() {
         <Route path="contratos" element={<Contratos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="conteudos" element={<Conteudos />} />
+        <Route path="trafego" element={<Trafego />} />
         <Route path="comercial" element={<Comercial />} />
         <Route path="recrutamento" element={<Recrutamento />} />
         <Route path="compras" element={<Compras />} />

@@ -25,6 +25,7 @@ import { ComprasModule } from './compras/compras.module';
 import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module';
 import { PainelModule } from './painel/painel.module';
 import { IaModule } from './ia/ia.module';
+import { TrafegoModule } from './trafego/trafego.module';
 
 @Module({
   imports: [
@@ -62,6 +63,8 @@ import { IaModule } from './ia/ia.module';
     PainelModule,
     // Configuracoes de IA (OpenAI / Anthropic / Gemini).
     IaModule,
+    // Tráfego pago + IA assistiva (Fase 2 — M17).
+    TrafegoModule,
   ],
 })
 export class AppModule {}
