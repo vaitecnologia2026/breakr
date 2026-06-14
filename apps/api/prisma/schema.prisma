@@ -202,6 +202,12 @@ model Cliente {
   planoId String? @map("plano_id")
   plano   Plano?  @relation(fields: [planoId], references: [id])
 
+  // Pipeline de entrada (Fase 1)
+  contratos  Contrato[]
+  faturas    Fatura[]
+  projetos   Projeto[]
+  onboarding Onboarding?
+
   @@index([squadId])
   @@index([status])
   @@map("cliente")
@@ -220,7 +226,8 @@ model Plano {
   criadoEm     DateTime      @default(now()) @map("criado_em")
   atualizadoEm DateTime      @updatedAt @map("atualizado_em")
 
-  clientes Cliente[]
+  clientes  Cliente[]
+  contratos Contrato[]
 
   @@map("plano")
 }
@@ -300,4 +307,137 @@ model Notificacao {
 
   @@index([usuarioId, lida])
   @@map("notificacao")
+}
+
+// ============================================================
+// PIPELINE DE ENTRADA — FASE 1
+// Contrato -> Cobranca -> NF -> Onboarding -> Projetos auto-criados.
+// Ver docs/escopo/modulos: 12-contratos, 13-financeiro, 14-cs-onboarding, 15-projetos.
+// ============================================================
+
+/// Ciclo de vida do contrato (M12).
+enum StatusContrato {
+  RASCUNHO              // criado a partir do formulario
+  AGUARDANDO_ASSINATURA // enviado ao Autentique (stub)
+  EM_REVISAO            // revisao interna antes de vigorar
+  EM_VIGOR              // assinado e ativo (dispara a 1a cobranca)
+  RENOVACAO             // 45 dias antes do vencimento
+  ENCERRADO
+}
+
+/// Ciclo de vida da fatura/cobranca (M13 — ASAAS).
+enum StatusFatura {
+  PENDENTE
+  PAGA
+  VENCIDA
+  CANCELADA
+  ESTORNADA
+}
+
+/// Contrato do cliente. Gerado do plano; assinado via Autentique (stub na Fase 1).
+/// Ao entrar EM_VIGOR dispara a primeira cobranca (Fatura).
+model Contrato {
+  id                  String         @id @default(uuid())
+  status              StatusContrato @default(RASCUNHO)
+  valorMensal         Decimal        @map("valor_mensal") @db.Decimal(12, 2)
+  codigoUnico         String         @unique @map("codigo_unico")
+  docUrl              String?        @map("doc_url")
+  autentiqueId        String?        @map("autentique_id")
+  dataInicio          DateTime?      @map("data_inicio")
+  vencimento          DateTime?
+  renovacaoAutomatica Boolean        @default(true) @map("renovacao_automatica")
+  criadoEm            DateTime       @default(now()) @map("criado_em")
+  atualizadoEm        DateTime       @updatedAt @map("atualizado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  planoId String? @map("plano_id")
+  plano   Plano?  @relation(fields: [planoId], references: [id])
+
+  faturas Fatura[]
+
+  @@index([clienteId])
+  @@index([status])
+  @@map("contrato")
+}
+
+/// Fatura/cobranca de um contrato. asaasId = id externo no ASAAS (stub na Fase 1).
+/// Ao ser PAGA libera o onboarding e a criacao automatica dos projetos.
+model Fatura {
+  id              String       @id @default(uuid())
+  valor           Decimal      @db.Decimal(12, 2)
+  vencimento      DateTime
+  status          StatusFatura @default(PENDENTE)
+  asaasId         String?      @map("asaas_id")
+  meio            String? // PIX | BOLETO | CARTAO
+  notaFiscalId    String?      @map("nota_fiscal_id")
+  notaFiscalUrl   String?      @map("nota_fiscal_url")
+  enviadaWhatsapp Boolean      @default(false) @map("enviada_whatsapp")
+  codigoUnico     String       @unique @map("codigo_unico")
+  pagaEm          DateTime?    @map("paga_em")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  contratoId String   @map("contrato_id")
+  contrato   Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId])
+  @@index([contratoId])
+  @@index([status])
+  @@map("fatura")
+}
+
+/// Projeto do cliente — ate 3 (MARKETING, GESTAO, FINANCEIRO), criados do plano.
+model Projeto {
+  id           String      @id @default(uuid())
+  tipo         TipoProjeto
+  nome         String
+  status       String      @default("ATIVO") // ATIVO | PAUSADO | ENCERRADO
+  codigoUnico  String      @unique @map("codigo_unico")
+  criadoEm     DateTime    @default(now()) @map("criado_em")
+  atualizadoEm DateTime    @updatedAt @map("atualizado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  // Um projeto por tipo por cliente (idempotencia da auto-criacao).
+  @@unique([clienteId, tipo])
+  @@index([clienteId])
+  @@map("projeto")
+}
+
+/// Onboarding gamificado do cliente (1:1). Liberado apos o pagamento da 1a fatura.
+model Onboarding {
+  id           String   @id @default(uuid())
+  progresso    Int      @default(0) // 0..100
+  concluido    Boolean  @default(false)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  clienteId String  @unique @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  etapas OnboardingStep[]
+
+  @@map("onboarding")
+}
+
+/// Etapa do onboarding (checklist gamificado).
+model OnboardingStep {
+  id        String   @id @default(uuid())
+  titulo    String
+  descricao String?
+  ordem     Int      @default(0)
+  concluido Boolean  @default(false)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  onboardingId String     @map("onboarding_id")
+  onboarding   Onboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  @@index([onboardingId])
+  @@map("onboarding_step")
 }

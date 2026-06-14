@@ -4,6 +4,8 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Inicio } from './pages/Inicio';
 import { Clientes } from './pages/Clientes';
+import { Contratos } from './pages/Contratos';
+import { Cobrancas } from './pages/Cobrancas';
 import { Squads } from './pages/Squads';
 
 /**
@@ -30,6 +32,8 @@ export function App() {
       >
         <Route index element={<Inicio />} />
         <Route path="clientes" element={<Clientes />} />
+        <Route path="contratos" element={<Contratos />} />
+        <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="squads" element={<Squads />} />
       </Route>
 

@@ -10,15 +10,21 @@ import { Logo } from './Logo';
  * aparecem como "em breve", com o badge da fase.
  */
 
-// Na Fase 0, somente módulos desta fase entram como navegáveis no bloco geral.
-const FASE_ATIVA: number = 0;
+// Fase em foco: os módulos desta fase aparecem com o ponto aceso ("em obra").
+const FASE_ATIVA: number = 1;
 
 // Telas reais já disponíveis (entram no topo do menu, acima dos módulos).
 const LINKS_ATIVOS = [
   { para: '/', rotulo: 'Início', fim: true },
   { para: '/clientes', rotulo: 'Clientes', fim: false },
+  { para: '/contratos', rotulo: 'Contratos', fim: false },
+  { para: '/cobrancas', rotulo: 'Cobranças', fim: false },
   { para: '/squads', rotulo: 'Squads', fim: false },
 ] as const;
+
+// Slugs de MODULOS que já têm tela real (não repetir como "em breve").
+//  nucleo→Início · contratos→Contratos · financeiro→Cobranças.
+const SLUGS_COM_TELA = new Set<string>(['nucleo', 'contratos', 'financeiro']);
 
 // Rótulo curto da fase exibido no badge.
 function rotuloFase(fase: number): string {
@@ -62,8 +68,8 @@ export function Sidebar() {
           <TituloGrupo>Módulos</TituloGrupo>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {MODULOS.map((modulo) => {
-              // "Núcleo" já está representado por "Início" no grupo de cima.
-              if (modulo.slug === 'nucleo') return null;
+              // Pula os que já viraram tela real (Início, Contratos, Cobranças).
+              if (SLUGS_COM_TELA.has(modulo.slug)) return null;
               const ativo = modulo.fase === FASE_ATIVA;
               return (
                 <li key={modulo.id}>
@@ -83,7 +89,7 @@ export function Sidebar() {
           borderTop: '1px solid var(--borda)',
         }}
       >
-        Breakr OS · v0.1 — Fase 0
+        Breakr OS · v0.2 — Fase 1
       </div>
     </aside>
   );

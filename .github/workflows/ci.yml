@@ -24,6 +24,9 @@ jobs:
       - name: Gerar Prisma Client
         run: npm run db:generate
 
+      - name: Build shared (enums/tipos em JS — exigido pelo runtime compilado da API)
+        run: npm run build --workspace @breakr/shared
+
       - name: Build API (NestJS)
         run: npm run build --workspace @breakr/api
 

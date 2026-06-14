@@ -1,0 +1,439 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { api } from '../lib/api';
+import {
+  PaginaShell,
+  Th,
+  Td,
+  RodapeContagem,
+  BotaoSecundario,
+  MensagemErro,
+  EstadoCarregando,
+  EstadoErro,
+  PainelVazio,
+} from './Clientes';
+
+/**
+ * Tela de Cobranças (Fase 1 — pipeline de entrada).
+ * Lista as faturas da carteira com nota fiscal e cobrança no WhatsApp.
+ * Cobranças nascem do contrato em vigor, então não há criação manual aqui —
+ * apenas ações por fatura (confirmar pagamento, enviar/reenviar WhatsApp).
+ * Trata loading / erro / vazio.
+ *
+ * Contrato (API):
+ *  GET  /faturas → Fatura[]   (cliente.nomeFantasia incluso)
+ *  POST /faturas/:id/pagar
+ *  POST /faturas/:id/whatsapp
+ */
+
+type StatusFatura = 'PENDENTE' | 'PAGA' | 'VENCIDA' | 'CANCELADA' | 'ESTORNADA';
+
+interface Fatura {
+  id: string;
+  valor: string;
+  vencimento: string;
+  status: StatusFatura;
+  codigoUnico: string;
+  notaFiscalUrl: string | null;
+  enviadaWhatsapp: boolean;
+  clienteId: string;
+  contratoId: string;
+  cliente?: { nomeFantasia: string };
+}
+
+// Rótulo amigável + cores do chip por status da fatura.
+const CORES_STATUS: Record<
+  StatusFatura,
+  { rotulo: string; fundo: string; texto: string; ponto: string }
+> = {
+  PENDENTE: {
+    rotulo: 'Pendente',
+    fundo: 'rgba(255, 148, 6, 0.14)',
+    texto: '#ffb44d',
+    ponto: '#ff9406',
+  },
+  PAGA: {
+    rotulo: 'Paga',
+    fundo: 'rgba(46, 204, 113, 0.14)',
+    texto: '#67e0a3',
+    ponto: '#2ecc71',
+  },
+  VENCIDA: {
+    rotulo: 'Vencida',
+    fundo: 'rgba(148, 18, 44, 0.18)',
+    texto: '#e2738a',
+    ponto: '#94122c',
+  },
+  CANCELADA: {
+    rotulo: 'Cancelada',
+    fundo: 'rgba(243, 244, 247, 0.08)',
+    texto: 'var(--texto-suave)',
+    ponto: '#9aa0ad',
+  },
+  ESTORNADA: {
+    rotulo: 'Estornada',
+    fundo: 'rgba(243, 244, 247, 0.1)',
+    texto: '#cdd0d8',
+    ponto: '#9aa0ad',
+  },
+};
+
+export function Cobrancas() {
+  const [faturas, setFaturas] = useState<Fatura[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  // Erro transitório de uma ação de linha (pagar / WhatsApp), mostrado acima da tabela.
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
+
+  async function carregar() {
+    setCarregando(true);
+    setErro(null);
+    try {
+      const { data } = await api.get<Fatura[]>('/faturas');
+      setFaturas(data);
+    } catch {
+      setErro('Não foi possível carregar as cobranças. Tente novamente.');
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregar();
+  }, []);
+
+  return (
+    <PaginaShell
+      titulo="Cobranças"
+      subtitulo="Faturas, nota fiscal e cobrança no WhatsApp"
+    >
+      {carregando ? (
+        <EstadoCarregando />
+      ) : erro ? (
+        <EstadoErro mensagem={erro} onTentar={carregar} />
+      ) : faturas.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhuma cobrança ainda"
+          descricao="Coloque um contrato em vigor para gerar a primeira cobrança."
+        />
+      ) : (
+        <>
+          {erroAcao && <MensagemErro texto={erroAcao} />}
+          <TabelaCobrancas
+            faturas={faturas}
+            aoAtualizar={carregar}
+            aoErroAcao={setErroAcao}
+          />
+        </>
+      )}
+    </PaginaShell>
+  );
+}
+
+/* ----------------------------- Tabela ----------------------------- */
+
+function TabelaCobrancas({
+  faturas,
+  aoAtualizar,
+  aoErroAcao,
+}: {
+  faturas: Fatura[];
+  aoAtualizar: () => void;
+  aoErroAcao: (msg: string | null) => void;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--superficie)',
+        border: '1px solid var(--borda)',
+        borderRadius: 16,
+        overflow: 'hidden',
+        boxShadow: 'var(--sombra-card)',
+      }}
+    >
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 940 }}>
+          <thead>
+            <tr>
+              <Th>Cliente</Th>
+              <Th>Código</Th>
+              <Th>Valor</Th>
+              <Th>Vencimento</Th>
+              <Th>Status</Th>
+              <Th>NF</Th>
+              <Th>Ações</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {faturas.map((f) => (
+              <LinhaFatura
+                key={f.id}
+                fatura={f}
+                aoAtualizar={aoAtualizar}
+                aoErroAcao={aoErroAcao}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <RodapeContagem total={faturas.length} rotulo="cobrança" />
+    </div>
+  );
+}
+
+function LinhaFatura({
+  fatura,
+  aoAtualizar,
+  aoErroAcao,
+}: {
+  fatura: Fatura;
+  aoAtualizar: () => void;
+  aoErroAcao: (msg: string | null) => void;
+}) {
+  // Uma ação em voo por vez na linha; trava ambos os botões e mostra spinner textual.
+  const [acaoEmVoo, setAcaoEmVoo] = useState<null | 'pagar' | 'whatsapp'>(null);
+
+  async function executar(rota: 'pagar' | 'whatsapp') {
+    if (acaoEmVoo) return;
+    setAcaoEmVoo(rota);
+    aoErroAcao(null);
+    try {
+      await api.post(`/faturas/${fatura.id}/${rota}`);
+      aoAtualizar();
+    } catch {
+      aoErroAcao('Não foi possível concluir a ação. Tente novamente.');
+      setAcaoEmVoo(null);
+    }
+    // Sucesso recarrega a lista por aoAtualizar (desmonta a linha).
+  }
+
+  const podePagar = fatura.status === 'PENDENTE';
+
+  return (
+    <tr className="brk-row" style={{ borderTop: '1px solid var(--borda)' }}>
+      <Td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Avatar nome={fatura.cliente?.nomeFantasia ?? '?'} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 600, color: 'var(--cinza-vapor)' }}>
+              {fatura.cliente?.nomeFantasia ?? 'Cliente'}
+            </div>
+          </div>
+        </div>
+      </Td>
+      <Td>
+        <CodigoChip codigo={fatura.codigoUnico} />
+      </Td>
+      <Td>
+        <span style={{ color: 'var(--texto-suave)', fontVariantNumeric: 'tabular-nums' }}>
+          {formatarBRL(fatura.valor)}
+        </span>
+      </Td>
+      <Td>
+        <span style={{ color: 'var(--texto-fraco)' }}>{formatarData(fatura.vencimento)}</span>
+      </Td>
+      <Td>
+        <BadgeStatusFatura status={fatura.status} />
+      </Td>
+      <Td>
+        {fatura.notaFiscalUrl ? (
+          <a
+            href={fatura.notaFiscalUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--amarelo-fagulha)',
+              textDecoration: 'none',
+            }}
+          >
+            <IconeNF />
+            Ver NF
+          </a>
+        ) : (
+          <span style={{ color: 'var(--texto-fraco)' }}>—</span>
+        )}
+      </Td>
+      <Td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {podePagar && (
+            <BotaoSecundario onClick={() => executar('pagar')} disabled={acaoEmVoo !== null}>
+              {acaoEmVoo === 'pagar' ? 'Processando…' : 'Confirmar pagamento'}
+            </BotaoSecundario>
+          )}
+
+          {fatura.enviadaWhatsapp ? (
+            <SelosEnviada />
+          ) : (
+            <BotaoSecundario
+              onClick={() => executar('whatsapp')}
+              disabled={acaoEmVoo !== null}
+            >
+              {acaoEmVoo === 'whatsapp' ? 'Enviando…' : 'Enviar no WhatsApp'}
+            </BotaoSecundario>
+          )}
+
+          {/* Sem ação de pagar e sem WhatsApp pendente: mantém a célula limpa. */}
+          {!podePagar && fatura.enviadaWhatsapp && (
+            <span style={{ color: 'var(--texto-fraco)', fontSize: 12.5 }}>—</span>
+          )}
+        </div>
+      </Td>
+    </tr>
+  );
+}
+
+function BadgeStatusFatura({ status }: { status: StatusFatura }) {
+  const cor = CORES_STATUS[status] ?? CORES_STATUS.PENDENTE;
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        fontSize: 11.5,
+        fontWeight: 700,
+        letterSpacing: '0.03em',
+        padding: '4px 10px',
+        borderRadius: 999,
+        background: cor.fundo,
+        color: cor.texto,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: cor.ponto,
+          boxShadow: `0 0 6px ${cor.ponto}`,
+        }}
+      />
+      {cor.rotulo}
+    </span>
+  );
+}
+
+// Selo "enviada" no lugar do botão de WhatsApp — checkmark SVG + ponto verde, sem emoji.
+function SelosEnviada() {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: '#67e0a3',
+      }}
+    >
+      <IconeCheck />
+      Enviada
+    </span>
+  );
+}
+
+/* ------------------------- Helpers locais ------------------------- */
+
+function CodigoChip({ codigo }: { codigo: string }) {
+  return (
+    <code
+      style={{
+        fontSize: 12.5,
+        color: 'var(--texto-suave)',
+        background: 'var(--superficie-3)',
+        padding: '2px 8px',
+        borderRadius: 6,
+      }}
+    >
+      {codigo}
+    </code>
+  );
+}
+
+function Avatar({ nome }: { nome: string }) {
+  const iniciais = nome
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+  return (
+    <span
+      aria-hidden="true"
+      className="brk-gradient-bg"
+      style={{
+        width: 34,
+        height: 34,
+        flexShrink: 0,
+        borderRadius: 10,
+        display: 'grid',
+        placeItems: 'center',
+        color: '#fff',
+        fontWeight: 800,
+        fontSize: 12.5,
+      }}
+    >
+      {iniciais || '?'}
+    </span>
+  );
+}
+
+// Ícone de traço para o link da nota fiscal (documento).
+function IconeNF(): ReactNode {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M9 13h6M9 17h6" />
+    </svg>
+  );
+}
+
+// Checkmark de traço para o selo "enviada".
+function IconeCheck(): ReactNode {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+// Formata "1234.56" → "R$ 1.234,56". Valor inválido cai para "—".
+function formatarBRL(valor: string): string {
+  const n = Number(valor);
+  if (Number.isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// Copiada (não importada) de Clientes.tsx.
+function formatarData(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+}

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificacoesGateway } from './notificacoes.gateway';
 
@@ -38,6 +39,26 @@ export class NotificacoesService {
     // Empurra em tempo real para as conexoes abertas do usuario.
     this.gateway.emitirParaUsuario(usuarioId, notificacao);
     return notificacao;
+  }
+
+  /**
+   * Notifica todos os usuarios ativos de um cargo — ex.: o pop-up para a
+   * Franciela (FINANCEIRO) quando um contrato cai para revisao ou um pagamento
+   * e confirmado. Reaproveita `criar`, entao cada um recebe em tempo real.
+   */
+  async notificarPorCargo(
+    cargo: Cargo,
+    dados: NovaNotificacao,
+  ): Promise<{ enviadas: number }> {
+    const usuarios = await this.prisma.usuario.findMany({
+      // cast: o enum do @breakr/shared espelha o enum do Prisma (mesmos valores).
+      where: { cargo: cargo as never, ativo: true },
+      select: { id: true },
+    });
+    for (const u of usuarios) {
+      await this.criar(u.id, dados);
+    }
+    return { enviadas: usuarios.length };
   }
 
   /** Comunicado para todos os usuarios ativos (broadcast). */

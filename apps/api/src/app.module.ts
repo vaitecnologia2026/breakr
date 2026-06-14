@@ -12,6 +12,10 @@ import { IntegracoesModule } from './integracoes/integracoes.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { PlanosModule } from './planos/planos.module';
 import { SquadsModule } from './squads/squads.module';
+import { ProjetosModule } from './projetos/projetos.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { FaturasModule } from './faturas/faturas.module';
+import { ContratosModule } from './contratos/contratos.module';
 
 @Module({
   imports: [
@@ -28,6 +32,11 @@ import { SquadsModule } from './squads/squads.module';
     ClientesModule,
     PlanosModule,
     SquadsModule,
+    // Pipeline de entrada (Fase 1): contrato -> cobranca -> NF -> onboarding -> projetos.
+    ProjetosModule,
+    OnboardingModule,
+    FaturasModule,
+    ContratosModule,
   ],
 })
 export class AppModule {}
