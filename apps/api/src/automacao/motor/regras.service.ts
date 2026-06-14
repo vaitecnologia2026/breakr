@@ -143,6 +143,16 @@ export class RegrasService implements OnModuleInit {
         },
       ],
     });
+
+    await this.garantirRegra({
+      nome: 'Ativacao do cliente: squad + grupo',
+      trigger: { evento: 'cliente.ativado' },
+      condicoes: [],
+      acoes: [
+        { tipo: 'atribuir_squad' },
+        { tipo: 'criar_grupo_whatsapp', params: { nome: 'Breakr x {{clienteNome}}' } },
+      ],
+    });
   }
 
   private async garantirRegra(def: {

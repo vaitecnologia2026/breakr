@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
+import { Portal } from './pages/Portal';
 import { Dashboard } from './pages/Dashboard';
 import { Inicio } from './pages/Inicio';
 import { Clientes } from './pages/Clientes';
@@ -21,6 +22,9 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+
+      {/* Portal publico do cliente (fora do shell, sem login) */}
+      <Route path="/portal/:codigo" element={<Portal />} />
 
       <Route
         path="/"

@@ -1,10 +1,12 @@
 // Catalogo de acoes internas do motor. Cada acao e um handler registrado por
 // um `tipo` string; uma regra lista as acoes que executa. Extensivel: registrar
 // uma acao nova = adicionar uma entrada no catalogo (sem mexer no dispatcher).
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacoesService } from '../../notificacoes/notificacoes.service';
+import { SquadsService } from '../../squads/squads.service';
+import { WHATSAPP_PORT, WhatsappPort } from '../../integracoes';
 import { Acao, ContextoExecucao, ResultadoAcao } from './tipos';
 
 type Handler = (
@@ -20,6 +22,8 @@ export class AcoesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificacoes: NotificacoesService,
+    private readonly squads: SquadsService,
+    @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
   ) {
     this.registrarPadrao();
   }
@@ -83,6 +87,37 @@ export class AcoesService {
         data: data as never,
       });
       return { contratoId, status: atualizado.status };
+    });
+
+    // atribuir_squad: aloca o cliente do payload no squad ativo menos carregado.
+    this.catalogo.set('atribuir_squad', async (_params, ctx) => {
+      const clienteId = String(ctx.payload.clienteId ?? '');
+      if (!clienteId) throw new Error('payload.clienteId ausente');
+      const r = await this.squads.atribuirAutomatico(clienteId);
+      return r ?? { atribuido: false, motivo: 'nenhum squad ativo' };
+    });
+
+    // criar_grupo_whatsapp: cria o grupo do cliente (stub) e guarda o id no cliente.
+    this.catalogo.set('criar_grupo_whatsapp', async (params, ctx) => {
+      const clienteId = String(ctx.payload.clienteId ?? '');
+      if (!clienteId) throw new Error('payload.clienteId ausente');
+      const cliente = await this.prisma.cliente.findUnique({ where: { id: clienteId } });
+      if (!cliente) throw new Error('cliente nao encontrado');
+      // Idempotente: ja tem grupo -> nao recria.
+      if (cliente.whatsappGrupoId) {
+        return { jaExistia: true, waGroupId: cliente.whatsappGrupoId };
+      }
+      const nome = this.interpolar(
+        String(params.nome ?? 'Breakr x {{clienteNome}}'),
+        ctx.payload,
+      );
+      // TODO: participantes reais (telefone do cliente + CS) quando houver.
+      const grupo = await this.whatsapp.criarGrupo({ nome, participantes: [] });
+      await this.prisma.cliente.update({
+        where: { id: clienteId },
+        data: { whatsappGrupoId: grupo.waGroupId },
+      });
+      return { waGroupId: grupo.waGroupId, nome: grupo.nome };
     });
   }
 

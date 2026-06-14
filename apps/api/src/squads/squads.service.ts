@@ -30,6 +30,43 @@ export class SquadsService {
     });
   }
 
+  /**
+   * Auto-balanceamento: atribui o cliente ao squad ATIVO menos carregado
+   * (menos clientes). Empate -> primeiro por nome (deterministico). Idempotente:
+   * se o cliente ja tem squad, mantem. Retorna o squad escolhido, ou null se nao
+   * houver squad ativo. Usado pela acao `atribuir_squad` do motor (na ativacao).
+   */
+  async atribuirAutomatico(
+    clienteId: string,
+  ): Promise<{ squadId: string; squadNome: string } | null> {
+    const cliente = await this.prisma.cliente.findUnique({ where: { id: clienteId } });
+    if (!cliente) {
+      throw new NotFoundException('Cliente nao encontrado');
+    }
+    // Ja tem squad — nao rebalanceia (nao "rouba" cliente de outro squad).
+    if (cliente.squadId) {
+      const atual = await this.prisma.squad.findUnique({ where: { id: cliente.squadId } });
+      return atual ? { squadId: atual.id, squadNome: atual.nome } : null;
+    }
+
+    const squads = await this.prisma.squad.findMany({
+      where: { ativo: true },
+      include: { _count: { select: { clientes: true } } },
+    });
+    if (squads.length === 0) {
+      return null;
+    }
+    squads.sort(
+      (a, b) => a._count.clientes - b._count.clientes || a.nome.localeCompare(b.nome),
+    );
+    const escolhido = squads[0];
+    await this.prisma.cliente.update({
+      where: { id: clienteId },
+      data: { squadId: escolhido.id },
+    });
+    return { squadId: escolhido.id, squadNome: escolhido.nome };
+  }
+
   // Garante que o squad existe e o retorna.
   private async garantirSquad(id: string): Promise<Squad> {
     const squad = await this.prisma.squad.findUnique({ where: { id } });

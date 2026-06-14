@@ -139,6 +139,14 @@ export class FaturasService {
       link: '/cobrancas',
     });
 
+    // 4) Cliente ativado: o motor reage (atribui o squad menos carregado e cria
+    // o grupo no WhatsApp) via a regra "Ativacao do cliente".
+    await this.engine.dispatch('cliente.ativado', {
+      clienteId: fatura.cliente.id,
+      codigoUnico: fatura.cliente.codigoUnico,
+      clienteNome: fatura.cliente.nomeFantasia,
+    });
+
     // Re-busca com relacoes para devolver o estado atualizado.
     return this.obter(id);
   }

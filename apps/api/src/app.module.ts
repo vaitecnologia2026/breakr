@@ -17,6 +17,7 @@ import { ProjetosModule } from './projetos/projetos.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { FaturasModule } from './faturas/faturas.module';
 import { ContratosModule } from './contratos/contratos.module';
+import { PortalModule } from './portal/portal.module';
 
 @Module({
   imports: [
@@ -40,6 +41,8 @@ import { ContratosModule } from './contratos/contratos.module';
     OnboardingModule,
     FaturasModule,
     ContratosModule,
+    // Portal publico do cliente (read-only).
+    PortalModule,
   ],
 })
 export class AppModule {}
