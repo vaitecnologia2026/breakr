@@ -1,0 +1,48 @@
+// ============================================================
+// Painel de execucoes do motor de automacao (Fase 0).
+// Substitui a tela de execucoes do n8n: expoe as ultimas JobExecution e o
+// status operacional do motor para o front administrativo.
+// Ref.: docs/escopo/03-motor-de-automacao.md (observabilidade).
+// ============================================================
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Cargo } from '@breakr/shared';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Cargos } from '../common/rbac/cargos.decorator';
+import { CargosGuard } from '../common/rbac/cargos.guard';
+import { PrismaService } from '../prisma/prisma.service';
+import { EngineService } from './engine.service';
+
+@Controller('motor')
+@UseGuards(JwtAuthGuard) // popula request.user em todas as rotas abaixo
+export class ExecucoesController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly engine: EngineService,
+  ) {}
+
+  /**
+   * Ultimas 100 execucoes (mais recentes primeiro), com o nome da regra que
+   * as originou. Restrito a ADMIN/SUPERADMIN — e dado operacional sensivel.
+   */
+  @Get('execucoes')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.ADMIN, Cargo.SUPERADMIN)
+  execucoes() {
+    return this.prisma.jobExecution.findMany({
+      orderBy: { criadoEm: 'desc' },
+      take: 100,
+      include: { rule: { select: { nome: true } } },
+    });
+  }
+
+  /**
+   * Status do motor: indica se a fila/worker estao operacionais (Redis ok) ou
+   * se ele caiu para o modo degradado. Util para o badge de saude no painel.
+   */
+  @Get('status')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.ADMIN, Cargo.SUPERADMIN)
+  status(): { habilitado: boolean } {
+    return { habilitado: this.engine.estaHabilitado() };
+  }
+}

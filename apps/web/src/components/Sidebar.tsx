@@ -1,14 +1,24 @@
+import type { ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
 import { MODULOS } from '@breakr/shared';
 import { Logo } from './Logo';
 
 /**
  * Navegação lateral do Breakr OS.
- * Lista os MODULOS do contrato compartilhado com um badge da fase.
- * Na Fase 0 apenas o Núcleo está ativo; os demais aparecem como "em breve".
+ * As telas já entregues na Fase 0 (Início, Clientes, Squads) são NavLinks
+ * navegáveis e com estado ativo. Os demais MODULOS do contrato compartilhado
+ * aparecem como "em breve", com o badge da fase.
  */
 
-// Na Fase 0, somente módulos desta fase são navegáveis.
-const FASE_ATIVA = 0;
+// Na Fase 0, somente módulos desta fase entram como navegáveis no bloco geral.
+const FASE_ATIVA: number = 0;
+
+// Telas reais já disponíveis (entram no topo do menu, acima dos módulos).
+const LINKS_ATIVOS = [
+  { para: '/', rotulo: 'Início', fim: true },
+  { para: '/clientes', rotulo: 'Clientes', fim: false },
+  { para: '/squads', rotulo: 'Squads', fim: false },
+] as const;
 
 // Rótulo curto da fase exibido no badge.
 function rotuloFase(fase: number): string {
@@ -36,34 +46,33 @@ export function Sidebar() {
         <Logo tamanho={26} />
       </div>
 
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: 'var(--texto-fraco)',
-          padding: '0 8px',
-        }}
-      >
-        Módulos
-      </div>
-
-      <nav style={{ flex: 1, overflowY: 'auto' }}>
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {MODULOS.map((modulo) => {
-            const ativo = modulo.fase === FASE_ATIVA;
-            return (
-              <li key={modulo.id}>
-                <ItemModulo
-                  nome={modulo.nome}
-                  fase={modulo.fase}
-                  ativo={ativo}
-                />
+      <nav style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div>
+          <TituloGrupo>Navegação</TituloGrupo>
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {LINKS_ATIVOS.map((l) => (
+              <li key={l.para}>
+                <ItemLink para={l.para} rotulo={l.rotulo} fim={l.fim} />
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <TituloGrupo>Módulos</TituloGrupo>
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {MODULOS.map((modulo) => {
+              // "Núcleo" já está representado por "Início" no grupo de cima.
+              if (modulo.slug === 'nucleo') return null;
+              const ativo = modulo.fase === FASE_ATIVA;
+              return (
+                <li key={modulo.id}>
+                  <ItemModulo nome={modulo.nome} fase={modulo.fase} ativo={ativo} />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </nav>
 
       <div
@@ -80,6 +89,74 @@ export function Sidebar() {
   );
 }
 
+function TituloGrupo({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: 'var(--texto-fraco)',
+        padding: '0 8px 8px',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ----------------------- Item navegável (NavLink) ----------------------- */
+
+interface ItemLinkProps {
+  para: string;
+  rotulo: string;
+  fim: boolean;
+}
+
+function ItemLink({ para, rotulo, fim }: ItemLinkProps) {
+  return (
+    <NavLink
+      to={para}
+      end={fim}
+      className={({ isActive }) => (isActive ? 'brk-gradient-border' : undefined)}
+      style={({ isActive }) => ({
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 10,
+        background: isActive ? 'rgba(202, 63, 23, 0.14)' : 'transparent',
+        color: isActive ? 'var(--cinza-vapor)' : 'var(--texto-suave)',
+        fontWeight: isActive ? 600 : 500,
+        position: 'relative',
+        transition: 'background 0.15s ease, color 0.15s ease',
+      })}
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: 999,
+              flexShrink: 0,
+              background: isActive ? 'var(--amarelo-fagulha)' : 'var(--borda-forte)',
+              boxShadow: isActive ? '0 0 8px var(--amarelo-fagulha)' : 'none',
+            }}
+          />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {rotulo}
+          </span>
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+/* ----------------------- Item de módulo (em breve) ----------------------- */
+
 interface ItemModuloProps {
   nome: string;
   fase: number;
@@ -89,9 +166,7 @@ interface ItemModuloProps {
 function ItemModulo({ nome, fase, ativo }: ItemModuloProps) {
   return (
     <div
-      aria-current={ativo ? 'page' : undefined}
-      title={ativo ? nome : `${nome} — em breve (Fase ${fase})`}
-      className={ativo ? 'brk-gradient-border' : undefined}
+      title={`${nome} — em breve (Fase ${fase})`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -99,22 +174,14 @@ function ItemModulo({ nome, fase, ativo }: ItemModuloProps) {
         gap: 8,
         padding: '10px 12px',
         borderRadius: 10,
-        background: ativo ? 'rgba(202, 63, 23, 0.14)' : 'transparent',
-        color: ativo ? 'var(--cinza-vapor)' : 'var(--texto-fraco)',
-        fontWeight: ativo ? 600 : 500,
-        cursor: ativo ? 'pointer' : 'not-allowed',
-        transition: 'background 0.15s ease, color 0.15s ease',
+        background: 'transparent',
+        color: 'var(--texto-fraco)',
+        fontWeight: 500,
+        cursor: 'not-allowed',
         position: 'relative',
       }}
     >
-      <span
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          minWidth: 0,
-        }}
-      >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <span
           aria-hidden="true"
           style={{
@@ -145,11 +212,11 @@ function ItemModulo({ nome, fase, ativo }: ItemModuloProps) {
           padding: '2px 7px',
           borderRadius: 999,
           flexShrink: 0,
-          color: ativo ? '#fff' : 'var(--texto-fraco)',
-          background: ativo ? 'var(--gradiente-brasa)' : 'var(--superficie-3)',
+          color: 'var(--texto-fraco)',
+          background: 'var(--superficie-3)',
         }}
       >
-        {ativo ? 'ATIVO' : rotuloFase(fase)}
+        {rotuloFase(fase)}
       </span>
     </div>
   );

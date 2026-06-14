@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificacoesGateway } from './notificacoes.gateway';
 
 export interface NovaNotificacao {
   titulo: string;
@@ -9,16 +10,23 @@ export interface NovaNotificacao {
 }
 
 /**
- * Notificacoes in-app. A entrega em tempo real (WebSocket) — ex.: o pop-up
- * "novo contrato p/ a Franciela" — entra na proxima etapa; aqui ficam a
- * persistencia e as consultas, ja usaveis por qualquer modulo (ex.: o motor).
+ * Notificacoes in-app. Alem de persistir e consultar, agora tambem entrega em
+ * tempo real via WebSocket (NotificacoesGateway) — ex.: o pop-up "novo
+ * contrato p/ a Franciela". Qualquer modulo (ex.: o motor) pode chamar `criar`
+ * e o usuario recebe o evento 'nova-notificacao' na hora, sem polling.
+ *
+ * O gateway esta no mesmo modulo e nao depende do service, entao a injecao e
+ * direta (sem forwardRef / sem ciclo).
  */
 @Injectable()
 export class NotificacoesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: NotificacoesGateway,
+  ) {}
 
-  criar(usuarioId: string, dados: NovaNotificacao) {
-    return this.prisma.notificacao.create({
+  async criar(usuarioId: string, dados: NovaNotificacao) {
+    const notificacao = await this.prisma.notificacao.create({
       data: {
         usuarioId,
         titulo: dados.titulo,
@@ -27,6 +35,9 @@ export class NotificacoesService {
         link: dados.link,
       },
     });
+    // Empurra em tempo real para as conexoes abertas do usuario.
+    this.gateway.emitirParaUsuario(usuarioId, notificacao);
+    return notificacao;
   }
 
   /** Comunicado para todos os usuarios ativos (broadcast). */
@@ -44,6 +55,17 @@ export class NotificacoesService {
         link: dados.link,
       })),
     });
+    // Notifica cada usuario na sua room. O payload do broadcast nao tem id de
+    // registro (createMany nao retorna), entao enviamos os dados informados.
+    const payload = {
+      titulo: dados.titulo,
+      mensagem: dados.mensagem,
+      tipo: dados.tipo ?? 'INFO',
+      link: dados.link ?? null,
+    };
+    for (const u of usuarios) {
+      this.gateway.emitirParaUsuario(u.id, payload);
+    }
     return { enviadas: usuarios.length };
   }
 

@@ -8,6 +8,10 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { HealthModule } from './health/health.module';
 import { AutomacaoModule } from './automacao/automacao.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
+import { IntegracoesModule } from './integracoes/integracoes.module';
+import { ClientesModule } from './clientes/clientes.module';
+import { PlanosModule } from './planos/planos.module';
+import { SquadsModule } from './squads/squads.module';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { NotificacoesModule } from './notificacoes/notificacoes.module';
     HealthModule,
     AutomacaoModule,
     NotificacoesModule,
+    IntegracoesModule,
+    ClientesModule,
+    PlanosModule,
+    SquadsModule,
   ],
 })
 export class AppModule {}

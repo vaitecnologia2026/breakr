@@ -187,3 +187,11 @@ ul {
   outline: 2px solid var(--amarelo-fagulha);
   outline-offset: 2px;
 }
+
+/* Linha interativa (tabelas, lista de notificações) — realce sutil no hover */
+.brk-row {
+  transition: background 0.14s ease;
+}
+.brk-row:hover {
+  background: var(--superficie-2);
+}
