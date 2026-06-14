@@ -23,6 +23,7 @@ import { ComercialModule } from './comercial/comercial.module';
 import { RhModule } from './rh/rh.module';
 import { ComprasModule } from './compras/compras.module';
 import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module';
+import { PainelModule } from './painel/painel.module';
 
 @Module({
   imports: [
@@ -56,6 +57,8 @@ import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module'
     RhModule,
     ComprasModule,
     DesenvolvimentoModule,
+    // Painel inicial "Hoje & Atrasados" (agrega todos os modulos).
+    PainelModule,
   ],
 })
 export class AppModule {}
