@@ -25,6 +25,7 @@ const LINKS_ATIVOS = [
   { para: '/recrutamento', rotulo: 'Recrutamento', fim: false },
   { para: '/compras', rotulo: 'Compras', fim: false },
   { para: '/desenvolvimento', rotulo: 'Desenvolvimento', fim: false },
+  { para: '/automacoes', rotulo: 'Automações', fim: false },
 ] as const;
 
 // Slugs de MODULOS que já têm tela real (não repetir como "em breve").
