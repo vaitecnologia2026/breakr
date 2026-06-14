@@ -10,7 +10,8 @@
     "start": "node dist/main",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "seed:demo": "ts-node prisma/seed-demo.ts"
   },
   "dependencies": {
     "@breakr/shared": "*",
