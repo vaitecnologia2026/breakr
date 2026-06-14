@@ -19,6 +19,7 @@ import { FaturasModule } from './faturas/faturas.module';
 import { ContratosModule } from './contratos/contratos.module';
 import { PortalModule } from './portal/portal.module';
 import { ConteudosModule } from './conteudos/conteudos.module';
+import { ComercialModule } from './comercial/comercial.module';
 
 @Module({
   imports: [
@@ -46,6 +47,8 @@ import { ConteudosModule } from './conteudos/conteudos.module';
     PortalModule,
     // Operacao de marketing (Fase 2): funil de conteudo.
     ConteudosModule,
+    // Back-office (Fase 3): pipeline comercial / CRM.
+    ComercialModule,
   ],
 })
 export class AppModule {}

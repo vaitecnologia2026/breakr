@@ -16,6 +16,7 @@ const FASE_ATIVA: number = 2;
 // Telas reais já disponíveis (entram no topo do menu, acima dos módulos).
 const LINKS_ATIVOS = [
   { para: '/', rotulo: 'Início', fim: true },
+  { para: '/comercial', rotulo: 'Comercial', fim: false },
   { para: '/clientes', rotulo: 'Clientes', fim: false },
   { para: '/contratos', rotulo: 'Contratos', fim: false },
   { para: '/cobrancas', rotulo: 'Cobranças', fim: false },
@@ -24,8 +25,14 @@ const LINKS_ATIVOS = [
 ] as const;
 
 // Slugs de MODULOS que já têm tela real (não repetir como "em breve").
-//  nucleo→Início · contratos→Contratos · financeiro→Cobranças · marketing→Conteúdo.
-const SLUGS_COM_TELA = new Set<string>(['nucleo', 'contratos', 'financeiro', 'marketing']);
+//  nucleo→Início · comercial→Comercial · contratos→Contratos · financeiro→Cobranças · marketing→Conteúdo.
+const SLUGS_COM_TELA = new Set<string>([
+  'nucleo',
+  'comercial',
+  'contratos',
+  'financeiro',
+  'marketing',
+]);
 
 // Rótulo curto da fase exibido no badge.
 function rotuloFase(fase: number): string {

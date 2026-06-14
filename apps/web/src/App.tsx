@@ -8,6 +8,7 @@ import { Clientes } from './pages/Clientes';
 import { Contratos } from './pages/Contratos';
 import { Cobrancas } from './pages/Cobrancas';
 import { Conteudos } from './pages/Conteudos';
+import { Comercial } from './pages/Comercial';
 import { Squads } from './pages/Squads';
 
 /**
@@ -40,6 +41,7 @@ export function App() {
         <Route path="contratos" element={<Contratos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="conteudos" element={<Conteudos />} />
+        <Route path="comercial" element={<Comercial />} />
         <Route path="squads" element={<Squads />} />
       </Route>
 

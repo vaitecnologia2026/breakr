@@ -98,6 +98,9 @@ model Usuario {
   // Pecas de conteudo sob responsabilidade do usuario (Fase 2)
   conteudosResponsavel Conteudo[] @relation("ConteudoResponsavel")
 
+  // Leads sob responsabilidade do usuario (Fase 3 — comercial)
+  leadsResponsavel Lead[] @relation("LeadResponsavel")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -217,6 +220,9 @@ model Cliente {
 
   // Operacao de marketing (Fase 2)
   conteudos Conteudo[]
+
+  // Origem comercial (Fase 3) — leads que viraram este cliente.
+  leadsOrigem Lead[] @relation("LeadCliente")
 
   @@index([squadId])
   @@index([status])
@@ -450,6 +456,47 @@ model OnboardingStep {
 
   @@index([onboardingId])
   @@map("onboarding_step")
+}
+
+// ============================================================
+// FASE 3 — COMERCIAL / CRM (M11)
+// ============================================================
+
+/// Pipeline comercial de um lead (da prospeccao ao ganho/perda).
+enum StatusLead {
+  NOVO
+  CONTATADO
+  QUALIFICADO
+  PROPOSTA
+  GANHO
+  PERDIDO
+}
+
+/// Lead comercial. Ao ser GANHO, vira um Cliente (conversao) com rastreio de origem.
+model Lead {
+  id            String     @id @default(uuid())
+  nome          String
+  empresa       String?
+  email         String?
+  telefone      String?
+  origem        String? // Indicacao | Inbound | Scraping | Evento...
+  status        StatusLead @default(NOVO)
+  valorEstimado Decimal?   @map("valor_estimado") @db.Decimal(12, 2)
+  observacao    String?
+  codigoUnico   String     @unique @map("codigo_unico")
+  criadoEm      DateTime   @default(now()) @map("criado_em")
+  atualizadoEm  DateTime   @updatedAt @map("atualizado_em")
+
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("LeadResponsavel", fields: [responsavelId], references: [id])
+
+  // Preenchido na conversao (GANHO) — aponta para o Cliente criado.
+  clienteId String?  @map("cliente_id")
+  cliente   Cliente? @relation("LeadCliente", fields: [clienteId], references: [id])
+
+  @@index([status])
+  @@index([responsavelId])
+  @@map("lead")
 }
 
 // ============================================================
