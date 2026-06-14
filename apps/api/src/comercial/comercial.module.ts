@@ -4,10 +4,11 @@ import { Module } from '@nestjs/common';
 import { AutomacaoModule } from '../automacao/automacao.module';
 import { ComercialService } from './comercial.service';
 import { ComercialController } from './comercial.controller';
+import { ComercialPublicoController } from './comercial-publico.controller';
 
 @Module({
   imports: [AutomacaoModule],
-  controllers: [ComercialController],
+  controllers: [ComercialController, ComercialPublicoController],
   providers: [ComercialService],
   exports: [ComercialService],
 })

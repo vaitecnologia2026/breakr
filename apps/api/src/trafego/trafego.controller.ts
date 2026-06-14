@@ -74,3 +74,20 @@ export class TrafegoController {
     return this.trafego.sugerir(id);
   }
 }
+
+// Controller de relatórios — separado do de campanhas para não poluir o path
+// trafego/campanhas com rotas de cliente. Equivale ao n8n "[Reportei] Envio de
+// Relatórios pelo WhatsApp": gestor dispara o POST e o motor gera + envia via WA.
+@Controller('trafego/relatorios')
+@UseGuards(JwtAuthGuard)
+export class RelatoriosTrafegoController {
+  constructor(private readonly trafego: TrafegoService) {}
+
+  // POST /trafego/relatorios/:clienteId — gera e envia relatório mensal via WhatsApp.
+  @Post(':clienteId')
+  @UseGuards(CargosGuard)
+  @Cargos(...CARGOS_TRAFEGO)
+  gerarRelatorio(@Param('clienteId', ParseUUIDPipe) clienteId: string) {
+    return this.trafego.gerarRelatorio(clienteId);
+  }
+}

@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { EngineService } from '../automacao/engine.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
+import { CriarLeadPublicoDto } from './dto/criar-lead-publico.dto';
 
 @Injectable()
 export class ComercialService {
@@ -100,6 +101,32 @@ export class ComercialService {
       data: { responsavelId },
     });
     return this.obter(id);
+  }
+
+  // Captura um lead vindo do site público (sem autenticação).
+  // Equivale ao workflow n8n "[Site Breakr] Leads do Site":
+  //   cria o Lead com origem fixa + dispara lead.site_capturado → motor notifica COMERCIAL.
+  async capturarLeadPublico(dto: CriarLeadPublicoDto): Promise<Lead> {
+    const lead = await this.prisma.lead.create({
+      data: {
+        nome: dto.nome,
+        empresa: dto.empresa,
+        email: dto.email,
+        telefone: dto.telefone,
+        origem: 'Site Breakr',
+        observacao: dto.observacao,
+        status: StatusLead.NOVO,
+        codigoUnico: this.codigoUnico.gerar('LEAD'),
+      },
+    });
+    await this.engine.dispatch('lead.site_capturado', {
+      leadId: lead.id,
+      nome: lead.nome,
+      empresa: lead.empresa ?? '',
+      telefone: lead.telefone ?? '',
+      email: lead.email ?? '',
+    });
+    return lead;
   }
 
   // Converte o lead em cliente (idempotente). Cria o Cliente, marca o lead como

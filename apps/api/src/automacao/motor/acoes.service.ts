@@ -97,6 +97,33 @@ export class AcoesService {
       return r ?? { atribuido: false, motivo: 'nenhum squad ativo' };
     });
 
+    // enviar_criativo_whatsapp: envia a peca para o grupo WA do cliente quando vai
+    // para APROVACAO_CLIENTE. Equivale ao n8n "[ClickUp] Envio de Criativos para
+    // Aprovação em Grupos". Requer payload.conteudoId e cliente.whatsappGrupoId.
+    this.catalogo.set('enviar_criativo_whatsapp', async (_params, ctx) => {
+      const conteudoId = String(ctx.payload.conteudoId ?? '');
+      if (!conteudoId) throw new Error('payload.conteudoId ausente');
+      const conteudo = await this.prisma.conteudo.findUnique({
+        where: { id: conteudoId },
+        include: { cliente: { select: { nomeFantasia: true, whatsappGrupoId: true } } },
+      });
+      if (!conteudo) throw new Error('Conteudo nao encontrado');
+      const grupoId = conteudo.cliente.whatsappGrupoId;
+      if (!grupoId) {
+        this.logger.warn(`Cliente sem grupo WhatsApp; criativo ${conteudoId} nao enviado.`);
+        return { enviado: false, motivo: 'cliente sem grupo WhatsApp' };
+      }
+      const texto =
+        `Peca aguardando aprovacao\n\n` +
+        `Cliente: ${conteudo.cliente.nomeFantasia}\n` +
+        `Titulo: ${conteudo.titulo}\n` +
+        `Tipo: ${conteudo.tipo}\n` +
+        `Codigo: ${conteudo.codigoUnico}\n\n` +
+        `Acesse o portal Breakr para aprovar ou solicitar ajustes.`;
+      const r = await this.whatsapp.enviarMensagem({ destino: grupoId, texto });
+      return { enviado: true, waMessageId: r.id };
+    });
+
     // criar_grupo_whatsapp: cria o grupo do cliente (stub) e guarda o id no cliente.
     this.catalogo.set('criar_grupo_whatsapp', async (params, ctx) => {
       const clienteId = String(ctx.payload.clienteId ?? '');

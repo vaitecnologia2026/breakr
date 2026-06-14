@@ -153,6 +153,36 @@ export class RegrasService implements OnModuleInit {
         { tipo: 'criar_grupo_whatsapp', params: { nome: 'Breakr x {{clienteNome}}' } },
       ],
     });
+
+    // Equivale ao n8n "[Site Breakr] Leads do Site":
+    //   notifica equipe COMERCIAL sempre que um lead chega pelo site.
+    await this.garantirRegra({
+      nome: 'Notificacao de lead do site',
+      trigger: { evento: 'lead.site_capturado' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'COMERCIAL',
+            titulo: 'Novo lead do site',
+            mensagem:
+              'Lead {{nome}} ({{empresa}}) entrou pelo site. Telefone: {{telefone}}. Contato: {{email}}.',
+            tipo: 'INFO',
+            link: '/comercial',
+          },
+        },
+      ],
+    });
+
+    // Equivale ao n8n "[ClickUp] Envio de Criativos para Aprovação em Grupos":
+    //   quando uma peca vai para APROVACAO_CLIENTE, manda para o grupo WA do cliente.
+    await this.garantirRegra({
+      nome: 'Envio de criativo para aprovacao em grupo',
+      trigger: { evento: 'conteudo.status_alterado' },
+      condicoes: [{ campo: 'status', op: 'eq', valor: 'APROVACAO_CLIENTE' }],
+      acoes: [{ tipo: 'enviar_criativo_whatsapp' }],
+    });
   }
 
   private async garantirRegra(def: {
