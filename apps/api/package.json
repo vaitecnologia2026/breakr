@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "seed": "ts-node prisma/seed.ts",
-    "seed:demo": "ts-node prisma/seed-demo.ts"
+    "seed:demo": "ts-node prisma/seed-demo.ts",
+    "import:clickup": "ts-node prisma/import-clickup.ts"
   },
   "dependencies": {
     "@breakr/shared": "*",
