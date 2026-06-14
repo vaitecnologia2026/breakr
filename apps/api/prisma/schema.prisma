@@ -1,0 +1,258 @@
+// Schema Prisma — Breakr OS (Fase 0 — Fundacao / Nucleo)
+// Referencia: docs/escopo/02-modelo-de-dados.md e docs/escopo/03-motor-de-automacao.md
+// Sistema single-tenant (so Breakr) — sem empresa_id.
+// Enums devem espelhar packages/shared/src/index.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS (espelham @breakr/shared)
+// ============================================================
+
+/// Cargos (definem permissoes e o painel "Hoje & Atrasados")
+enum Cargo {
+  SUPERADMIN
+  ADMIN
+  COMERCIAL
+  CS
+  ESTRATEGISTA
+  COPYWRITER
+  DESIGNER
+  EDITOR_VIDEO
+  GESTOR_TRAFEGO
+  FINANCEIRO
+  JURIDICO
+}
+
+/// Funcao do usuario dentro de um squad (base da atribuicao automatica)
+enum FuncaoSquad {
+  CS
+  ESTRATEGISTA
+  COPYWRITER
+  DESIGNER
+  EDITOR_VIDEO
+  GESTOR_TRAFEGO
+}
+
+/// Ciclo de vida do cliente
+enum ClienteStatus {
+  NOVO
+  ONBOARD
+  ATIVO
+  RENOVACAO
+  INATIVO
+}
+
+/// Tipos de projeto (ate 3 por cliente)
+enum TipoProjeto {
+  MARKETING
+  GESTAO
+  FINANCEIRO
+}
+
+// ============================================================
+// ORGANIZACAO & PESSOAS
+// ============================================================
+
+/// Config singleton — branding e parametros globais da Breakr.
+model Config {
+  id         String   @id @default(uuid())
+  branding   Json?
+  parametros Json?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("config")
+}
+
+/// Usuario do sistema. Pertence a 1 cargo e N squads (via SquadMembro).
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senhaHash String   @map("senha_hash")
+  cargo     Cargo
+  telefone  String?
+  fotoUrl   String?  @map("foto_url")
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  // Departamento ao qual o usuario pertence (opcional na Fase 0)
+  departamentoId String?      @map("departamento_id")
+  departamento   Departamento? @relation(fields: [departamentoId], references: [id])
+
+  // Participacoes em squads (com funcao)
+  squads SquadMembro[]
+
+  @@index([departamentoId])
+  @@map("usuario")
+}
+
+/// Departamento — Comercial, Sucesso do Cliente, Marketing, etc.
+/// Hierarquia: Departamento -> Area -> Lista/Processo.
+model Departamento {
+  id       String   @id @default(uuid())
+  nome     String   @unique
+  criadoEm DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  areas    Area[]
+  usuarios Usuario[]
+
+  @@map("departamento")
+}
+
+/// Area — pertence a um Departamento, contem Listas.
+model Area {
+  id             String       @id @default(uuid())
+  nome           String
+  departamentoId String       @map("departamento_id")
+  departamento   Departamento @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+
+  listas Lista[]
+
+  @@index([departamentoId])
+  @@map("area")
+}
+
+/// Lista/Processo — pertence a uma Area.
+model Lista {
+  id           String   @id @default(uuid())
+  nome         String
+  ordem        Int      @default(0)
+  areaId       String   @map("area_id")
+  area         Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([areaId])
+  @@map("lista")
+}
+
+/// Squad — time multifuncional (Trovao, Relampago, Fagulha...).
+/// Usado na atribuicao automatica.
+model Squad {
+  id           String   @id @default(uuid())
+  nome         String   @unique
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  membros  SquadMembro[]
+  clientes Cliente[]
+
+  @@map("squad")
+}
+
+/// Vinculo Usuario <-> Squad com a funcao desempenhada.
+/// Regra: cada funcao e unica dentro de um squad (1 CS, 1 designer, etc.).
+model SquadMembro {
+  id        String      @id @default(uuid())
+  squadId   String      @map("squad_id")
+  squad     Squad       @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  usuarioId String      @map("usuario_id")
+  usuario   Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  funcao    FuncaoSquad
+  criadoEm  DateTime    @default(now()) @map("criado_em")
+
+  // Uma funcao por squad (base deterministica da atribuicao automatica).
+  @@unique([squadId, funcao])
+  // Um usuario nao se repete no mesmo squad.
+  @@unique([squadId, usuarioId])
+  @@index([usuarioId])
+  @@map("squad_membro")
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+
+/// Cliente — nome fantasia, tag (cor), status do ciclo, squad responsavel.
+/// codigo_unico: gerado, garante rastreabilidade sistema <-> Meta Ads <-> docs.
+model Cliente {
+  id           String        @id @default(uuid())
+  nomeFantasia String        @map("nome_fantasia")
+  tag          String?
+  status       ClienteStatus @default(NOVO)
+  codigoUnico  String        @unique @map("codigo_unico")
+  criadoEm     DateTime      @default(now()) @map("criado_em")
+  atualizadoEm DateTime      @updatedAt @map("atualizado_em")
+
+  // 1 cliente -> 1 squad (opcional ate o onboarding).
+  squadId String? @map("squad_id")
+  squad   Squad?  @relation(fields: [squadId], references: [id])
+
+  @@index([squadId])
+  @@index([status])
+  @@map("cliente")
+}
+
+// ============================================================
+// MOTOR DE AUTOMACAO (ver doc 03)
+// ============================================================
+
+/// Regra de automacao configuravel. Logica completa de trigger/condicoes/acoes
+/// roda na Fase 1; aqui guardamos a estrutura como JSON.
+model AutomacaoRule {
+  id           String   @id @default(uuid())
+  nome         String
+  ativa        Boolean  @default(true)
+  trigger      Json
+  condicoes    Json?
+  acoes        Json
+  parametros   Json?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  execucoes JobExecution[]
+
+  @@index([ativa])
+  @@map("automacao_rule")
+}
+
+/// Execucao de um job do motor — observabilidade (substitui a tela do n8n).
+model JobExecution {
+  id        String   @id @default(uuid())
+  status    String   @default("PENDENTE")
+  payload   Json?
+  resultado Json?
+  erro      String?
+  tentativas Int     @default(0)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  // Regra que originou a execucao (manual/cron pode nao ter regra).
+  ruleId String?        @map("rule_id")
+  rule   AutomacaoRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([ruleId])
+  @@index([status])
+  @@map("job_execution")
+}
+
+// ============================================================
+// SISTEMA
+// ============================================================
+
+/// Trilha de auditoria — ator, acao, entidade, dados (antes/depois).
+model AuditLog {
+  id       String   @id @default(uuid())
+  ator     String
+  acao     String
+  entidade String
+  dados    Json?
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([entidade])
+  @@index([ator])
+  @@map("audit_log")
+}

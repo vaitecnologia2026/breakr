@@ -1,0 +1,189 @@
+/* ============================================================
+   Breakr OS — base de estilos (identidade visual da marca)
+   Paleta oficial (Manual de Marca, Groove Estúdio Criativo).
+   Tema escuro: fundo Preto Fumaça, texto Cinza Vapor,
+   acentos em Amarelo Fagulha / gradiente brasa.
+   ============================================================ */
+
+:root {
+  /* Paleta da marca */
+  --preto-fumaca: #0f0d05;
+  --cinza-vapor: #f3f4f7;
+  --laranja-brasa: #ca3f17;
+  --vermelho-fogo: #94122c;
+  --amarelo-fagulha: #ff9406;
+
+  /* Gradiente brasa (vermelho → laranja → amarelo) */
+  --gradiente-brasa: linear-gradient(135deg, #94122c, #ca3f17 48%, #ff9406);
+
+  /* Tons de superfície derivados (escuro) */
+  --superficie: #16130a;
+  --superficie-2: #1e1a10;
+  --superficie-3: #272218;
+  --borda: rgba(243, 244, 247, 0.1);
+  --borda-forte: rgba(243, 244, 247, 0.18);
+
+  /* Texto */
+  --texto: #f3f4f7;
+  --texto-suave: rgba(243, 244, 247, 0.66);
+  --texto-fraco: rgba(243, 244, 247, 0.4);
+
+  /* Foco / sombra */
+  --foco: rgba(255, 148, 6, 0.55);
+  --sombra-card: 0 18px 50px -24px rgba(0, 0, 0, 0.85);
+
+  font-family: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Reset enxuto ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--preto-fumaca);
+  color: var(--texto);
+  font-size: 16px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-weight: 800;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+button {
+  font-size: 1rem;
+}
+
+img,
+svg {
+  display: block;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+/* Scrollbar discreta no tema escuro */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(243, 244, 247, 0.14);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(243, 244, 247, 0.24);
+}
+
+::selection {
+  background: var(--laranja-brasa);
+  color: #fff;
+}
+
+/* ---------- Utilitárias de marca ---------- */
+
+/* Texto com preenchimento em gradiente brasa */
+.brk-gradient-text {
+  background: var(--gradiente-brasa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Fundo em gradiente brasa */
+.brk-gradient-bg {
+  background: var(--gradiente-brasa);
+}
+
+/* Borda em gradiente (técnica de máscara) */
+.brk-gradient-border {
+  position: relative;
+}
+.brk-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--gradiente-brasa);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Glow radial de fundo (usado no login) */
+.brk-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60% 50% at 15% 0%,
+      rgba(148, 18, 44, 0.32),
+      transparent 70%
+    ),
+    radial-gradient(
+      55% 45% at 95% 25%,
+      rgba(255, 148, 6, 0.16),
+      transparent 65%
+    ),
+    radial-gradient(
+      70% 60% at 50% 110%,
+      rgba(202, 63, 23, 0.22),
+      transparent 70%
+    );
+}
+
+/* Foco acessível consistente */
+:focus-visible {
+  outline: 2px solid var(--amarelo-fagulha);
+  outline-offset: 2px;
+}

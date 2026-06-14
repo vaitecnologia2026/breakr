@@ -1,0 +1,23 @@
+{
+  "name": "breakr-os",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Breakr OS — sistema operacional proprio da Breakr (CONFIDENCIAL / NDA)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @breakr/api",
+    "dev:web": "npm run dev --workspace @breakr/web",
+    "build": "npm run build --workspaces --if-present",
+    "db:up": "docker compose up -d postgres redis",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate --workspace @breakr/api",
+    "db:generate": "npm run prisma:generate --workspace @breakr/api",
+    "db:seed": "npm run seed --workspace @breakr/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
