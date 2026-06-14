@@ -1,6 +1,7 @@
 // Modulo raiz da aplicacao Breakr OS.
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +22,8 @@ import { ContratosModule } from './contratos/contratos.module';
   imports: [
     // Carrega variaveis de ambiente (.env) de forma global.
     ConfigModule.forRoot({ isGlobal: true }),
+    // Agendador (cron) in-process — usado pela rotina de renovacao do motor.
+    ScheduleModule.forRoot(),
     PrismaModule,
     CommonModule,
     AuthModule,

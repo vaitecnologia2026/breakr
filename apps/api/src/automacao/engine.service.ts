@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { Queue, Worker, Job, QueueOptions, WorkerOptions } from 'bullmq';
 import IORedis, { Redis } from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
+import { RegrasService } from './motor/regras.service';
 
 // Nome unico da fila do motor.
 const NOME_FILA = 'automacao';
@@ -42,6 +43,7 @@ export class EngineService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly regras: RegrasService,
   ) {}
 
   // ----------------------------------------------------------
@@ -156,25 +158,28 @@ export class EngineService implements OnModuleInit, OnModuleDestroy {
    * regra de negocio nao deve quebrar por causa do motor).
    */
   async dispatch(evento: string, payload: Record<string, unknown>, ruleId?: string): Promise<void> {
+    // Sem Redis: roda o dispatcher de regras inline (sincrono). A automacao nao
+    // pode sumir so porque a fila caiu — perde-se retry/async, nao a logica.
     if (!this.habilitado || !this.queue) {
-      this.logger.warn(
-        `dispatch("${evento}") ignorado: motor desabilitado (Redis indisponivel).`,
-      );
+      this.logger.debug(`dispatch("${evento}") em modo inline (sem fila).`);
+      await this.regras.executarEvento(evento, payload);
       return;
     }
 
+    // Com Redis: enfileira; o worker chama o dispatcher (com retry/backoff).
     try {
       await this.queue.add(evento, { evento, payload, ruleId }, {
         // Retry exponencial — base da confiabilidade exigida no doc 03.
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
         removeOnComplete: 1000,
-        removeOnFail: false, // mantem falhas para inspecao (dead-letter na Fase 1)
+        removeOnFail: false, // mantem falhas para inspecao (dead-letter)
       });
       this.logger.debug(`Evento enfileirado: ${evento}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Falha ao enfileirar evento "${evento}": ${msg}`);
+      this.logger.error(`Falha ao enfileirar "${evento}": ${msg}. Tentando inline.`);
+      await this.regras.executarEvento(evento, payload).catch(() => undefined);
     }
   }
 
@@ -187,37 +192,10 @@ export class EngineService implements OnModuleInit, OnModuleDestroy {
   // Worker (processamento) — STUB Fase 0
   // ----------------------------------------------------------
   private async processarJob(job: Job<AutomacaoJob>): Promise<void> {
-    const { evento, payload, ruleId } = job.data;
-    this.logger.log(`Processando job ${job.id} — evento "${evento}" (STUB Fase 0).`);
-
-    // Fase 0: registra a execucao como observabilidade minima.
-    // Fase 1: aqui entram condicoes/switch, catalogo de acoes e idempotencia.
-    try {
-      await this.prisma.jobExecution.create({
-        data: {
-          ruleId: ruleId ?? null,
-          status: 'SUCESSO',
-          payload: payload as object,
-          resultado: { stub: true, evento, mensagem: 'Execucao stub da Fase 0' },
-          tentativas: job.attemptsMade,
-        },
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Falha ao gravar JobExecution do job ${job.id}: ${msg}`);
-      // Persiste o erro para inspecao posterior.
-      await this.prisma.jobExecution
-        .create({
-          data: {
-            ruleId: ruleId ?? null,
-            status: 'ERRO',
-            payload: payload as object,
-            erro: msg,
-            tentativas: job.attemptsMade,
-          },
-        })
-        .catch(() => undefined);
-      throw err; // deixa o BullMQ aplicar o retry
-    }
+    const { evento, payload } = job.data;
+    this.logger.log(`Processando job ${job.id} — evento "${evento}".`);
+    // Delega ao dispatcher: casa o evento com as regras ativas, roda as acoes e
+    // grava um JobExecution por regra disparada. Se lancar, o BullMQ aplica o retry.
+    await this.regras.executarEvento(evento, payload);
   }
 }

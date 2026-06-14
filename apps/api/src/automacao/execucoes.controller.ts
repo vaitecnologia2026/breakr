@@ -4,13 +4,23 @@
 // status operacional do motor para o front administrativo.
 // Ref.: docs/escopo/03-motor-de-automacao.md (observabilidade).
 // ============================================================
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Cargo } from '@breakr/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
 import { CargosGuard } from '../common/rbac/cargos.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { EngineService } from './engine.service';
+import { RegrasService } from './motor/regras.service';
+import { RenovacaoService } from './renovacao/renovacao.service';
 
 @Controller('motor')
 @UseGuards(JwtAuthGuard) // popula request.user em todas as rotas abaixo
@@ -18,6 +28,8 @@ export class ExecucoesController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: EngineService,
+    private readonly regras: RegrasService,
+    private readonly renovacao: RenovacaoService,
   ) {}
 
   /**
@@ -44,5 +56,36 @@ export class ExecucoesController {
   @Cargos(Cargo.ADMIN, Cargo.SUPERADMIN)
   status(): { habilitado: boolean } {
     return { habilitado: this.engine.estaHabilitado() };
+  }
+
+  /**
+   * Regras de automacao cadastradas — o "fluxo" configuravel que substitui o
+   * n8n. Restrito a ADMIN/SUPERADMIN.
+   */
+  @Get('regras')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.ADMIN, Cargo.SUPERADMIN)
+  listarRegras() {
+    return this.regras.listar();
+  }
+
+  /** Liga/desliga uma regra (ADMIN/SUPERADMIN). */
+  @Patch('regras/:id/toggle')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.ADMIN, Cargo.SUPERADMIN)
+  alternarRegra(@Param('id', ParseUUIDPipe) id: string) {
+    return this.regras.alternarAtiva(id);
+  }
+
+  /**
+   * Dispara a rotina de renovacao agora (alem do cron diario das 8h) — util
+   * para o painel e para testes. Retorna quantos contratos foram sinalizados.
+   */
+  @Post('renovacao/rodar')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.ADMIN, Cargo.SUPERADMIN)
+  async rodarRenovacao(): Promise<{ sinalizados: number }> {
+    const sinalizados = await this.renovacao.rodarAgora();
+    return { sinalizados };
   }
 }
