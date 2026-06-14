@@ -36,11 +36,13 @@ docker compose -f docker-compose.prod.yml up -d --build
    `VITE_API_URL=<url pública da API>`.
 4. Gere os domínios públicos dos 2 serviços.
 
-## Opção C — Vercel (web) + Railway/Neon (API + Postgres)
-- **API + Postgres** no Railway (ou Neon p/ o banco) como na Opção B (só a API).
-- **Web** na Vercel: root `apps/web`, build `npm run build`, output `dist`,
-  env `VITE_API_URL=<url da API>`. (Monorepo: setar o root dir = `apps/web` e o
-  install command na raiz, ou usar o Dockerfile.)
+## Opção C — Vercel (web) + Railway/Neon (API + Postgres)  ← combo recomendado
+- **API + Postgres** no Railway como na Opção B (só os 2 serviços de back).
+- **Web** na Vercel: **importe o repo** — o `vercel.json` (na raiz) já configura o
+  build do monorepo (`npm run build --workspace @breakr/web` → `apps/web/dist`) e o
+  fallback de rota SPA (`/(.*) → /index.html`). Só adicione a env **`VITE_API_URL`**
+  = a URL pública da API (Railway). Deploy → domínio do front.
+- Lembre de pôr o domínio do front no `CORS_ORIGIN` da API.
 
 ---
 
