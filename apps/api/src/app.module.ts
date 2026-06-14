@@ -20,6 +20,9 @@ import { ContratosModule } from './contratos/contratos.module';
 import { PortalModule } from './portal/portal.module';
 import { ConteudosModule } from './conteudos/conteudos.module';
 import { ComercialModule } from './comercial/comercial.module';
+import { RhModule } from './rh/rh.module';
+import { ComprasModule } from './compras/compras.module';
+import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module';
 
 @Module({
   imports: [
@@ -49,6 +52,10 @@ import { ComercialModule } from './comercial/comercial.module';
     ConteudosModule,
     // Back-office (Fase 3): pipeline comercial / CRM.
     ComercialModule,
+    // Back-office (Fase 3): RH, Operacoes (compras), Desenvolvimento (bugs).
+    RhModule,
+    ComprasModule,
+    DesenvolvimentoModule,
   ],
 })
 export class AppModule {}

@@ -101,6 +101,10 @@ model Usuario {
   // Leads sob responsabilidade do usuario (Fase 3 — comercial)
   leadsResponsavel Lead[] @relation("LeadResponsavel")
 
+  // Back-office (Fase 3)
+  comprasSolicitadas Compra[] @relation("CompraSolicitante")
+  bugsResponsavel    Bug[]    @relation("BugResponsavel")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -559,4 +563,117 @@ model Conteudo {
   @@index([status])
   @@index([squadId])
   @@map("conteudo")
+}
+
+// ============================================================
+// FASE 3 — BACK-OFFICE (M19 RH · M20 Operacoes · M21 Desenvolvimento)
+// ============================================================
+
+/// Etapas do recrutamento (M19).
+enum StatusCandidato {
+  INSCRITO
+  TRIAGEM
+  ENTREVISTA
+  TESTE
+  APROVADO
+  REPROVADO
+}
+
+/// Vaga aberta de recrutamento.
+model Vaga {
+  id           String   @id @default(uuid())
+  titulo       String
+  departamento String?
+  descricao    String?
+  aberta       Boolean  @default(true)
+  codigoUnico  String   @unique @map("codigo_unico")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  candidatos Candidato[]
+
+  @@map("vaga")
+}
+
+/// Candidato a uma vaga. Percorre o funil de recrutamento.
+model Candidato {
+  id           String          @id @default(uuid())
+  nome         String
+  email        String?
+  telefone     String?
+  status       StatusCandidato @default(INSCRITO)
+  perfilDisc   String?         @map("perfil_disc") // texto livre por enquanto
+  observacao   String?
+  criadoEm     DateTime        @default(now()) @map("criado_em")
+  atualizadoEm DateTime        @updatedAt @map("atualizado_em")
+
+  vagaId String @map("vaga_id")
+  vaga   Vaga   @relation(fields: [vagaId], references: [id], onDelete: Cascade)
+
+  @@index([vagaId])
+  @@index([status])
+  @@map("candidato")
+}
+
+/// Status de uma solicitacao de compra (M20).
+enum StatusCompra {
+  SOLICITADA
+  APROVADA
+  COMPRADA
+  RECEBIDA
+  CANCELADA
+}
+
+/// Solicitacao de compra (operacoes/back-office).
+model Compra {
+  id           String       @id @default(uuid())
+  descricao    String
+  categoria    String?
+  valor        Decimal      @db.Decimal(12, 2)
+  fornecedor   String?
+  status       StatusCompra @default(SOLICITADA)
+  codigoUnico  String       @unique @map("codigo_unico")
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+  atualizadoEm DateTime     @updatedAt @map("atualizado_em")
+
+  solicitanteId String?  @map("solicitante_id")
+  solicitante   Usuario? @relation("CompraSolicitante", fields: [solicitanteId], references: [id])
+
+  @@index([status])
+  @@map("compra")
+}
+
+/// Severidade de um bug (M21).
+enum SeveridadeBug {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+/// Status de um bug no board de desenvolvimento.
+enum StatusBug {
+  ABERTO
+  EM_ANDAMENTO
+  EM_REVISAO
+  RESOLVIDO
+  FECHADO
+}
+
+/// Bug/tarefa do board de desenvolvimento interno.
+model Bug {
+  id           String        @id @default(uuid())
+  titulo       String
+  descricao    String?
+  severidade   SeveridadeBug @default(MEDIA)
+  status       StatusBug     @default(ABERTO)
+  codigoUnico  String        @unique @map("codigo_unico")
+  criadoEm     DateTime      @default(now()) @map("criado_em")
+  atualizadoEm DateTime      @updatedAt @map("atualizado_em")
+
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("BugResponsavel", fields: [responsavelId], references: [id])
+
+  @@index([status])
+  @@map("bug")
 }

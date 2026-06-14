@@ -22,16 +22,22 @@ const LINKS_ATIVOS = [
   { para: '/cobrancas', rotulo: 'Cobranças', fim: false },
   { para: '/conteudos', rotulo: 'Conteúdo', fim: false },
   { para: '/squads', rotulo: 'Squads', fim: false },
+  { para: '/recrutamento', rotulo: 'Recrutamento', fim: false },
+  { para: '/compras', rotulo: 'Compras', fim: false },
+  { para: '/desenvolvimento', rotulo: 'Desenvolvimento', fim: false },
 ] as const;
 
 // Slugs de MODULOS que já têm tela real (não repetir como "em breve").
-//  nucleo→Início · comercial→Comercial · contratos→Contratos · financeiro→Cobranças · marketing→Conteúdo.
+// Restam em breve: cs-portal (portal é externo), trafego e qualidade (Fase 2).
 const SLUGS_COM_TELA = new Set<string>([
   'nucleo',
   'comercial',
   'contratos',
   'financeiro',
   'marketing',
+  'rh',
+  'operacoes',
+  'desenvolvimento',
 ]);
 
 // Rótulo curto da fase exibido no badge.
@@ -97,7 +103,7 @@ export function Sidebar() {
           borderTop: '1px solid var(--borda)',
         }}
       >
-        Breakr OS · v0.3 — Fase 2
+        Breakr OS · v0.4 — Fase 3
       </div>
     </aside>
   );
