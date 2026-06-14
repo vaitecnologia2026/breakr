@@ -677,3 +677,32 @@ model Bug {
   @@index([status])
   @@map("bug")
 }
+
+// ============================================================
+// CONFIGURACOES — IA (provedores de LLM)
+// ============================================================
+
+/// Provedor de IA ativo do sistema.
+enum ProvedorIa {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
+/// Configuracao de IA (singleton, id fixo "singleton"). Guarda as chaves dos 3
+/// provedores e qual esta ativo. As chaves NUNCA voltam inteiras pela API
+/// (sempre mascaradas) — ver IaConfigService.
+model ConfiguracaoIa {
+  id              String     @id @default("singleton")
+  ativo           Boolean    @default(false)
+  provedorAtivo   ProvedorIa @default(ANTHROPIC)
+  openaiApiKey    String?    @map("openai_api_key")
+  anthropicApiKey String?    @map("anthropic_api_key")
+  geminiApiKey    String?    @map("gemini_api_key")
+  modeloOpenai    String?    @map("modelo_openai")
+  modeloAnthropic String?    @map("modelo_anthropic")
+  modeloGemini    String?    @map("modelo_gemini")
+  atualizadoEm    DateTime   @updatedAt @map("atualizado_em")
+
+  @@map("configuracao_ia")
+}

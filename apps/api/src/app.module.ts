@@ -24,6 +24,7 @@ import { RhModule } from './rh/rh.module';
 import { ComprasModule } from './compras/compras.module';
 import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module';
 import { PainelModule } from './painel/painel.module';
+import { IaModule } from './ia/ia.module';
 
 @Module({
   imports: [
@@ -59,6 +60,8 @@ import { PainelModule } from './painel/painel.module';
     DesenvolvimentoModule,
     // Painel inicial "Hoje & Atrasados" (agrega todos os modulos).
     PainelModule,
+    // Configuracoes de IA (OpenAI / Anthropic / Gemini).
+    IaModule,
   ],
 })
 export class AppModule {}
