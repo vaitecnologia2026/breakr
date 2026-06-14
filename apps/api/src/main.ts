@@ -24,9 +24,11 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  const port = Number(config.get<string>('API_PORT', '3000'));
-  await app.listen(port);
-  Logger.log(`Breakr OS API rodando em http://localhost:${port}`, 'Bootstrap');
+  // Porta: PaaS (Railway/Render) injeta PORT; senao API_PORT; senao 3000.
+  // Bind em 0.0.0.0 para funcionar dentro de container.
+  const port = Number(config.get<string>('PORT') ?? config.get<string>('API_PORT') ?? '3000');
+  await app.listen(port, '0.0.0.0');
+  Logger.log(`Breakr OS API rodando na porta ${port}`, 'Bootstrap');
 }
 
 void bootstrap();
