@@ -11,7 +11,7 @@ import { Logo } from './Logo';
  */
 
 // Fase em foco: os módulos desta fase aparecem com o ponto aceso ("em obra").
-const FASE_ATIVA: number = 1;
+const FASE_ATIVA: number = 2;
 
 // Telas reais já disponíveis (entram no topo do menu, acima dos módulos).
 const LINKS_ATIVOS = [
@@ -19,12 +19,13 @@ const LINKS_ATIVOS = [
   { para: '/clientes', rotulo: 'Clientes', fim: false },
   { para: '/contratos', rotulo: 'Contratos', fim: false },
   { para: '/cobrancas', rotulo: 'Cobranças', fim: false },
+  { para: '/conteudos', rotulo: 'Conteúdo', fim: false },
   { para: '/squads', rotulo: 'Squads', fim: false },
 ] as const;
 
 // Slugs de MODULOS que já têm tela real (não repetir como "em breve").
-//  nucleo→Início · contratos→Contratos · financeiro→Cobranças.
-const SLUGS_COM_TELA = new Set<string>(['nucleo', 'contratos', 'financeiro']);
+//  nucleo→Início · contratos→Contratos · financeiro→Cobranças · marketing→Conteúdo.
+const SLUGS_COM_TELA = new Set<string>(['nucleo', 'contratos', 'financeiro', 'marketing']);
 
 // Rótulo curto da fase exibido no badge.
 function rotuloFase(fase: number): string {
@@ -89,7 +90,7 @@ export function Sidebar() {
           borderTop: '1px solid var(--borda)',
         }}
       >
-        Breakr OS · v0.2 — Fase 1
+        Breakr OS · v0.3 — Fase 2
       </div>
     </aside>
   );

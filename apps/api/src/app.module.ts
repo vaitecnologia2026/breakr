@@ -18,6 +18,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { FaturasModule } from './faturas/faturas.module';
 import { ContratosModule } from './contratos/contratos.module';
 import { PortalModule } from './portal/portal.module';
+import { ConteudosModule } from './conteudos/conteudos.module';
 
 @Module({
   imports: [
@@ -43,6 +44,8 @@ import { PortalModule } from './portal/portal.module';
     ContratosModule,
     // Portal publico do cliente (read-only).
     PortalModule,
+    // Operacao de marketing (Fase 2): funil de conteudo.
+    ConteudosModule,
   ],
 })
 export class AppModule {}

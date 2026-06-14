@@ -95,6 +95,9 @@ model Usuario {
   // Notificacoes recebidas
   notificacoes Notificacao[]
 
+  // Pecas de conteudo sob responsabilidade do usuario (Fase 2)
+  conteudosResponsavel Conteudo[] @relation("ConteudoResponsavel")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -151,8 +154,9 @@ model Squad {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  membros  SquadMembro[]
-  clientes Cliente[]
+  membros   SquadMembro[]
+  clientes  Cliente[]
+  conteudos Conteudo[]
 
   @@map("squad")
 }
@@ -210,6 +214,9 @@ model Cliente {
   faturas    Fatura[]
   projetos   Projeto[]
   onboarding Onboarding?
+
+  // Operacao de marketing (Fase 2)
+  conteudos Conteudo[]
 
   @@index([squadId])
   @@index([status])
@@ -443,4 +450,66 @@ model OnboardingStep {
 
   @@index([onboardingId])
   @@map("onboarding_step")
+}
+
+// ============================================================
+// FASE 2 — OPERACAO DE MARKETING (M16 Conteudo · M18 Qualidade/Aprovacao)
+// ============================================================
+
+/// Tipo de peca de conteudo.
+enum TipoConteudo {
+  POST
+  REELS
+  STORY
+  CARROSSEL
+  VIDEO
+  ARTIGO
+}
+
+/// Funil de producao (kanban). A aprovacao do cliente acontece no portal.
+enum StatusConteudo {
+  IDEIA
+  ROTEIRO
+  PRODUCAO
+  REVISAO
+  APROVACAO_CLIENTE
+  AGENDADO
+  PUBLICADO
+  ARQUIVADO
+}
+
+/// Peca de conteudo de um cliente, produzida por um squad. Percorre o funil e,
+/// em APROVACAO_CLIENTE, aparece no portal para o cliente aprovar e avaliar.
+model Conteudo {
+  id          String         @id @default(uuid())
+  titulo      String
+  descricao   String?
+  tipo        TipoConteudo   @default(POST)
+  status      StatusConteudo @default(IDEIA)
+  codigoUnico String         @unique @map("codigo_unico")
+  dataAgendada DateTime?     @map("data_agendada")
+
+  // Qualidade / aprovacao do cliente (M18)
+  estrelas          Int? // 1..5 (avaliacao do cliente)
+  comentarioCliente String?   @map("comentario_cliente")
+  aprovadoEm        DateTime? @map("aprovado_em")
+  reworkCount       Int       @default(0) @map("rework_count")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  squadId String? @map("squad_id")
+  squad   Squad?  @relation(fields: [squadId], references: [id])
+
+  // Responsavel pela peca (designer/editor/copy).
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("ConteudoResponsavel", fields: [responsavelId], references: [id])
+
+  @@index([clienteId])
+  @@index([status])
+  @@index([squadId])
+  @@map("conteudo")
 }

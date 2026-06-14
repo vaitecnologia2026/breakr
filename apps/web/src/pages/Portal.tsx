@@ -33,6 +33,13 @@ interface PortalData {
     status: string;
     notaFiscalUrl: string | null;
   }[];
+  conteudosParaAprovar: {
+    id: string;
+    titulo: string;
+    descricao: string | null;
+    tipo: string;
+    codigoUnico: string;
+  }[];
 }
 
 /* --------------------------- Helpers locais --------------------------- */
@@ -109,6 +116,8 @@ export function Portal() {
   const [dados, setDados] = useState<PortalData | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [naoEncontrado, setNaoEncontrado] = useState(false);
+  // Incrementado após uma aprovação/ajuste para recarregar o portal.
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
     let ativo = true;
@@ -128,7 +137,7 @@ export function Portal() {
     return () => {
       ativo = false;
     };
-  }, [codigo]);
+  }, [codigo, versao]);
 
   return (
     <main
@@ -146,6 +155,13 @@ export function Portal() {
         ) : (
           <>
             <Cabecalho dados={dados} />
+            {dados.conteudosParaAprovar.length > 0 && (
+              <CardAprovacoes
+                pecas={dados.conteudosParaAprovar}
+                codigo={codigo ?? ''}
+                aoMudar={() => setVersao((v) => v + 1)}
+              />
+            )}
             {dados.onboarding && <CardOnboarding onboarding={dados.onboarding} />}
             {dados.contrato && <CardContrato contrato={dados.contrato} />}
             <CardFaturas faturas={dados.faturas} />
@@ -389,6 +405,238 @@ function PortalNaoEncontrado() {
         Verifique se o link está completo e correto. Se a dúvida persistir, fale com a sua equipe na Breakr.
       </span>
     </div>
+  );
+}
+
+/* ---------------------------- Aprovações (M18) ------------------------ */
+
+function CardAprovacoes({
+  pecas,
+  codigo,
+  aoMudar,
+}: {
+  pecas: PortalData['conteudosParaAprovar'];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  return (
+    <Card>
+      <TituloCard>Para aprovar</TituloCard>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 4 }}>
+        Sua equipe enviou {pecas.length === 1 ? 'uma peça' : `${pecas.length} peças`} para o seu aval.
+      </p>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16, listStyle: 'none' }}>
+        {pecas.map((peca) => (
+          <PecaAprovacao key={peca.id} peca={peca} codigo={codigo} aoMudar={aoMudar} />
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function PecaAprovacao({
+  peca,
+  codigo,
+  aoMudar,
+}: {
+  peca: PortalData['conteudosParaAprovar'][number];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const [estrelas, setEstrelas] = useState(5);
+  const [comentario, setComentario] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function aprovar() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/conteudo/${peca.id}/aprovar`, {
+        estrelas,
+        comentario: comentario.trim() || undefined,
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível aprovar agora. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  async function pedirAjuste() {
+    if (comentario.trim().length < 3) {
+      setErro('Conte para a equipe o que ajustar.');
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/conteudo/${peca.id}/ajuste`, {
+        comentario: comentario.trim(),
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível enviar o pedido. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <li
+      style={{
+        border: '1px solid var(--borda)',
+        borderRadius: 12,
+        padding: 16,
+        background: 'var(--superficie-2)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
+          {peca.titulo}
+        </span>
+        <BadgeTipo tipo={peca.tipo} />
+      </div>
+      {peca.descricao && (
+        <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 6 }}>{peca.descricao}</p>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Sua nota</span>
+        <Estrelas valor={estrelas} aoMudar={setEstrelas} desabilitado={enviando} />
+      </div>
+
+      <textarea
+        value={comentario}
+        onChange={(e) => setComentario(e.target.value)}
+        placeholder="Comentário (obrigatório para pedir ajuste)"
+        rows={2}
+        disabled={enviando}
+        style={{
+          width: '100%',
+          marginTop: 12,
+          background: 'var(--superficie-3)',
+          border: '1px solid var(--borda-forte)',
+          borderRadius: 10,
+          padding: '10px 12px',
+          color: 'var(--texto)',
+          fontSize: 13.5,
+          resize: 'vertical',
+          outline: 'none',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      />
+
+      {erro && <p style={{ fontSize: 12.5, color: '#e2738a', marginTop: 8 }}>{erro}</p>}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={aprovar}
+          disabled={enviando}
+          className="brk-gradient-bg"
+          style={{
+            border: 'none',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 13.5,
+            padding: '9px 16px',
+            borderRadius: 10,
+            cursor: enviando ? 'not-allowed' : 'pointer',
+            opacity: enviando ? 0.6 : 1,
+          }}
+        >
+          {enviando ? 'Enviando…' : 'Aprovar'}
+        </button>
+        <button
+          type="button"
+          onClick={pedirAjuste}
+          disabled={enviando}
+          style={{
+            border: '1px solid var(--borda-forte)',
+            background: 'transparent',
+            color: 'var(--texto-suave)',
+            fontWeight: 600,
+            fontSize: 13.5,
+            padding: '9px 16px',
+            borderRadius: 10,
+            cursor: enviando ? 'not-allowed' : 'pointer',
+            opacity: enviando ? 0.6 : 1,
+          }}
+        >
+          Pedir ajuste
+        </button>
+      </div>
+    </li>
+  );
+}
+
+// Avaliação por estrelas (1..5), clicável.
+function Estrelas({
+  valor,
+  aoMudar,
+  desabilitado,
+}: {
+  valor: number;
+  aoMudar: (n: number) => void;
+  desabilitado?: boolean;
+}) {
+  return (
+    <div style={{ display: 'inline-flex', gap: 4 }} role="radiogroup" aria-label="Avaliação">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={valor === n}
+          aria-label={`${n} estrela${n > 1 ? 's' : ''}`}
+          disabled={desabilitado}
+          onClick={() => aoMudar(n)}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: desabilitado ? 'not-allowed' : 'pointer',
+            lineHeight: 0,
+          }}
+        >
+          <IconeEstrela ativa={n <= valor} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function IconeEstrela({ ativa }: { ativa: boolean }) {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.77l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85L12 3.5Z"
+        fill={ativa ? '#ff9406' : 'transparent'}
+        stroke={ativa ? '#ff9406' : 'var(--borda-forte)'}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BadgeTipo({ tipo }: { tipo: string }) {
+  const rotulo = tipo.charAt(0) + tipo.slice(1).toLowerCase();
+  return (
+    <span
+      style={{
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        padding: '2px 8px',
+        borderRadius: 999,
+        color: '#f0814f',
+        background: 'rgba(202, 63, 23, 0.16)',
+      }}
+    >
+      {rotulo}
+    </span>
   );
 }
 
