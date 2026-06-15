@@ -1,16 +1,14 @@
-// Modulo de autenticacao — configura JWT e a estrategia Passport.
-import { Module } from '@nestjs/common';
+// Módulo de autenticação — JWT nativo, sem passport.
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './jwt.strategy';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
+@Global()
 @Module({
   imports: [
-    PassportModule,
-    // Registro assincrono para ler JWT_SECRET/JWT_EXPIRES do ambiente.
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -23,7 +21,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtAuthGuard],
+  exports: [AuthService, JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}
