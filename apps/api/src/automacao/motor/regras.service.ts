@@ -183,6 +183,178 @@ export class RegrasService implements OnModuleInit {
       condicoes: [{ campo: 'status', op: 'eq', valor: 'APROVACAO_CLIENTE' }],
       acoes: [{ tipo: 'enviar_criativo_whatsapp' }],
     });
+
+    // Lead interno capturado → notifica equipe comercial (complementa o lead.site_capturado,
+    // que notifica somente leads do site; este notifica leads cadastrados manualmente).
+    await this.garantirRegra({
+      nome: 'Notificacao de lead interno capturado',
+      trigger: { evento: 'lead.capturado' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'COMERCIAL',
+            titulo: 'Novo lead capturado',
+            mensagem:
+              'Lead {{nome}} ({{empresa}}) entrou via {{origem}}. Telefone: {{telefone}}.',
+            tipo: 'INFO',
+            link: '/comercial',
+          },
+        },
+      ],
+    });
+
+    // Lead ganho → notifica CS para assumir o cliente.
+    // Equivale ao n8n "[Pipedrive] Lead ganho → transição de responsável".
+    await this.garantirRegra({
+      nome: 'Notificacao de lead ganho para CS',
+      trigger: { evento: 'lead.ganho' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'CS',
+            titulo: 'Lead ganho — novo cliente!',
+            mensagem:
+              'O lead {{nome}} ({{empresa}}) foi convertido. Iniciar onboarding e apresentação.',
+            tipo: 'SUCESSO',
+            link: '/clientes',
+          },
+        },
+      ],
+    });
+
+    // Contrato criado → alerta financeiro para revisar antes de enviar.
+    await this.garantirRegra({
+      nome: 'Revisao interna de contrato criado',
+      trigger: { evento: 'contrato.criado' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'FINANCEIRO',
+            titulo: 'Novo contrato para revisao',
+            mensagem:
+              'Contrato {{codigoUnico}} de {{clienteNome}} criado. Revise e envie para assinatura.',
+            tipo: 'ALERTA',
+            link: '/contratos',
+          },
+        },
+      ],
+    });
+
+    // Contrato assinado → financeiro deve ativar cobrança no Asaas.
+    await this.garantirRegra({
+      nome: 'Ativar cobranca apos assinatura',
+      trigger: { evento: 'contrato.assinado' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'FINANCEIRO',
+            titulo: 'Contrato assinado — ativar cobranca',
+            mensagem:
+              'Contrato {{codigoUnico}} assinado por {{clienteNome}}. Configure a assinatura no Asaas.',
+            tipo: 'SUCESSO',
+            link: '/contratos',
+          },
+        },
+      ],
+    });
+
+    // Contrato em vigor → CS assume o acompanhamento.
+    await this.garantirRegra({
+      nome: 'CS assume cliente com contrato em vigor',
+      trigger: { evento: 'contrato.em_vigor' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'CS',
+            titulo: 'Contrato em vigor — acompanhar cliente',
+            mensagem:
+              'Contrato {{codigoUnico}} de {{clienteNome}} entrou em vigor em {{inicioVigencia}}.',
+            tipo: 'INFO',
+            link: '/clientes',
+          },
+        },
+      ],
+    });
+
+    // Fatura gerada → notifica financeiro para acompanhar pagamento.
+    // Equivale ao n8n "[Lembrancas ASAAS] Lembrancas de Cobrancas ASAAS".
+    await this.garantirRegra({
+      nome: 'Lembrete interno de fatura gerada',
+      trigger: { evento: 'fatura.gerada' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'FINANCEIRO',
+            titulo: 'Fatura gerada',
+            mensagem:
+              'Fatura {{codigoUnico}} de R$ {{valor}} para {{clienteNome}} vence em {{vencimento}}.',
+            tipo: 'INFO',
+            link: '/financeiro',
+          },
+        },
+      ],
+    });
+
+    // Campanha criada → notifica gestor de tráfego para configurar no Meta Ads.
+    await this.garantirRegra({
+      nome: 'Gestor de trafego notificado de nova campanha',
+      trigger: { evento: 'campanha.criada' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'GESTOR_TRAFEGO',
+            titulo: 'Nova campanha criada',
+            mensagem:
+              'Campanha "{{nome}}" para {{clienteNome}} criada. Configure e ative no painel de tráfego.',
+            tipo: 'INFO',
+            link: '/trafego',
+          },
+        },
+      ],
+    });
+
+    // Fatura prestes a vencer → envia lembrete no grupo WhatsApp do cliente.
+    // Equivale ao n8n "[Lembrancas ASAAS] Lembrancas de Cobrancas ASAAS".
+    await this.garantirRegra({
+      nome: 'Lembrete de vencimento de fatura no WhatsApp',
+      trigger: { evento: 'fatura.lembrete_vencimento' },
+      condicoes: [],
+      acoes: [{ tipo: 'enviar_lembrete_pagamento', params: {} }],
+    });
+
+    // Conteudo aprovado → notifica producao para publicar.
+    await this.garantirRegra({
+      nome: 'Publicacao apos aprovacao de conteudo',
+      trigger: { evento: 'conteudo.status_alterado' },
+      condicoes: [{ campo: 'status', op: 'eq', valor: 'APROVADO' }],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'PRODUCAO',
+            titulo: 'Conteudo aprovado — publicar',
+            mensagem:
+              'A peca "{{titulo}}" ({{codigoUnico}}) foi aprovada. Agendar publicacao conforme calendario.',
+            tipo: 'SUCESSO',
+            link: '/conteudo',
+          },
+        },
+      ],
+    });
   }
 
   private async garantirRegra(def: {

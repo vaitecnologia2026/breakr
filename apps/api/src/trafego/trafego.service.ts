@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { IaService } from '../ia/ia.service';
 import { WHATSAPP_PORT, WhatsappPort } from '../integracoes';
+import { EngineService } from '../automacao/engine.service';
 import { CriarCampanhaDto } from './dto/criar-campanha.dto';
 import { AtualizarMetricasDto } from './dto/atualizar-metricas.dto';
 
@@ -21,10 +22,11 @@ export class TrafegoService {
     private readonly codigoUnico: CodigoUnicoService,
     private readonly ia: IaService,
     @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
+    private readonly engine: EngineService,
   ) {}
 
-  criar(dto: CriarCampanhaDto): Promise<Campanha> {
-    return this.prisma.campanha.create({
+  async criar(dto: CriarCampanhaDto): Promise<Campanha> {
+    const campanha = await this.prisma.campanha.create({
       data: {
         clienteId: dto.clienteId,
         nome: dto.nome,
@@ -36,6 +38,13 @@ export class TrafegoService {
       },
       include: INCLUDE,
     });
+    await this.engine.dispatch('campanha.criada', {
+      campanhaId: campanha.id,
+      clienteId: dto.clienteId,
+      nome: dto.nome,
+      objetivo: dto.objetivo ?? '',
+    });
+    return campanha;
   }
 
   listar(filtro?: { clienteId?: string; status?: StatusCampanha }): Promise<Campanha[]> {
@@ -69,8 +78,16 @@ export class TrafegoService {
   }
 
   async moverStatus(id: string, status: StatusCampanha): Promise<Campanha> {
-    await this.obter(id);
-    return this.prisma.campanha.update({ where: { id }, data: { status }, include: INCLUDE });
+    const atual = await this.obter(id);
+    const campanha = await this.prisma.campanha.update({ where: { id }, data: { status }, include: INCLUDE });
+    await this.engine.dispatch('campanha.status_alterado', {
+      campanhaId: id,
+      clienteId: atual.clienteId,
+      status,
+      statusAnterior: atual.status,
+      nome: atual.nome,
+    });
+    return campanha;
   }
 
   /**

@@ -18,8 +18,8 @@ export class ComercialService {
   ) {}
 
   // Cria lead com status NOVO e codigo unico gerado (prefixo LEAD).
-  criar(dto: CriarLeadDto): Promise<Lead> {
-    return this.prisma.lead.create({
+  async criar(dto: CriarLeadDto): Promise<Lead> {
+    const lead = await this.prisma.lead.create({
       data: {
         nome: dto.nome,
         empresa: dto.empresa,
@@ -36,6 +36,15 @@ export class ComercialService {
         codigoUnico: this.codigoUnico.gerar('LEAD'),
       },
     });
+    await this.engine.dispatch('lead.capturado', {
+      leadId: lead.id,
+      nome: lead.nome,
+      empresa: lead.empresa ?? '',
+      telefone: lead.telefone ?? '',
+      email: lead.email ?? '',
+      origem: lead.origem ?? '',
+    });
+    return lead;
   }
 
   // Lista os leads (mais recentes primeiro), com filtro opcional por etapa e

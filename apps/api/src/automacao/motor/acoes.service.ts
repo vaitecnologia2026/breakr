@@ -124,6 +124,107 @@ export class AcoesService {
       return { enviado: true, waMessageId: r.id };
     });
 
+    // enviar_copy_whatsapp: envia texto de copy (aprovado ou rascunho) para o grupo
+    // do cliente. Equivale ao n8n "[Aprovacao Copy] Envio de Copy para Grupos".
+    this.catalogo.set('enviar_copy_whatsapp', async (params, ctx) => {
+      const conteudoId = String(ctx.payload.conteudoId ?? params.conteudoId ?? '');
+      const destino = String(ctx.payload.grupoId ?? params.destino ?? '');
+      if (!destino) throw new Error('payload.grupoId ou params.destino ausente');
+      const texto = conteudoId
+        ? await this.prisma.conteudo
+            .findUnique({ where: { id: conteudoId }, select: { titulo: true, codigoUnico: true } })
+            .then(
+              (c) =>
+                c ? `Copy para aprovacao:\n\n${c.titulo}\n\nCodigo: ${c.codigoUnico}` : 'Copy sem titulo',
+            )
+        : this.interpolar(String(params.mensagem ?? ''), ctx.payload);
+      const r = await this.whatsapp.enviarMensagem({ destino, texto });
+      return { enviado: true, waMessageId: r.id };
+    });
+
+    // enviar_boas_vindas_whatsapp: mensagem de boas-vindas no grupo do cliente.
+    // Equivale ao trecho do n8n "Liberar Onboarding" que envia link do grupo ao socio.
+    this.catalogo.set('enviar_boas_vindas_whatsapp', async (params, ctx) => {
+      const clienteId = String(ctx.payload.clienteId ?? '');
+      if (!clienteId) throw new Error('payload.clienteId ausente');
+      const cliente = await this.prisma.cliente.findUnique({
+        where: { id: clienteId },
+        select: { nomeFantasia: true, whatsappGrupoId: true },
+      });
+      if (!cliente?.whatsappGrupoId) {
+        return { enviado: false, motivo: 'cliente sem grupo WhatsApp cadastrado' };
+      }
+      const mensagem = this.interpolar(
+        String(
+          params.mensagem ??
+            'Olá, {{clienteNome}}! Seja bem-vindo(a) à Breakr! Estamos prontos para começar. Qualquer dúvida, fale aqui no grupo.',
+        ),
+        { ...ctx.payload, clienteNome: cliente.nomeFantasia },
+      );
+      const r = await this.whatsapp.enviarMensagem({
+        destino: cliente.whatsappGrupoId,
+        texto: mensagem,
+      });
+      return { enviado: true, waMessageId: r.id };
+    });
+
+    // enviar_lembrete_pagamento: envia lembrete de fatura vencendo para o grupo do cliente.
+    // Equivale ao n8n "[Lembrancas ASAAS] Lembrancas de Cobrancas ASAAS".
+    this.catalogo.set('enviar_lembrete_pagamento', async (params, ctx) => {
+      const faturaId = String(ctx.payload.faturaId ?? '');
+      if (!faturaId) throw new Error('payload.faturaId ausente');
+      const fatura = await this.prisma.fatura.findUnique({
+        where: { id: faturaId },
+        include: { cliente: { select: { nomeFantasia: true, whatsappGrupoId: true } } },
+      });
+      if (!fatura) throw new Error('Fatura nao encontrada');
+      if (!fatura.cliente.whatsappGrupoId) {
+        return { enviado: false, motivo: 'cliente sem grupo WhatsApp' };
+      }
+      const dias = params.diasAntes ? Number(params.diasAntes) : 3;
+      const mensagem =
+        `Olá! Lembramos que sua fatura da Breakr (R$ ${Number(fatura.valor).toFixed(2)}) ` +
+        `vence em ${dias} dia(s). Código: ${fatura.codigoUnico}. Confira seu e-mail para o link de pagamento.`;
+      const r = await this.whatsapp.enviarMensagem({
+        destino: fatura.cliente.whatsappGrupoId,
+        texto: mensagem,
+      });
+      return { enviado: true, waMessageId: r.id };
+    });
+
+    // formatar_nome_conteudo: normaliza o codigoUnico de um conteudo conforme a
+    // nomenclatura padrao Breakr. Equivale ao n8n "[Nomenclatura] Campanhas".
+    this.catalogo.set('formatar_nome_conteudo', async (_params, ctx) => {
+      const conteudoId = String(ctx.payload.conteudoId ?? '');
+      if (!conteudoId) throw new Error('payload.conteudoId ausente');
+      const c = await this.prisma.conteudo.findUnique({
+        where: { id: conteudoId },
+        include: { cliente: { select: { nomeFantasia: true } } },
+      });
+      if (!c) throw new Error('Conteudo nao encontrado');
+      const sigla = c.cliente.nomeFantasia.slice(0, 3).toUpperCase();
+      const mes = new Date().toISOString().slice(0, 7).replace('-', '');
+      const novoNome = `${sigla}-${c.tipo}-${mes}-${c.codigoUnico}`;
+      await this.prisma.conteudo.update({ where: { id: conteudoId }, data: { codigoUnico: novoNome } });
+      return { codigoAnterior: c.codigoUnico, codigoNovo: novoNome };
+    });
+
+    // analisar_meta_ads: aciona sugestao de IA sobre metricas de campanha.
+    // Stub ate credencial Meta Ads; com IaService ativo gera sugestoes.
+    this.catalogo.set('analisar_meta_ads', async (_params, ctx) => {
+      const campanhaId = String(ctx.payload.campanhaId ?? '');
+      if (!campanhaId) return { analisado: false, motivo: 'payload.campanhaId ausente' };
+      const c = await this.prisma.campanha.findUnique({ where: { id: campanhaId } });
+      if (!c) return { analisado: false, motivo: 'campanha nao encontrada' };
+      this.logger.log(
+        `[analisar_meta_ads] campanha ${c.codigoUnico}: ${c.impressoes} imp / ${c.cliques} cliques`,
+      );
+      return {
+        analisado: true,
+        resumo: `${c.impressoes} impressoes, ${c.cliques} cliques, ${c.conversoes} conversoes`,
+      };
+    });
+
     // criar_grupo_whatsapp: cria o grupo do cliente (stub) e guarda o id no cliente.
     this.catalogo.set('criar_grupo_whatsapp', async (params, ctx) => {
       const clienteId = String(ctx.payload.clienteId ?? '');

@@ -10,12 +10,13 @@ import { ExecucoesController } from './execucoes.controller';
 import { AcoesService } from './motor/acoes.service';
 import { RegrasService } from './motor/regras.service';
 import { RenovacaoService } from './renovacao/renovacao.service';
+import { CobrancasSchedulerService } from './cobrancas-scheduler.service';
 
 @Module({
   // As acoes do motor: notificam (Notificacoes), balanceiam squad (Squads) e
   // criam grupo no WhatsApp (Integracoes/port).
   imports: [NotificacoesModule, SquadsModule, IntegracoesModule],
-  providers: [EngineService, AcoesService, RegrasService, RenovacaoService],
+  providers: [EngineService, AcoesService, RegrasService, RenovacaoService, CobrancasSchedulerService],
   controllers: [ExecucoesController], // painel de execucoes/regras (GET/POST /motor/*)
   exports: [EngineService],
 })

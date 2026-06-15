@@ -3,11 +3,12 @@
 import { Module } from '@nestjs/common';
 import { IaModule } from '../ia/ia.module';
 import { IntegracoesModule } from '../integracoes/integracoes.module';
+import { AutomacaoModule } from '../automacao/automacao.module';
 import { TrafegoService } from './trafego.service';
 import { TrafegoController, RelatoriosTrafegoController } from './trafego.controller';
 
 @Module({
-  imports: [IaModule, IntegracoesModule],
+  imports: [IaModule, IntegracoesModule, AutomacaoModule],
   controllers: [TrafegoController, RelatoriosTrafegoController],
   providers: [TrafegoService],
   exports: [TrafegoService],
