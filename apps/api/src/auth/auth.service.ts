@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginResponse, Cargo } from '@breakr/shared';
 import { JwtPayload } from './jwt-auth.guard';
 
+export interface TrocarSenhaResult { ok: boolean }
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -44,5 +46,17 @@ export class AuthService {
         cargo: usuario.cargo as Cargo,
       },
     };
+  }
+
+  async trocarSenha(userId: string, senhaAtual: string, senhaNova: string): Promise<TrocarSenhaResult> {
+    const usuario = await this.prisma.usuario.findUnique({ where: { id: userId } });
+    if (!usuario) throw new UnauthorizedException('Usuário não encontrado');
+
+    const confere = await bcrypt.compare(senhaAtual, usuario.senhaHash);
+    if (!confere) throw new UnauthorizedException('Senha atual incorreta');
+
+    const novoHash = await bcrypt.hash(senhaNova, 10);
+    await this.prisma.usuario.update({ where: { id: userId }, data: { senhaHash: novoHash } });
+    return { ok: true };
   }
 }

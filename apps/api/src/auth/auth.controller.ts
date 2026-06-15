@@ -1,8 +1,10 @@
 // Controller de autenticacao.
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
+import { Request } from 'express';
+import { AuthService, TrocarSenhaResult } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { LoginResponse } from '@breakr/shared';
+import { LoginResponse, UsuarioPublico } from '@breakr/shared';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -13,5 +15,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto): Promise<LoginResponse> {
     return this.authService.login(dto.email, dto.senha);
+  }
+
+  @Post('trocar-senha')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async trocarSenha(
+    @Req() req: Request & { user: UsuarioPublico },
+    @Body() body: { senhaAtual: string; senhaNova: string },
+  ): Promise<TrocarSenhaResult> {
+    return this.authService.trocarSenha(req.user.id, body.senhaAtual, body.senhaNova);
   }
 }
