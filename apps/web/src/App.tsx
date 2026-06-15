@@ -16,22 +16,12 @@ import { Desenvolvimento } from './pages/Desenvolvimento';
 import { Automacoes } from './pages/Automacoes';
 import { Configuracoes } from './pages/Configuracoes';
 import { Squads } from './pages/Squads';
+import { Equipe } from './pages/Equipe';
 
-/**
- * Tabela de rotas do Breakr OS.
- *  - /login              → tela de autenticação (fora do shell)
- *  - /  (shell protegido) → Dashboard com header/sidebar e <Outlet/>:
- *      · index    → Início (Núcleo)
- *      · /clientes → Clientes
- *      · /squads   → Squads
- *  - *  → redireciona para a raiz
- */
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-
-      {/* Portal publico do cliente (fora do shell, sem login) */}
       <Route path="/portal/:codigo" element={<Portal />} />
 
       <Route
@@ -43,18 +33,19 @@ export function App() {
         }
       >
         <Route index element={<Inicio />} />
+        <Route path="comercial" element={<Comercial />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="contratos" element={<Contratos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="conteudos" element={<Conteudos />} />
         <Route path="trafego" element={<Trafego />} />
-        <Route path="comercial" element={<Comercial />} />
+        <Route path="squads" element={<Squads />} />
         <Route path="recrutamento" element={<Recrutamento />} />
         <Route path="compras" element={<Compras />} />
         <Route path="desenvolvimento" element={<Desenvolvimento />} />
         <Route path="automacoes" element={<Automacoes />} />
+        <Route path="equipe" element={<Equipe />} />
         <Route path="configuracoes" element={<Configuracoes />} />
-        <Route path="squads" element={<Squads />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

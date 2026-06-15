@@ -1,15 +1,39 @@
-// Controller de usuarios.
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CargosGuard } from '../common/rbac/cargos.guard';
+import { Cargos } from '../common/rbac/cargos.decorator';
+import { Cargo, UsuarioPublico } from '@breakr/shared';
 import { UsuarioAtual } from './usuario-atual.decorator';
-import { UsuarioPublico } from '@breakr/shared';
+import { UsuariosService, CriarUsuarioDto, AtualizarUsuarioDto } from './usuarios.service';
 
 @Controller('usuarios')
+@UseGuards(JwtAuthGuard)
 export class UsuariosController {
-  // GET /usuarios/me — retorna o usuario do token (rota protegida).
+  constructor(private readonly service: UsuariosService) {}
+
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   me(@UsuarioAtual() usuario: UsuarioPublico): UsuarioPublico {
     return usuario;
+  }
+
+  @Get()
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  listar() {
+    return this.service.listarTodos();
+  }
+
+  @Post()
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  criar(@Body() dto: CriarUsuarioDto) {
+    return this.service.criar(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  atualizar(@Param('id') id: string, @Body() dto: AtualizarUsuarioDto) {
+    return this.service.atualizar(id, dto);
   }
 }

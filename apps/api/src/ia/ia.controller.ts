@@ -1,4 +1,3 @@
-// Configuracoes de IA — restrito a ADMIN/SUPERADMIN (dados sensiveis: chaves).
 import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { Cargo } from '@breakr/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -6,37 +5,50 @@ import { CargosGuard } from '../common/rbac/cargos.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
 import { IaConfigService } from './ia-config.service';
 import { IaService } from './ia.service';
+import { IntegracoesConfigService } from './integracoes-config.service';
 import { AtualizarIaDto } from './dto/atualizar-ia.dto';
 
-@Controller('config/ia')
+@Controller('config')
 @UseGuards(JwtAuthGuard)
 export class IaController {
   constructor(
     private readonly config: IaConfigService,
     private readonly ia: IaService,
+    private readonly integracoes: IntegracoesConfigService,
   ) {}
 
-  // GET /config/ia — estado mascarado (nunca devolve a chave inteira).
-  @Get()
+  @Get('ia')
   @UseGuards(CargosGuard)
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
-  obter() {
+  obterIa() {
     return this.config.obter();
   }
 
-  // PATCH /config/ia — salva chaves/modelos/provedor ativo/ativacao.
-  @Patch()
+  @Patch('ia')
   @UseGuards(CargosGuard)
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
-  atualizar(@Body() dto: AtualizarIaDto) {
+  atualizarIa(@Body() dto: AtualizarIaDto) {
     return this.config.atualizar(dto);
   }
 
-  // POST /config/ia/testar — testa a conexao com o provedor ativo.
-  @Post('testar')
+  @Post('ia/testar')
   @UseGuards(CargosGuard)
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
   testar() {
     return this.ia.testar();
+  }
+
+  @Get('integracoes')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  obterIntegracoes() {
+    return this.integracoes.obter();
+  }
+
+  @Patch('integracoes')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  atualizarIntegracoes(@Body() dto: Record<string, unknown>) {
+    return this.integracoes.atualizar(dto as Parameters<IntegracoesConfigService['atualizar']>[0]);
   }
 }

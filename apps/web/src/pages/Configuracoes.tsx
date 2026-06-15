@@ -1,734 +1,345 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import {
-  PaginaShell,
-  BotaoPrimario,
-  BotaoSecundario,
-  Campo,
-  MensagemErro,
-  EstadoCarregando,
-  EstadoErro,
-} from './Clientes';
+  PaginaHeader, Btn, Campo, Tabs, Switch, Card,
+  Carregando, ErroEstado, Alerta, Badge,
+} from '../components/ui';
 
-/**
- * Tela de Configurações — Integrações de IA (Fase 1).
- * Um admin cola as chaves de API dos 3 provedores de LLM (OpenAI, Anthropic,
- * Google), escolhe o provedor ativo, liga/desliga a IA do sistema e testa a
- * conexão. As chaves NUNCA voltam por inteiro: a API só devolve `temChave` e um
- * `preview` mascarado. Trata loading / erro de carga / erro e sucesso por ação.
- *
- * Contrato (API):
- *  GET   /config/ia        → ConfigIa
- *  PATCH /config/ia        body parcial → ConfigIa
- *                          (chave ""  limpa; chave omitida não muda; chave preenchida define)
- *  POST  /config/ia/testar → { ok, mensagem }
- */
-
+/* ── Tipos ── */
 type ProvedorIa = 'OPENAI' | 'ANTHROPIC' | 'GEMINI';
-
-interface ProvedorInfo {
-  temChave: boolean;
-  preview: string | null;
-  modelo: string | null;
-}
-
+interface ProvedorInfo { temChave: boolean; preview: string | null; modelo: string | null }
 interface ConfigIa {
-  ativo: boolean;
-  provedorAtivo: ProvedorIa;
-  provedores: {
-    openai: ProvedorInfo;
-    anthropic: ProvedorInfo;
-    gemini: ProvedorInfo;
-  };
+  ativo: boolean; provedorAtivo: ProvedorIa;
+  provedores: { openai: ProvedorInfo; anthropic: ProvedorInfo; gemini: ProvedorInfo };
+}
+interface ConfigIntegracoes {
+  asaas: { temChave: boolean; preview: string | null; sandbox: boolean };
+  speed: { temChave: boolean; preview: string | null };
+  autentique: { temChave: boolean; preview: string | null };
+  whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
 }
 
-interface RespostaTeste {
-  ok: boolean;
-  mensagem: string;
-}
-
-// Corpo do PATCH: tudo opcional, montado só com o que mudou.
-interface PatchConfigIa {
-  ativo?: boolean;
-  provedorAtivo?: ProvedorIa;
-  openaiApiKey?: string;
-  anthropicApiKey?: string;
-  geminiApiKey?: string;
-  modeloOpenai?: string;
-  modeloAnthropic?: string;
-  modeloGemini?: string;
-}
-
-// Chave do provedor dentro de `config.provedores` (objeto enviado pela API).
-type ChaveProvedor = 'openai' | 'anthropic' | 'gemini';
-
-// Metadados estáticos de cada card, na ordem de exibição pedida.
-interface MetaProvedor {
-  id: ProvedorIa;
-  chave: ChaveProvedor;
-  nome: string;
-  placeholderModelo: string;
-  // Campos do corpo do PATCH para este provedor.
-  campoChave: 'openaiApiKey' | 'anthropicApiKey' | 'geminiApiKey';
-  campoModelo: 'modeloOpenai' | 'modeloAnthropic' | 'modeloGemini';
-}
-
-const PROVEDORES: MetaProvedor[] = [
-  {
-    id: 'OPENAI',
-    chave: 'openai',
-    nome: 'ChatGPT — OpenAI',
-    placeholderModelo: 'gpt-4o-mini',
-    campoChave: 'openaiApiKey',
-    campoModelo: 'modeloOpenai',
-  },
-  {
-    id: 'ANTHROPIC',
-    chave: 'anthropic',
-    nome: 'Claude — Anthropic',
-    placeholderModelo: 'claude-3-5-sonnet-latest',
-    campoChave: 'anthropicApiKey',
-    campoModelo: 'modeloAnthropic',
-  },
-  {
-    id: 'GEMINI',
-    chave: 'gemini',
-    nome: 'Gemini — Google',
-    placeholderModelo: 'gemini-1.5-flash',
-    campoChave: 'geminiApiKey',
-    campoModelo: 'modeloGemini',
-  },
-];
-
-// Estado editável por provedor mantido localmente até o Salvar.
-interface RascunhoProvedor {
-  // Chave digitada agora (string vazia = nada digitado). Só vai no PATCH se preenchida.
-  chaveDigitada: string;
-  // Armado para limpar: envia "" no PATCH para apagar a chave já salva.
-  limpar: boolean;
-  // Modelo no input (pré-preenchido com o atual; "" usa o default do backend).
-  modelo: string;
-}
-
-function rascunhoVazio(): RascunhoProvedor {
-  return { chaveDigitada: '', limpar: false, modelo: '' };
-}
-
-type Rascunhos = Record<ChaveProvedor, RascunhoProvedor>;
-
-function rascunhosDeConfig(config: ConfigIa): Rascunhos {
-  return {
-    openai: { ...rascunhoVazio(), modelo: config.provedores.openai.modelo ?? '' },
-    anthropic: { ...rascunhoVazio(), modelo: config.provedores.anthropic.modelo ?? '' },
-    gemini: { ...rascunhoVazio(), modelo: config.provedores.gemini.modelo ?? '' },
-  };
-}
-
-export function Configuracoes() {
+/* ── Aba IA ── */
+function AbaIA() {
   const [config, setConfig] = useState<ConfigIa | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
-
-  // Estado editável (espelha o config carregado e acumula as mudanças pendentes).
   const [ativo, setAtivo] = useState(false);
   const [provedorAtivo, setProvedorAtivo] = useState<ProvedorIa>('OPENAI');
-  const [rascunhos, setRascunhos] = useState<Rascunhos>(rascunhosDeConfig({
-    ativo: false,
-    provedorAtivo: 'OPENAI',
-    provedores: {
-      openai: { temChave: false, preview: null, modelo: null },
-      anthropic: { temChave: false, preview: null, modelo: null },
-      gemini: { temChave: false, preview: null, modelo: null },
-    },
-  }));
-
-  // Estados de ação (salvar / testar), mostrados inline acima dos cards.
+  const [rascunhos, setRascunhos] = useState<Record<string, { chave: string; modelo: string; limpar: boolean }>>({
+    openai: { chave: '', modelo: '', limpar: false },
+    anthropic: { chave: '', modelo: '', limpar: false },
+    gemini: { chave: '', modelo: '', limpar: false },
+  });
   const [salvando, setSalvando] = useState(false);
   const [testando, setTestando] = useState(false);
-  const [erroAcao, setErroAcao] = useState<string | null>(null);
-  const [sucesso, setSucesso] = useState<string | null>(null);
-  const [resultadoTeste, setResultadoTeste] = useState<RespostaTeste | null>(null);
-
-  // Aplica um ConfigIa recém-carregado a todo o estado editável.
-  function aplicarConfig(novo: ConfigIa) {
-    setConfig(novo);
-    setAtivo(novo.ativo);
-    setProvedorAtivo(novo.provedorAtivo);
-    setRascunhos(rascunhosDeConfig(novo));
-  }
+  const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro' | 'info'; msg: string } | null>(null);
 
   async function carregar() {
-    setCarregando(true);
-    setErroCarga(null);
+    setCarregando(true); setErroCarga(null);
     try {
       const { data } = await api.get<ConfigIa>('/config/ia');
-      aplicarConfig(data);
-    } catch {
-      setErroCarga('Não foi possível carregar as configurações de IA. Tente novamente.');
-    } finally {
-      setCarregando(false);
-    }
+      setConfig(data); setAtivo(data.ativo); setProvedorAtivo(data.provedorAtivo);
+      setRascunhos({
+        openai: { chave: '', modelo: data.provedores.openai.modelo ?? '', limpar: false },
+        anthropic: { chave: '', modelo: data.provedores.anthropic.modelo ?? '', limpar: false },
+        gemini: { chave: '', modelo: data.provedores.gemini.modelo ?? '', limpar: false },
+      });
+    } catch { setErroCarga('Erro ao carregar configurações.'); }
+    finally { setCarregando(false); }
   }
-
-  useEffect(() => {
-    carregar();
-  }, []);
-
-  function atualizarRascunho(chave: ChaveProvedor, parcial: Partial<RascunhoProvedor>) {
-    setRascunhos((atual) => ({ ...atual, [chave]: { ...atual[chave], ...parcial } }));
-    // Qualquer edição invalida o feedback transitório anterior.
-    setSucesso(null);
-    setErroAcao(null);
-  }
-
-  // Monta o corpo do PATCH só com o que mudou frente ao config carregado.
-  function montarCorpo(base: ConfigIa): PatchConfigIa {
-    const corpo: PatchConfigIa = {};
-
-    if (ativo !== base.ativo) corpo.ativo = ativo;
-    if (provedorAtivo !== base.provedorAtivo) corpo.provedorAtivo = provedorAtivo;
-
-    for (const meta of PROVEDORES) {
-      const r = rascunhos[meta.chave];
-      const info = base.provedores[meta.chave];
-
-      // Chave: digitada (não vazia) define; armada para limpar envia "".
-      const digitada = r.chaveDigitada.trim();
-      if (digitada) {
-        corpo[meta.campoChave] = digitada;
-      } else if (r.limpar && info.temChave) {
-        corpo[meta.campoChave] = '';
-      }
-
-      // Modelo: envia quando o texto difere do salvo (tratando null como "").
-      const modeloAtual = info.modelo ?? '';
-      if (r.modelo.trim() !== modeloAtual.trim()) {
-        corpo[meta.campoModelo] = r.modelo.trim();
-      }
-    }
-
-    return corpo;
-  }
-
-  const corpoPendente = config ? montarCorpo(config) : {};
-  const temMudancas = Object.keys(corpoPendente).length > 0;
+  useEffect(() => { carregar(); }, []);
 
   async function salvar() {
-    if (!config || salvando || !temMudancas) return;
-    setSalvando(true);
-    setErroAcao(null);
-    setSucesso(null);
-    setResultadoTeste(null);
+    if (!config || salvando) return;
+    setSalvando(true); setFeedback(null);
     try {
-      const { data } = await api.patch<ConfigIa>('/config/ia', corpoPendente);
-      aplicarConfig(data); // recarrega do retorno e limpa as chaves digitadas
-      setSucesso('Configurações salvas');
-    } catch {
-      setErroAcao('Não foi possível salvar as configurações. Tente novamente.');
-    } finally {
-      setSalvando(false);
-    }
+      const corpo: Record<string, unknown> = {};
+      if (ativo !== config.ativo) corpo.ativo = ativo;
+      if (provedorAtivo !== config.provedorAtivo) corpo.provedorAtivo = provedorAtivo;
+      for (const [chave, r] of Object.entries(rascunhos)) {
+        const mapa: Record<string, string> = { openai: 'openaiApiKey', anthropic: 'anthropicApiKey', gemini: 'geminiApiKey' };
+        const mapaM: Record<string, string> = { openai: 'modeloOpenai', anthropic: 'modeloAnthropic', gemini: 'modeloGemini' };
+        if (r.chave.trim()) corpo[mapa[chave]] = r.chave.trim();
+        else if (r.limpar) corpo[mapa[chave]] = '';
+        const info = config.provedores[chave as keyof typeof config.provedores];
+        if (r.modelo.trim() !== (info.modelo ?? '').trim()) corpo[mapaM[chave]] = r.modelo.trim();
+      }
+      const { data } = await api.patch<ConfigIa>('/config/ia', corpo);
+      setConfig(data);
+      setFeedback({ tipo: 'sucesso', msg: 'Configurações de IA salvas.' });
+    } catch { setFeedback({ tipo: 'erro', msg: 'Erro ao salvar. Tente novamente.' }); }
+    finally { setSalvando(false); }
   }
 
   async function testar() {
     if (testando) return;
-    setTestando(true);
-    setErroAcao(null);
-    setSucesso(null);
-    setResultadoTeste(null);
+    setTestando(true); setFeedback(null);
     try {
-      const { data } = await api.post<RespostaTeste>('/config/ia/testar');
-      setResultadoTeste(data);
-    } catch {
-      setResultadoTeste({
-        ok: false,
-        mensagem: 'Não foi possível testar a conexão agora. Tente novamente.',
-      });
-    } finally {
-      setTestando(false);
-    }
+      const { data } = await api.post<{ ok: boolean; mensagem: string }>('/config/ia/testar');
+      setFeedback({ tipo: data.ok ? 'sucesso' : 'erro', msg: data.mensagem });
+    } catch { setFeedback({ tipo: 'erro', msg: 'Não foi possível testar agora.' }); }
+    finally { setTestando(false); }
   }
 
+  if (carregando) return <Carregando />;
+  if (erroCarga) return <ErroEstado mensagem={erroCarga} onTentar={carregar} />;
+  if (!config) return null;
+
+  const PROVEDORES = [
+    { id: 'OPENAI' as ProvedorIa, chave: 'openai', nome: 'ChatGPT — OpenAI', placeholder: 'sk-…', placeholderModelo: 'gpt-4o-mini' },
+    { id: 'ANTHROPIC' as ProvedorIa, chave: 'anthropic', nome: 'Claude — Anthropic', placeholder: 'sk-ant-…', placeholderModelo: 'claude-3-5-sonnet-latest' },
+    { id: 'GEMINI' as ProvedorIa, chave: 'gemini', nome: 'Gemini — Google', placeholder: 'AIza…', placeholderModelo: 'gemini-1.5-flash' },
+  ];
+
   return (
-    <PaginaShell
-      titulo="Configurações"
-      subtitulo="Integrações de IA do sistema"
-      acao={
-        <BotaoPrimario onClick={salvar} disabled={salvando || carregando || !temMudancas}>
-          {salvando ? 'Salvando…' : 'Salvar'}
-        </BotaoPrimario>
-      }
-    >
-      <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', maxWidth: 620, marginTop: -8 }}>
-        As chaves ficam guardadas no sistema e nunca são exibidas de volta — só um trecho
-        mascarado.
-      </p>
-
-      {carregando ? (
-        <EstadoCarregando />
-      ) : erroCarga ? (
-        <EstadoErro mensagem={erroCarga} onTentar={carregar} />
-      ) : config ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Linha de topo: toggle "IA ativa" + testar conexão + feedback. */}
-          <BarraTopo
-            ativo={ativo}
-            aoAlternar={(v) => {
-              setAtivo(v);
-              setSucesso(null);
-              setErroAcao(null);
-            }}
-            testando={testando}
-            aoTestar={testar}
-            resultadoTeste={resultadoTeste}
-          />
-
-          {erroAcao && <MensagemErro texto={erroAcao} />}
-          {sucesso && <LinhaSucesso texto={sucesso} />}
-
-          {/* Três cards de provedor. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {PROVEDORES.map((meta) => (
-              <CardProvedor
-                key={meta.id}
-                meta={meta}
-                info={config.provedores[meta.chave]}
-                rascunho={rascunhos[meta.chave]}
-                ehAtivo={provedorAtivo === meta.id}
-                aoUsarEste={() => {
-                  setProvedorAtivo(meta.id);
-                  setSucesso(null);
-                  setErroAcao(null);
-                }}
-                aoMudar={(parcial) => atualizarRascunho(meta.chave, parcial)}
-              />
-            ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <Switch ativo={ativo} aoAlternar={setAtivo} rotulo="IA ativa no sistema" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Btn variante="secondary" onClick={testar} disabled={testando}>
+              {testando ? 'Testando…' : 'Testar conexão'}
+            </Btn>
+            <Btn onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</Btn>
           </div>
         </div>
-      ) : null}
-    </PaginaShell>
-  );
-}
+      </Card>
 
-/* ----------------------------- Barra de topo ----------------------------- */
+      {feedback && <Alerta tipo={feedback.tipo}>{feedback.msg}</Alerta>}
 
-function BarraTopo({
-  ativo,
-  aoAlternar,
-  testando,
-  aoTestar,
-  resultadoTeste,
-}: {
-  ativo: boolean;
-  aoAlternar: (v: boolean) => void;
-  testando: boolean;
-  aoTestar: () => void;
-  resultadoTeste: RespostaTeste | null;
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-        flexWrap: 'wrap',
-        background: 'var(--superficie)',
-        border: '1px solid var(--borda)',
-        borderRadius: 16,
-        padding: '16px 18px',
-        boxShadow: 'var(--sombra-card)',
-      }}
-    >
-      <Interruptor ativo={ativo} aoAlternar={aoAlternar} />
+      {PROVEDORES.map((p) => {
+        const info = config.provedores[p.chave as keyof typeof config.provedores];
+        const r = rascunhos[p.chave];
+        const ehAtivo = provedorAtivo === p.id;
+        return (
+          <div
+            key={p.id}
+            className={ehAtivo ? 'brk-card brk-card-p brk-gradient-border' : 'brk-card brk-card-p'}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700 }}>{p.nome}</h3>
+                {ehAtivo && <Badge cor="amarelo">Em uso</Badge>}
+                {info.temChave && !ehAtivo && <Badge cor="verde">Configurado</Badge>}
+              </div>
+              {!ehAtivo && (
+                <Btn variante="secondary" tamanho="sm" onClick={() => setProvedorAtivo(p.id)}>
+                  Usar este
+                </Btn>
+              )}
+            </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        {resultadoTeste && (
-          <MensagemTeste ok={resultadoTeste.ok} mensagem={resultadoTeste.mensagem} />
-        )}
-        <BotaoSecundario onClick={aoTestar} disabled={testando}>
-          {testando ? 'Testando…' : 'Testar conexão'}
-        </BotaoSecundario>
-      </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+                  {info.temChave ? 'Chave salva:' : 'Sem chave'}
+                </span>
+                {info.preview && (
+                  <code style={{ fontSize: 12, background: 'var(--superficie-3)', padding: '2px 8px', borderRadius: 'var(--r-sm)', color: 'var(--texto-suave)' }}>
+                    {info.preview}
+                  </code>
+                )}
+              </div>
+              <Campo
+                rotulo="Chave da API"
+                type="password"
+                autoComplete="off"
+                placeholder={info.temChave ? 'Cole para substituir' : p.placeholder}
+                value={r.chave}
+                onChange={(e) => setRascunhos((prev) => ({ ...prev, [p.chave]: { ...prev[p.chave], chave: e.target.value } }))}
+              />
+              <Campo
+                rotulo="Modelo"
+                placeholder={p.placeholderModelo}
+                value={r.modelo}
+                onChange={(e) => setRascunhos((prev) => ({ ...prev, [p.chave]: { ...prev[p.chave], modelo: e.target.value } }))}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// Interruptor acessível "IA ativa" (botão com role=switch + trilho/alça animados).
-function Interruptor({
-  ativo,
-  aoAlternar,
-}: {
-  ativo: boolean;
-  aoAlternar: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={ativo}
-      aria-label="IA ativa"
-      onClick={() => aoAlternar(!ativo)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 12,
-        background: 'transparent',
-        border: 'none',
-        padding: 0,
-        cursor: 'pointer',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'relative',
-          width: 46,
-          height: 26,
-          flexShrink: 0,
-          borderRadius: 999,
-          background: ativo ? 'var(--laranja-brasa)' : 'var(--superficie-3)',
-          border: `1px solid ${ativo ? 'var(--laranja-brasa)' : 'var(--borda-forte)'}`,
-          boxShadow: ativo ? '0 0 0 3px var(--foco)' : 'none',
-          transition: 'background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-        }}
-      >
-        <span
-          style={{
-            position: 'absolute',
-            top: 2,
-            left: ativo ? 22 : 2,
-            width: 20,
-            height: 20,
-            borderRadius: 999,
-            background: '#fff',
-            transition: 'left 0.18s ease',
-          }}
-        />
-      </span>
-      <span style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
-          IA ativa
-        </span>
-        <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
-          {ativo ? 'A IA está ligada para o sistema' : 'A IA está desligada'}
-        </span>
-      </span>
-    </button>
-  );
-}
+/* ── Aba Integrações ── */
+function AbaIntegracoes() {
+  const [config, setConfig] = useState<ConfigIntegracoes | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    asaasApiKey: '', asaasSandbox: false,
+    speedApiKey: '', autentiqueToken: '',
+    whatsappToken: '', whatsappInstancia: '',
+  });
+  const [salvando, setSalvando] = useState(false);
+  const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
 
-// Mensagem inline do teste de conexão: verde se ok, vermelha se não.
-function MensagemTeste({ ok, mensagem }: { ok: boolean; mensagem: string }) {
-  const cor = ok ? '#67e0a3' : '#e2738a';
-  return (
-    <span
-      role="status"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 13,
-        fontWeight: 600,
-        color: cor,
-        maxWidth: 360,
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 8,
-          height: 8,
-          flexShrink: 0,
-          borderRadius: 999,
-          background: cor,
-          boxShadow: `0 0 6px ${cor}`,
-        }}
-      />
-      {mensagem}
-    </span>
-  );
-}
-
-/* ----------------------------- Card de provedor ----------------------------- */
-
-function CardProvedor({
-  meta,
-  info,
-  rascunho,
-  ehAtivo,
-  aoUsarEste,
-  aoMudar,
-}: {
-  meta: MetaProvedor;
-  info: ProvedorInfo;
-  rascunho: RascunhoProvedor;
-  ehAtivo: boolean;
-  aoUsarEste: () => void;
-  aoMudar: (parcial: Partial<RascunhoProvedor>) => void;
-}) {
-  const idChave = `chave-${meta.chave}`;
-  // Quando a chave digitada está armada para limpar, o texto some até o save.
-  const placeholderChave = info.temChave
-    ? 'Cole para substituir a chave'
-    : 'Cole a chave da API';
-
-  return (
-    <div
-      className={ehAtivo ? 'brk-gradient-border' : undefined}
-      style={{
-        background: 'var(--superficie)',
-        border: ehAtivo ? undefined : '1px solid var(--borda)',
-        borderRadius: 16,
-        padding: 18,
-        boxShadow: 'var(--sombra-card)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-      }}
-    >
-      {/* Cabeçalho: nome + badge "Ativo" + botão "Usar este". */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h2 style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
-            {meta.nome}
-          </h2>
-          {ehAtivo && <BadgeAtivo />}
-        </div>
-        {ehAtivo ? (
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-fraco)' }}>
-            Provedor em uso
-          </span>
-        ) : (
-          <BotaoSecundario onClick={aoUsarEste}>Usar este</BotaoSecundario>
-        )}
-      </div>
-
-      {/* Status da chave salva. */}
-      <LinhaStatusChave info={info} />
-
-      {/* Input de chave (password). */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <CampoSenha
-          id={idChave}
-          rotulo="Chave da API"
-          valor={rascunho.chaveDigitada}
-          aoMudar={(v) => aoMudar({ chaveDigitada: v, limpar: v.trim() ? false : rascunho.limpar })}
-          placeholder={placeholderChave}
-        />
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
-            A chave nunca é exibida de volta.
-          </span>
-          {info.temChave && !rascunho.chaveDigitada.trim() && (
-            <button
-              type="button"
-              onClick={() => aoMudar({ limpar: !rascunho.limpar })}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                padding: 0,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                color: rascunho.limpar ? '#e2738a' : 'var(--amarelo-fagulha)',
-              }}
-            >
-              {rascunho.limpar ? 'Cancelar remoção' : 'Limpar chave'}
-            </button>
-          )}
-        </div>
-        {rascunho.limpar && !rascunho.chaveDigitada.trim() && (
-          <span style={{ fontSize: 11.5, color: '#e2738a' }}>(será removida ao salvar)</span>
-        )}
-      </div>
-
-      {/* Modelo. */}
-      <Campo
-        rotulo="Modelo"
-        valor={rascunho.modelo}
-        aoMudar={(v) => aoMudar({ modelo: v })}
-        placeholder={meta.placeholderModelo}
-      />
-    </div>
-  );
-}
-
-function BadgeAtivo() {
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        padding: '3px 9px',
-        borderRadius: 999,
-        background: 'rgba(255, 148, 6, 0.16)',
-        color: '#ffb44d',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          background: 'var(--amarelo-fagulha)',
-          boxShadow: '0 0 6px var(--amarelo-fagulha)',
-        }}
-      />
-      Ativo
-    </span>
-  );
-}
-
-function LinhaStatusChave({ info }: { info: ProvedorInfo }) {
-  if (!info.temChave) {
-    return (
-      <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Sem chave</span>
-    );
+  async function carregar() {
+    setCarregando(true); setErroCarga(null);
+    try {
+      const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
+      setConfig(data);
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '' });
+    } catch { setErroCarga('Erro ao carregar integrações.'); }
+    finally { setCarregando(false); }
   }
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 13,
-        color: 'var(--texto-suave)',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 8,
-          height: 8,
-          flexShrink: 0,
-          borderRadius: 999,
-          background: '#2ecc71',
-          boxShadow: '0 0 6px #2ecc71',
-        }}
-      />
-      Chave salva
-      {info.preview && (
-        <code
-          style={{
-            fontSize: 12.5,
-            color: 'var(--texto-suave)',
-            background: 'var(--superficie-3)',
-            padding: '2px 8px',
-            borderRadius: 6,
-          }}
-        >
-          {info.preview}
-        </code>
-      )}
-    </span>
-  );
-}
+  useEffect(() => { carregar(); }, []);
 
-/* ----------------------------- Primitivos locais ----------------------------- */
+  async function salvar() {
+    setSalvando(true); setFeedback(null);
+    try {
+      await api.patch('/config/integracoes', {
+        ...(form.asaasApiKey && { asaasApiKey: form.asaasApiKey }),
+        asaasSandbox: form.asaasSandbox,
+        ...(form.speedApiKey && { speedApiKey: form.speedApiKey }),
+        ...(form.autentiqueToken && { autentiqueToken: form.autentiqueToken }),
+        ...(form.whatsappToken && { whatsappToken: form.whatsappToken }),
+        ...(form.whatsappInstancia && { whatsappInstancia: form.whatsappInstancia }),
+      });
+      await carregar();
+      setFeedback({ tipo: 'sucesso', msg: 'Integrações salvas com sucesso.' });
+    } catch { setFeedback({ tipo: 'erro', msg: 'Erro ao salvar integrações.' }); }
+    finally { setSalvando(false); }
+  }
 
-// Espelha o Campo de Clientes, mas com type=password e autoComplete=off.
-function CampoSenha({
-  id,
-  rotulo,
-  valor,
-  aoMudar,
-  placeholder,
-}: {
-  id: string;
-  rotulo: string;
-  valor: string;
-  aoMudar: (v: string) => void;
-  placeholder?: string;
-}): ReactNode {
-  return (
-    <label htmlFor={id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)' }}>
-        {rotulo}
-      </span>
-      <input
-        id={id}
-        type="password"
-        autoComplete="off"
-        value={valor}
-        onChange={(e) => aoMudar(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          background: 'var(--superficie-2)',
-          border: '1px solid var(--borda-forte)',
-          borderRadius: 10,
-          padding: '11px 13px',
-          color: 'var(--texto)',
-          fontSize: 14,
-          outline: 'none',
-          fontFamily: 'inherit',
-          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = 'var(--amarelo-fagulha)';
-          e.currentTarget.style.boxShadow = '0 0 0 3px var(--foco)';
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = 'var(--borda-forte)';
-          e.currentTarget.style.boxShadow = 'none';
-        }}
-      />
-    </label>
-  );
-}
+  if (carregando) return <Carregando />;
+  if (erroCarga) return <ErroEstado mensagem={erroCarga} onTentar={carregar} />;
 
-// Linha de sucesso transitória (verde), reaproveitando o tom de erro inline.
-function LinhaSucesso({ texto }: { texto: string }): ReactNode {
+  const INTEGRACOES: { chave: keyof ConfigIntegracoes; nome: string; descricao: string; campos: ReactNode }[] = [
+    {
+      chave: 'asaas',
+      nome: 'Asaas — Cobranças',
+      descricao: 'Geração de boletos, PIX e cartão. Chave na aba "Financeiro" do Asaas.',
+      campos: (
+        <>
+          <Campo
+            rotulo="Chave da API Asaas"
+            type="password" autoComplete="off"
+            placeholder={config?.asaas.temChave ? 'Cole para substituir' : '$aact_…'}
+            value={form.asaasApiKey}
+            onChange={(e) => setForm((f) => ({ ...f, asaasApiKey: e.target.value }))}
+          />
+          <Switch
+            ativo={form.asaasSandbox}
+            aoAlternar={(v) => setForm((f) => ({ ...f, asaasSandbox: v }))}
+            rotulo="Modo Sandbox (testes)"
+          />
+        </>
+      ),
+    },
+    {
+      chave: 'speed',
+      nome: 'Speed — Nota Fiscal',
+      descricao: 'Emissão de NFS-e. Credenciais disponíveis no painel Speed.',
+      campos: (
+        <Campo
+          rotulo="Chave da API Speed"
+          type="password" autoComplete="off"
+          placeholder={config?.speed.temChave ? 'Cole para substituir' : 'API key da Speed…'}
+          value={form.speedApiKey}
+          onChange={(e) => setForm((f) => ({ ...f, speedApiKey: e.target.value }))}
+        />
+      ),
+    },
+    {
+      chave: 'autentique',
+      nome: 'Autentique — Assinatura Digital',
+      descricao: 'Envio de contratos para assinatura eletrônica. Token na aba API do Autentique.',
+      campos: (
+        <Campo
+          rotulo="Token da API Autentique"
+          type="password" autoComplete="off"
+          placeholder={config?.autentique.temChave ? 'Cole para substituir' : 'Token GraphQL…'}
+          value={form.autentiqueToken}
+          onChange={(e) => setForm((f) => ({ ...f, autentiqueToken: e.target.value }))}
+        />
+      ),
+    },
+    {
+      chave: 'whatsapp',
+      nome: 'WhatsApp — MegaAPI',
+      descricao: 'Mensagens automáticas para clientes via MegaAPI. Configure a instância conectada.',
+      campos: (
+        <>
+          <Campo
+            rotulo="Token MegaAPI"
+            type="password" autoComplete="off"
+            placeholder={config?.whatsapp.temToken ? 'Cole para substituir' : 'Token da instância…'}
+            value={form.whatsappToken}
+            onChange={(e) => setForm((f) => ({ ...f, whatsappToken: e.target.value }))}
+          />
+          <Campo
+            rotulo="Nome da instância"
+            placeholder="Ex: breakr-main"
+            value={form.whatsappInstancia}
+            onChange={(e) => setForm((f) => ({ ...f, whatsappInstancia: e.target.value }))}
+          />
+        </>
+      ),
+    },
+  ];
+
   return (
-    <div
-      role="status"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 13,
-        fontWeight: 600,
-        color: '#67e0a3',
-        background: 'rgba(46, 204, 113, 0.12)',
-        border: '1px solid rgba(46, 204, 113, 0.4)',
-        borderRadius: 10,
-        padding: '10px 12px',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 8,
-          height: 8,
-          flexShrink: 0,
-          borderRadius: 999,
-          background: '#2ecc71',
-          boxShadow: '0 0 6px #2ecc71',
-        }}
-      />
-      {texto}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginBottom: 4 }}>
+        As chaves ficam guardadas criptografadas e nunca são exibidas por completo.
+        Deixe o campo em branco para manter a chave atual.
+      </p>
+
+      {feedback && <Alerta tipo={feedback.tipo}>{feedback.msg}</Alerta>}
+
+      {INTEGRACOES.map(({ chave, nome, descricao, campos }) => {
+        const status = config?.[chave];
+        const conectado = ('temChave' in (status ?? {}) ? (status as { temChave: boolean }).temChave : false)
+          || ('temToken' in (status ?? {}) ? (status as { temToken: boolean }).temToken : false);
+        const preview = ('preview' in (status ?? {}) ? (status as { preview: string | null }).preview : null);
+        return (
+          <div key={chave} className="brk-card brk-card-p">
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <h3 style={{ fontSize: 14.5, fontWeight: 700 }}>{nome}</h3>
+                  <Badge cor={conectado ? 'verde' : 'neutro'}>{conectado ? 'Conectado' : 'Não configurado'}</Badge>
+                </div>
+                <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', maxWidth: 420 }}>{descricao}</p>
+                {preview && (
+                  <div style={{ marginTop: 6 }}>
+                    <code style={{ fontSize: 12, background: 'var(--superficie-3)', padding: '2px 8px', borderRadius: 'var(--r-sm)', color: 'var(--texto-suave)' }}>
+                      {preview}
+                    </code>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {campos}
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
+        <Btn onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar integrações'}</Btn>
+      </div>
     </div>
+  );
+}
+
+/* ── Componente principal ── */
+export function Configuracoes() {
+  const [aba, setAba] = useState('IA');
+
+  return (
+    <>
+      <PaginaHeader
+        titulo="Configurações"
+        subtitulo="Integrações, IA e parâmetros do sistema"
+      />
+      <Tabs abas={['IA', 'Integrações']} ativa={aba} aoMudar={setAba} />
+      {aba === 'IA' && <AbaIA />}
+      {aba === 'Integrações' && <AbaIntegracoes />}
+    </>
   );
 }

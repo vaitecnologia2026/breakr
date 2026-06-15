@@ -1,247 +1,98 @@
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { MODULOS } from '@breakr/shared';
+import { useAuth } from '../lib/auth';
 import { Logo } from './Logo';
 
-/**
- * Navegação lateral do Breakr OS.
- * As telas já entregues na Fase 0 (Início, Clientes, Squads) são NavLinks
- * navegáveis e com estado ativo. Os demais MODULOS do contrato compartilhado
- * aparecem como "em breve", com o badge da fase.
- */
-
-// Fase em foco: os módulos desta fase aparecem com o ponto aceso ("em obra").
-const FASE_ATIVA: number = 2;
-
-// Telas reais já disponíveis (entram no topo do menu, acima dos módulos).
-const LINKS_ATIVOS = [
-  { para: '/', rotulo: 'Início', fim: true },
-  { para: '/comercial', rotulo: 'Comercial', fim: false },
-  { para: '/clientes', rotulo: 'Clientes', fim: false },
-  { para: '/contratos', rotulo: 'Contratos', fim: false },
-  { para: '/cobrancas', rotulo: 'Cobranças', fim: false },
-  { para: '/conteudos', rotulo: 'Conteúdo', fim: false },
-  { para: '/trafego', rotulo: 'Tráfego', fim: false },
-  { para: '/squads', rotulo: 'Squads', fim: false },
-  { para: '/recrutamento', rotulo: 'Recrutamento', fim: false },
-  { para: '/compras', rotulo: 'Compras', fim: false },
-  { para: '/desenvolvimento', rotulo: 'Desenvolvimento', fim: false },
-  { para: '/automacoes', rotulo: 'Automações', fim: false },
-  { para: '/configuracoes', rotulo: 'Configurações', fim: false },
+const LINKS = [
+  { para: '/', rotulo: 'Dashboard', icone: '⬡', fim: true },
+  { para: '/comercial', rotulo: 'Comercial', icone: '◈', fim: false },
+  { para: '/clientes', rotulo: 'Clientes', icone: '◉', fim: false },
+  { para: '/contratos', rotulo: 'Contratos', icone: '◫', fim: false },
+  { para: '/cobrancas', rotulo: 'Cobranças', icone: '◈', fim: false },
+  { para: '/conteudos', rotulo: 'Conteúdo', icone: '◧', fim: false },
+  { para: '/trafego', rotulo: 'Tráfego', icone: '◈', fim: false },
+  { para: '/squads', rotulo: 'Squads', icone: '◉', fim: false },
+  { para: '/recrutamento', rotulo: 'Recrutamento', icone: '◈', fim: false },
+  { para: '/compras', rotulo: 'Compras', icone: '◫', fim: false },
+  { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: '◈', fim: false },
+  { para: '/automacoes', rotulo: 'Automações', icone: '◈', fim: false },
 ] as const;
 
-// Slugs de MODULOS que já têm tela real (não repetir como "em breve").
-// Restam em breve: cs-portal (portal é externo), trafego e qualidade (Fase 2).
-const SLUGS_COM_TELA = new Set<string>([
-  'nucleo',
-  'comercial',
-  'contratos',
-  'financeiro',
-  'marketing',
-  'trafego',
-  'rh',
-  'operacoes',
-  'desenvolvimento',
-]);
-
-// Rótulo curto da fase exibido no badge.
-function rotuloFase(fase: number): string {
-  return `F${fase}`;
-}
+const LINKS_ADMIN = [
+  { para: '/equipe', rotulo: 'Equipe', icone: '◉', fim: false },
+  { para: '/configuracoes', rotulo: 'Configurações', icone: '◈', fim: false },
+] as const;
 
 export function Sidebar() {
+  const { usuario, logout } = useAuth();
+  const isAdmin = usuario?.cargo === 'ADMIN' || usuario?.cargo === 'SUPERADMIN';
+
   return (
-    <aside
-      style={{
-        width: 264,
-        flexShrink: 0,
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--superficie)',
-        borderRight: '1px solid var(--borda)',
-        padding: '22px 16px',
-        gap: 18,
-      }}
-    >
-      <div style={{ padding: '4px 8px 6px' }}>
-        <Logo tamanho={26} />
+    <aside className="brk-sidebar">
+      <div className="brk-sidebar-logo">
+        <Logo tamanho={24} />
       </div>
 
-      <nav style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <div>
-          <TituloGrupo>Navegação</TituloGrupo>
-          <ul style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {LINKS_ATIVOS.map((l) => (
-              <li key={l.para}>
-                <ItemLink para={l.para} rotulo={l.rotulo} fim={l.fim} />
-              </li>
-            ))}
-          </ul>
+      <nav className="brk-sidebar-nav">
+        <div className="brk-sidebar-group">
+          <span className="brk-sidebar-label">Principal</span>
+          {LINKS.map((l) => (
+            <SidebarLink key={l.para} {...l} />
+          ))}
         </div>
 
-        <div>
-          <TituloGrupo>Módulos</TituloGrupo>
-          <ul style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {MODULOS.map((modulo) => {
-              // Pula os que já viraram tela real (Início, Contratos, Cobranças).
-              if (SLUGS_COM_TELA.has(modulo.slug)) return null;
-              const ativo = modulo.fase === FASE_ATIVA;
-              return (
-                <li key={modulo.id}>
-                  <ItemModulo nome={modulo.nome} fase={modulo.fase} ativo={ativo} />
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        {isAdmin && (
+          <div className="brk-sidebar-group">
+            <span className="brk-sidebar-label">Gestão</span>
+            {LINKS_ADMIN.map((l) => (
+              <SidebarLink key={l.para} {...l} />
+            ))}
+          </div>
+        )}
       </nav>
 
-      <div
-        style={{
-          fontSize: 11,
-          color: 'var(--texto-fraco)',
-          padding: '12px 8px 0',
-          borderTop: '1px solid var(--borda)',
-        }}
-      >
-        Breakr OS · v0.4 — Fase 3
+      <div className="brk-sidebar-footer">
+        <div className="brk-sidebar-user">
+          <span className="brk-sidebar-avatar">
+            {usuario?.nome?.charAt(0).toUpperCase() ?? 'U'}
+          </span>
+          <div className="brk-sidebar-user-info">
+            <span className="brk-sidebar-user-nome">{usuario?.nome ?? '—'}</span>
+            <span className="brk-sidebar-user-cargo">{usuario?.cargo ?? ''}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={logout}
+          className="brk-sidebar-logout"
+          title="Sair"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
       </div>
     </aside>
   );
 }
 
-function TituloGrupo({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color: 'var(--texto-fraco)',
-        padding: '0 8px 8px',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/* ----------------------- Item navegável (NavLink) ----------------------- */
-
-interface ItemLinkProps {
-  para: string;
-  rotulo: string;
-  fim: boolean;
-}
-
-function ItemLink({ para, rotulo, fim }: ItemLinkProps) {
+function SidebarLink({ para, rotulo, fim }: { para: string; rotulo: string; icone: string; fim: boolean }) {
   return (
     <NavLink
       to={para}
       end={fim}
-      className={({ isActive }) => (isActive ? 'brk-gradient-border' : undefined)}
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 12px',
-        borderRadius: 10,
-        background: isActive ? 'rgba(202, 63, 23, 0.14)' : 'transparent',
-        color: isActive ? 'var(--cinza-vapor)' : 'var(--texto-suave)',
-        fontWeight: isActive ? 600 : 500,
-        position: 'relative',
-        transition: 'background 0.15s ease, color 0.15s ease',
-      })}
+      className={({ isActive }) => `brk-sidebar-item${isActive ? ' active' : ''}`}
     >
-      {({ isActive }) => (
-        <>
-          <span
-            aria-hidden="true"
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: 999,
-              flexShrink: 0,
-              background: isActive ? 'var(--amarelo-fagulha)' : 'var(--borda-forte)',
-              boxShadow: isActive ? '0 0 8px var(--amarelo-fagulha)' : 'none',
-            }}
-          />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {rotulo}
-          </span>
-        </>
-      )}
+      <span className="brk-sidebar-dot" aria-hidden="true" />
+      <span className="brk-sidebar-item-label">{rotulo}</span>
     </NavLink>
   );
 }
 
-/* ----------------------- Item de módulo (em breve) ----------------------- */
-
-interface ItemModuloProps {
-  nome: string;
-  fase: number;
-  ativo: boolean;
-}
-
-function ItemModulo({ nome, fase, ativo }: ItemModuloProps) {
-  return (
-    <div
-      title={`${nome} — em breve (Fase ${fase})`}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 8,
-        padding: '10px 12px',
-        borderRadius: 10,
-        background: 'transparent',
-        color: 'var(--texto-fraco)',
-        fontWeight: 500,
-        cursor: 'not-allowed',
-        position: 'relative',
-      }}
-    >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: 999,
-            flexShrink: 0,
-            background: ativo ? 'var(--amarelo-fagulha)' : 'var(--borda-forte)',
-            boxShadow: ativo ? '0 0 8px var(--amarelo-fagulha)' : 'none',
-          }}
-        />
-        <span
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {nome}
-        </span>
-      </span>
-
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          padding: '2px 7px',
-          borderRadius: 999,
-          flexShrink: 0,
-          color: 'var(--texto-fraco)',
-          background: 'var(--superficie-3)',
-        }}
-      >
-        {rotuloFase(fase)}
-      </span>
-    </div>
-  );
+// Hook para sidebar mobile
+export function useSidebarMobile() {
+  const [aberta, setAberta] = useState(false);
+  return { aberta, abrir: () => setAberta(true), fechar: () => setAberta(false), alternar: () => setAberta((v) => !v) };
 }
