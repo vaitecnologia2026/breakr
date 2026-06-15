@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import {
   ASAAS_PORT,
   AUTENTIQUE_PORT,
-  GOOGLE_PORT,
   SPEED_PORT,
   WHATSAPP_PORT,
 } from './tokens';
@@ -17,13 +16,11 @@ import {
 import { AsaasStubService } from './stubs/asaas.stub.service';
 import { SpeedStubService } from './stubs/speed.stub.service';
 import { AutentiqueStubService } from './stubs/autentique.stub.service';
-import { GoogleStubService } from './stubs/google.stub.service';
 import { WhatsappStubService } from './stubs/whatsapp.stub.service';
 // Adapters reais
 import { WhatsappMegaService } from './real/whatsapp-mega.service';
 import { AsaasService } from './real/asaas.service';
 import { AutentiqueService } from './real/autentique.service';
-import { GoogleService } from './real/google.service';
 import { SpeedService } from './real/speed.service';
 
 const logger = new Logger('IntegracoesModule');
@@ -33,7 +30,6 @@ const providers: Provider[] = [
   AsaasStubService,
   SpeedStubService,
   AutentiqueStubService,
-  GoogleStubService,
   WhatsappStubService,
 
   {
@@ -81,20 +77,6 @@ const providers: Provider[] = [
   },
 
   {
-    provide: GOOGLE_PORT,
-    inject: [ConfigService, GoogleStubService],
-    useFactory: (config: ConfigService, stub: GoogleStubService) => {
-      const sa = config.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON');
-      if (sa) {
-        logger.log('Google: adapter REAL (service account) ativo.');
-        return new GoogleService(sa);
-      }
-      logger.log('Google: usando STUB (defina GOOGLE_SERVICE_ACCOUNT_JSON para ativar).');
-      return stub;
-    },
-  },
-
-  {
     provide: SPEED_PORT,
     inject: [ConfigService, SpeedStubService],
     useFactory: (config: ConfigService, stub: SpeedStubService) => {
@@ -111,6 +93,6 @@ const providers: Provider[] = [
 
 @Module({
   providers,
-  exports: [ASAAS_PORT, SPEED_PORT, AUTENTIQUE_PORT, GOOGLE_PORT, WHATSAPP_PORT],
+  exports: [ASAAS_PORT, SPEED_PORT, AUTENTIQUE_PORT, WHATSAPP_PORT],
 })
 export class IntegracoesModule {}

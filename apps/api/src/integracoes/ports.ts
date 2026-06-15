@@ -89,44 +89,7 @@ export interface AutentiquePort {
 }
 
 // ---------------------------------------------------------------
-// 4. Google Docs / Drive
-// ---------------------------------------------------------------
-export interface GoogleDocDeTemplateInput {
-  templateId: string; // id do Google Doc modelo (com tags)
-  // Mapa tag -> valor para o replace (ex.: { CLIENTE: 'Buteco do Preto' }).
-  variaveis: Record<string, string>;
-  nomeArquivo?: string;
-}
-
-export interface GoogleDoc {
-  documentId: string;
-  linkDocumento: string;
-  linkPdf?: string;
-}
-
-export interface GooglePastasInput {
-  clienteId: string;
-  nomeCliente: string;
-  // Subpastas padrao (ideias/materiais, design, videos, gestao...).
-  subpastas?: string[];
-}
-
-export interface GooglePastas {
-  pastaRaizId: string;
-  // Mapa nome da subpasta -> id criado no Drive.
-  subpastas: Record<string, string>;
-}
-
-export interface GooglePort {
-  /** Gera um Doc a partir de um template com tags (replace) e exporta PDF. */
-  gerarDocDeTemplate(input: GoogleDocDeTemplateInput): Promise<GoogleDoc>;
-
-  /** Cria a estrutura de pastas padrao do cliente no Drive. */
-  criarPastas(input: GooglePastasInput): Promise<GooglePastas>;
-}
-
-// ---------------------------------------------------------------
-// 5. WhatsApp — API oficial (+ MegaAPI na transicao)
+// 4. WhatsApp — API oficial (+ MegaAPI na transicao)
 // ---------------------------------------------------------------
 export interface WhatsappMensagemInput {
   // Numero E.164 (ex.: 5598999999999) ou id de grupo (...@g.us).

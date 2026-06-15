@@ -10,6 +10,7 @@ import { AUTENTIQUE_PORT, AutentiquePort } from '../integracoes';
 import { EngineService } from '../automacao/engine.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { FaturasService } from '../faturas/faturas.service';
+import { ContratoPdfService } from './contrato-pdf.service';
 import { CriarContratoDto } from './dto/criar-contrato.dto';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class ContratosService {
     private readonly engine: EngineService,
     private readonly faturas: FaturasService,
     private readonly notificacoes: NotificacoesService,
+    private readonly pdf: ContratoPdfService,
   ) {}
 
   // Cria um contrato em RASCUNHO. O valor vem do DTO ou, na falta, do plano.
@@ -73,20 +75,50 @@ export class ContratosService {
     return contrato;
   }
 
-  // Envia o contrato para assinatura no Autentique (stub na Fase 1).
+  /** Gera o PDF nativo do contrato e retorna como Buffer. Usado pelo endpoint de download. */
+  async gerarPdf(id: string): Promise<{ buffer: Buffer; nomeArquivo: string }> {
+    const contrato = await this.prisma.contrato.findUnique({
+      where: { id },
+      include: { cliente: true, plano: true },
+    });
+    if (!contrato) throw new NotFoundException('Contrato nao encontrado');
+    const buffer = await this.pdf.gerar({
+      codigoUnico: contrato.codigoUnico,
+      clienteNome: contrato.cliente.nomeFantasia,
+      clienteCnpj: contrato.cliente.cnpj,
+      planoNome: contrato.plano?.nome,
+      valorMensal: Number(contrato.valorMensal),
+      dataInicio: contrato.dataInicio,
+      vencimento: contrato.vencimento,
+    });
+    return { buffer, nomeArquivo: `contrato-${contrato.codigoUnico}.pdf` };
+  }
+
+  // Gera o PDF nativo e envia para assinatura no Autentique.
   async enviarParaAssinatura(id: string): Promise<Contrato> {
     const contrato = await this.prisma.contrato.findUnique({
       where: { id },
-      include: { cliente: true },
+      include: { cliente: true, plano: true },
     });
     if (!contrato) {
       throw new NotFoundException('Contrato nao encontrado');
     }
 
+    // PDF gerado 100% pelo sistema — sem Google Docs.
+    const pdfBuffer = await this.pdf.gerar({
+      codigoUnico: contrato.codigoUnico,
+      clienteNome: contrato.cliente.nomeFantasia,
+      clienteCnpj: contrato.cliente.cnpj,
+      planoNome: contrato.plano?.nome,
+      valorMensal: Number(contrato.valorMensal),
+      dataInicio: contrato.dataInicio,
+      vencimento: contrato.vencimento,
+    });
+
     // Retorno (id do doc, link de assinatura) e salvo no nosso banco.
     const doc = await this.autentique.enviarParaAssinatura({
       nomeDocumento: `Contrato ${contrato.codigoUnico} — ${contrato.cliente.nomeFantasia}`,
-      // TODO: e-mail real do signatario do cliente.
+      pdfBase64: pdfBuffer.toString('base64'),
       signatarios: [
         { nome: contrato.cliente.nomeFantasia, email: 'contato@cliente.com' },
       ],

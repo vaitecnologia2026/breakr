@@ -6,8 +6,10 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CargosGuard } from '../common/rbac/cargos.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
@@ -38,6 +40,18 @@ export class ContratosController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
   criar(@Body() dto: CriarContratoDto) {
     return this.contratosService.criar(dto);
+  }
+
+  // GET /contratos/:id/pdf — download do PDF nativo gerado pelo sistema.
+  @Get(':id/pdf')
+  async downloadPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, nomeArquivo } = await this.contratosService.gerarPdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+    res.send(buffer);
   }
 
   // POST /contratos/:id/enviar-assinatura — envia ao Autentique (Comercial/CS/Admin).
