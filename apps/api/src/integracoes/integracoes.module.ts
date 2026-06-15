@@ -1,20 +1,9 @@
-// ============================================================
-// IntegracoesModule — camada de adapters de integracao externa (Fase 0).
+// IntegracoesModule — adapters externos com seleção automática stub/real.
+// Padrão PORT/ADAPTER: consumidores injetam pelo token (@Inject(WHATSAPP_PORT))
+// e nunca conhecem a implementação concreta.
 //
-// Padrao: cada integracao tem um PORT (interface, em ports.ts) resolvido por
-// um TOKEN string (tokens.ts). Os consumidores injetam o port pelo token
-// (@Inject(ASAAS_PORT) etc.) e nunca conhecem a implementacao concreta.
-//
-// Selecao da implementacao: um factory provider escolhe o adapter conforme a
-// presenca da env key (cofre/.env). Na Fase 0 so existe STUB, entao o stub e
-// sempre devolvido — mas, se a credencial ja estiver setada, logamos um aviso
-// deixando claro que o adapter REAL ainda nao foi implementado. Quando a impl
-// real existir, basta trocar o `return stub` por `new XReal(config)` dentro do
-// factory; o resto do sistema nao muda.
-//
-// Para usar: importe este modulo onde precisar (controllers/services) — ele NAO
-// e global de proposito (integracoes sao um limite explicito do sistema).
-// ============================================================
+// Seleção: se a env key estiver no ambiente → adapter real. Caso contrário → stub.
+// Para ativar uma integração: basta adicionar a env var no Railway/cofre.
 import { Logger, Module, Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -24,81 +13,104 @@ import {
   SPEED_PORT,
   WHATSAPP_PORT,
 } from './tokens';
+// Stubs
 import { AsaasStubService } from './stubs/asaas.stub.service';
 import { SpeedStubService } from './stubs/speed.stub.service';
 import { AutentiqueStubService } from './stubs/autentique.stub.service';
 import { GoogleStubService } from './stubs/google.stub.service';
 import { WhatsappStubService } from './stubs/whatsapp.stub.service';
+// Adapters reais
+import { WhatsappMegaService } from './real/whatsapp-mega.service';
+import { AsaasService } from './real/asaas.service';
+import { AutentiqueService } from './real/autentique.service';
+import { GoogleService } from './real/google.service';
+import { SpeedService } from './real/speed.service';
 
 const logger = new Logger('IntegracoesModule');
 
-/**
- * Decide entre stub e impl real para um port. Hoje sempre retorna o stub; se
- * a env key existir, avisa que a real ainda esta pendente. Centraliza o
- * "selecione stub quando a env key nao existir" pedido no escopo.
- */
-function selecionar<T>(
-  nome: string,
-  envKey: string,
-  config: ConfigService,
-  stub: T,
-  // real?: () => T  // <- plugar aqui quando o adapter real existir
-): T {
-  const credencial = config.get<string>(envKey);
-  if (credencial) {
-    logger.warn(
-      `Credencial ${envKey} detectada, mas o adapter real de ${nome} ainda ` +
-        'nao foi implementado — usando STUB. Implementar na proxima fase.',
-    );
-  } else {
-    logger.log(`${nome}: sem ${envKey} no ambiente — usando STUB.`);
-  }
-  return stub;
-}
-
-// Cada port: stub registrado como provider concreto + factory que resolve o
-// token para a implementacao selecionada (stub na Fase 0).
 const providers: Provider[] = [
+  // Stubs sempre registrados como fallback
   AsaasStubService,
   SpeedStubService,
   AutentiqueStubService,
   GoogleStubService,
   WhatsappStubService,
-  {
-    provide: ASAAS_PORT,
-    inject: [ConfigService, AsaasStubService],
-    useFactory: (config: ConfigService, stub: AsaasStubService) =>
-      selecionar('Asaas', 'ASAAS_API_KEY', config, stub),
-  },
-  {
-    provide: SPEED_PORT,
-    inject: [ConfigService, SpeedStubService],
-    useFactory: (config: ConfigService, stub: SpeedStubService) =>
-      selecionar('Speed', 'SPEED_API_KEY', config, stub),
-  },
-  {
-    provide: AUTENTIQUE_PORT,
-    inject: [ConfigService, AutentiqueStubService],
-    useFactory: (config: ConfigService, stub: AutentiqueStubService) =>
-      selecionar('Autentique', 'AUTENTIQUE_TOKEN', config, stub),
-  },
-  {
-    provide: GOOGLE_PORT,
-    inject: [ConfigService, GoogleStubService],
-    useFactory: (config: ConfigService, stub: GoogleStubService) =>
-      selecionar('Google', 'GOOGLE_SERVICE_ACCOUNT_JSON', config, stub),
-  },
+
   {
     provide: WHATSAPP_PORT,
     inject: [ConfigService, WhatsappStubService],
-    useFactory: (config: ConfigService, stub: WhatsappStubService) =>
-      selecionar('WhatsApp', 'WHATSAPP_TOKEN', config, stub),
+    useFactory: (config: ConfigService, stub: WhatsappStubService) => {
+      const token = config.get<string>('WHATSAPP_TOKEN');
+      const instancia = config.get<string>('MEGAAPI_INSTANCE');
+      if (token && instancia) {
+        logger.log('WhatsApp: adapter REAL (MegaAPI) ativo.');
+        return new WhatsappMegaService(token, instancia);
+      }
+      logger.log('WhatsApp: usando STUB (defina WHATSAPP_TOKEN + MEGAAPI_INSTANCE para ativar).');
+      return stub;
+    },
+  },
+
+  {
+    provide: ASAAS_PORT,
+    inject: [ConfigService, AsaasStubService],
+    useFactory: (config: ConfigService, stub: AsaasStubService) => {
+      const key = config.get<string>('ASAAS_API_KEY');
+      if (key) {
+        const sandbox = config.get<string>('ASAAS_SANDBOX') === 'true';
+        logger.log(`Asaas: adapter REAL ativo (${sandbox ? 'sandbox' : 'produção'}).`);
+        return new AsaasService(key, sandbox);
+      }
+      logger.log('Asaas: usando STUB (defina ASAAS_API_KEY para ativar).');
+      return stub;
+    },
+  },
+
+  {
+    provide: AUTENTIQUE_PORT,
+    inject: [ConfigService, AutentiqueStubService],
+    useFactory: (config: ConfigService, stub: AutentiqueStubService) => {
+      const token = config.get<string>('AUTENTIQUE_TOKEN');
+      if (token) {
+        logger.log('Autentique: adapter REAL ativo.');
+        return new AutentiqueService(token);
+      }
+      logger.log('Autentique: usando STUB (defina AUTENTIQUE_TOKEN para ativar).');
+      return stub;
+    },
+  },
+
+  {
+    provide: GOOGLE_PORT,
+    inject: [ConfigService, GoogleStubService],
+    useFactory: (config: ConfigService, stub: GoogleStubService) => {
+      const sa = config.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON');
+      if (sa) {
+        logger.log('Google: adapter REAL (service account) ativo.');
+        return new GoogleService(sa);
+      }
+      logger.log('Google: usando STUB (defina GOOGLE_SERVICE_ACCOUNT_JSON para ativar).');
+      return stub;
+    },
+  },
+
+  {
+    provide: SPEED_PORT,
+    inject: [ConfigService, SpeedStubService],
+    useFactory: (config: ConfigService, stub: SpeedStubService) => {
+      const key = config.get<string>('SPEED_API_KEY');
+      if (key) {
+        logger.log('Speed NF-e: adapter REAL ativo.');
+        return new SpeedService(key);
+      }
+      logger.log('Speed NF-e: usando STUB (defina SPEED_API_KEY para ativar).');
+      return stub;
+    },
   },
 ];
 
 @Module({
   providers,
-  // Exporta APENAS os tokens dos ports — o mundo externo so conhece a interface.
   exports: [ASAAS_PORT, SPEED_PORT, AUTENTIQUE_PORT, GOOGLE_PORT, WHATSAPP_PORT],
 })
 export class IntegracoesModule {}
