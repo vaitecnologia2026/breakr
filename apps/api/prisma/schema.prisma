@@ -199,6 +199,8 @@ model Cliente {
   nomeFantasia    String        @map("nome_fantasia")
   tag             String?
   cnpj            String?
+  email           String?
+  telefone        String?
   status          ClienteStatus @default(NOVO)
   codigoUnico     String        @unique @map("codigo_unico")
   ticketMedio     Decimal?      @map("ticket_medio") @db.Decimal(12, 2)

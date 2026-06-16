@@ -10,8 +10,9 @@ const prisma = new PrismaClient();
 // Config singleton usa um id fixo para garantir idempotencia (upsert).
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
 
-const ADMIN_EMAIL = 'admin@breakr.com';
-const ADMIN_SENHA = 'breakr123';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@breakr.com';
+// Sobrescreva com a variavel de ambiente ADMIN_SENHA no Railway antes do deploy.
+const ADMIN_SENHA = process.env.ADMIN_SENHA ?? 'Breakr@OS2026';
 
 async function main() {
   // 1) Config singleton (branding/parametros vazios na Fase 0).
@@ -29,7 +30,7 @@ async function main() {
   const senhaHash = await bcrypt.hash(ADMIN_SENHA, 10);
   const admin = await prisma.usuario.upsert({
     where: { email: ADMIN_EMAIL },
-    update: {},
+    update: { senhaHash },
     create: {
       nome: 'Admin Breakr',
       email: ADMIN_EMAIL,

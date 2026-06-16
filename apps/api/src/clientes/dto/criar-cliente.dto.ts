@@ -1,5 +1,5 @@
 // DTO de criacao de cliente.
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CriarClienteDto {
   @IsString()
@@ -16,6 +16,16 @@ export class CriarClienteDto {
   @IsString()
   @MaxLength(40)
   tag?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(120)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  telefone?: string;
 
   @IsOptional()
   @IsUUID()

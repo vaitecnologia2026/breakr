@@ -210,6 +210,8 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
   const [nomeFantasia, setNomeFantasia] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [tag, setTag] = useState('');
+  const [email, setEmail] = useState('');
+  const [telefone, setTelefone] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
@@ -225,6 +227,8 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
         nomeFantasia: nomeFantasia.trim(),
         cnpj: cnpj.trim() || undefined,
         tag: tag.trim() || undefined,
+        email: email.trim() || undefined,
+        telefone: telefone.trim() || undefined,
       });
       onCriado();
     } catch {
@@ -267,6 +271,19 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
           value={tag}
           onChange={(e) => setTag(e.target.value)}
           placeholder="Ex.: Premium, Inbound (opcional)"
+        />
+        <CampoNovo
+          rotulo="E-mail"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="contato@restaurante.com (opcional)"
+        />
+        <CampoNovo
+          rotulo="Telefone / WhatsApp"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+          placeholder="(11) 99999-9999 (opcional)"
         />
       </form>
     </Modal>

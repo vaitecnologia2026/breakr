@@ -9,6 +9,7 @@ const LINKS = [
   { para: '/clientes', rotulo: 'Clientes', icone: '◉', fim: false },
   { para: '/contratos', rotulo: 'Contratos', icone: '◫', fim: false },
   { para: '/cobrancas', rotulo: 'Cobranças', icone: '◈', fim: false },
+  { para: '/projetos', rotulo: 'Projetos', icone: '◫', fim: false },
   { para: '/conteudos', rotulo: 'Conteúdo', icone: '◧', fim: false },
   { para: '/qualidade', rotulo: 'Qualidade', icone: '◈', fim: false },
   { para: '/trafego', rotulo: 'Tráfego', icone: '◈', fim: false },

@@ -10,6 +10,7 @@ import { Cobrancas } from './pages/Cobrancas';
 import { Conteudos } from './pages/Conteudos';
 import { Trafego } from './pages/Trafego';
 import Qualidade from './pages/Qualidade';
+import { Projetos } from './pages/Projetos';
 import { Comercial } from './pages/Comercial';
 import { Recrutamento } from './pages/Recrutamento';
 import { Compras } from './pages/Compras';
@@ -38,6 +39,7 @@ export function App() {
         <Route path="clientes" element={<Clientes />} />
         <Route path="contratos" element={<Contratos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
+        <Route path="projetos" element={<Projetos />} />
         <Route path="conteudos" element={<Conteudos />} />
         <Route path="qualidade" element={<Qualidade />} />
         <Route path="trafego" element={<Trafego />} />

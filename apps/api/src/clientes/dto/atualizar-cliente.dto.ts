@@ -1,5 +1,5 @@
 // DTO de atualizacao de cliente (todos os campos opcionais).
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { ClienteStatus } from '@breakr/shared';
 
 export class AtualizarClienteDto {
@@ -18,6 +18,16 @@ export class AtualizarClienteDto {
   @IsString()
   @MaxLength(40)
   tag?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(120)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  telefone?: string;
 
   @IsOptional()
   @IsEnum(ClienteStatus)
