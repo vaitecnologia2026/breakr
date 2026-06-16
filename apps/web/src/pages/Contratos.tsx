@@ -122,8 +122,8 @@ export function Contratos() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
-  // Erro transitório de uma ação de linha (avança status), mostrado acima da tabela.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -142,6 +142,16 @@ export function Contratos() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtrados = q
+    ? contratos.filter(
+        (c) =>
+          (c.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
+          c.codigoUnico.toLowerCase().includes(q) ||
+          CORES_STATUS[c.status].rotulo.toLowerCase().includes(q),
+      )
+    : contratos;
+
   return (
     <PaginaShell
       titulo="Contratos"
@@ -152,6 +162,24 @@ export function Contratos() {
         </BotaoPrimario>
       }
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar por cliente, status ou código…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -162,11 +190,16 @@ export function Contratos() {
           descricao="Crie o primeiro contrato para iniciar o pipeline de entrada de um cliente."
           acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Novo contrato</BotaoPrimario>}
         />
+      ) : filtrados.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhum contrato corresponde a "${busca}".`}
+        />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
           <TabelaContratos
-            contratos={contratos}
+            contratos={filtrados}
             aoAtualizar={carregar}
             aoErroAcao={setErroAcao}
           />

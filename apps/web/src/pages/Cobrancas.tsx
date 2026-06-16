@@ -81,8 +81,8 @@ export function Cobrancas() {
   const [faturas, setFaturas] = useState<Fatura[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  // Erro transitório de uma ação de linha (pagar / WhatsApp), mostrado acima da tabela.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -101,11 +101,39 @@ export function Cobrancas() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtradas = q
+    ? faturas.filter(
+        (f) =>
+          (f.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
+          f.codigoUnico.toLowerCase().includes(q) ||
+          CORES_STATUS[f.status].rotulo.toLowerCase().includes(q),
+      )
+    : faturas;
+
   return (
     <PaginaShell
       titulo="Cobranças"
       subtitulo="Faturas, nota fiscal e cobrança no WhatsApp"
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar por cliente, status ou código…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -115,11 +143,16 @@ export function Cobrancas() {
           titulo="Nenhuma cobrança ainda"
           descricao="Coloque um contrato em vigor para gerar a primeira cobrança."
         />
+      ) : filtradas.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhuma cobrança corresponde a "${busca}".`}
+        />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
           <TabelaCobrancas
-            faturas={faturas}
+            faturas={filtradas}
             aoAtualizar={carregar}
             aoErroAcao={setErroAcao}
           />

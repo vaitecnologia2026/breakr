@@ -51,6 +51,7 @@ export function Squads() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -69,6 +70,11 @@ export function Squads() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtrados = q
+    ? squads.filter((s) => s.nome.toLowerCase().includes(q))
+    : squads;
+
   return (
     <PaginaShell
       titulo="Squads"
@@ -77,6 +83,24 @@ export function Squads() {
         <BotaoPrimario onClick={() => setModalAberto(true)}>+ Novo squad</BotaoPrimario>
       }
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar squad por nome…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -87,6 +111,11 @@ export function Squads() {
           descricao="Crie o primeiro squad para organizar o time que atende os clientes."
           acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Novo squad</BotaoPrimario>}
         />
+      ) : filtrados.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhum squad corresponde a "${busca}".`}
+        />
       ) : (
         <div
           style={{
@@ -95,7 +124,7 @@ export function Squads() {
             gap: 18,
           }}
         >
-          {squads.map((s) => (
+          {filtrados.map((s) => (
             <CardSquad key={s.id} squad={s} />
           ))}
         </div>

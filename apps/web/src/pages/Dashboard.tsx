@@ -14,7 +14,7 @@ export function Dashboard() {
           </div>
           <div className="brk-topbar-acoes">
             <NotificationBell />
-            <span className="brk-topbar-version">v0.5</span>
+            <span className="brk-topbar-version">v0.6</span>
           </div>
         </header>
 

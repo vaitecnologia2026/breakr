@@ -79,8 +79,8 @@ export function Compras() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
-  // Erro transitório de uma ação de card (mover), mostrado acima do quadro.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -99,12 +99,40 @@ export function Compras() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtrados = q
+    ? compras.filter(
+        (c) =>
+          c.descricao.toLowerCase().includes(q) ||
+          (c.categoria ?? '').toLowerCase().includes(q) ||
+          (c.fornecedor ?? '').toLowerCase().includes(q),
+      )
+    : compras;
+
   return (
     <PaginaShell
       titulo="Compras"
       subtitulo="Solicitações de compra"
       acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova compra</BotaoPrimario>}
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar por descrição, categoria ou fornecedor…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -115,10 +143,15 @@ export function Compras() {
           descricao="Crie a primeira solicitação de compra para começar a mover o quadro."
           acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova compra</BotaoPrimario>}
         />
+      ) : filtrados.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhuma compra corresponde a "${busca}".`}
+        />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
-          <Kanban compras={compras} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
+          <Kanban compras={filtrados} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
         </>
       )}
 

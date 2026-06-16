@@ -135,8 +135,8 @@ export function Trafego() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
-  // Erro transitório de uma ação de card (status / métricas / IA), acima do grid.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -155,12 +155,39 @@ export function Trafego() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtrados = q
+    ? campanhas.filter(
+        (c) =>
+          c.nome.toLowerCase().includes(q) ||
+          (c.cliente?.nomeFantasia ?? '').toLowerCase().includes(q),
+      )
+    : campanhas;
+
   return (
     <PaginaShell
       titulo="Tráfego"
       subtitulo="Campanhas e otimização com IA assistiva"
       acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova campanha</BotaoPrimario>}
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar campanha por nome ou cliente…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -171,11 +198,16 @@ export function Trafego() {
           descricao="Crie a primeira campanha para acompanhar métricas e pedir sugestões à IA."
           acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova campanha</BotaoPrimario>}
         />
+      ) : filtrados.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhuma campanha corresponde a "${busca}".`}
+        />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
           <GradeCampanhas
-            campanhas={campanhas}
+            campanhas={filtrados}
             aoAtualizar={carregar}
             aoErroAcao={setErroAcao}
           />

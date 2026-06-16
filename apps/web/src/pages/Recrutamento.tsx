@@ -90,10 +90,9 @@ export function Recrutamento() {
   const [erro, setErro] = useState<string | null>(null);
   const [modalCandidato, setModalCandidato] = useState(false);
   const [modalVaga, setModalVaga] = useState(false);
-  // Vaga selecionada no filtro (TODAS = sem filtro).
   const [filtroVaga, setFiltroVaga] = useState<string>(TODAS);
-  // Erro transitório de uma ação de card (mover), mostrado acima do quadro.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregarVagas() {
     try {
@@ -125,11 +124,20 @@ export function Recrutamento() {
     carregar();
   }, []);
 
-  // Filtra os candidatos pela vaga selecionada (client-side).
-  const visiveis =
+  const porVaga =
     filtroVaga === TODAS
       ? candidatos
       : candidatos.filter((c) => c.vagaId === filtroVaga);
+
+  const buscaQ = busca.toLowerCase().trim();
+  const visiveis = buscaQ
+    ? porVaga.filter(
+        (c) =>
+          c.nome.toLowerCase().includes(buscaQ) ||
+          (c.vaga?.titulo ?? '').toLowerCase().includes(buscaQ) ||
+          (c.email ?? '').toLowerCase().includes(buscaQ),
+      )
+    : porVaga;
 
   return (
     <PaginaShell
@@ -154,17 +162,36 @@ export function Recrutamento() {
         />
       ) : (
         <>
-          <FiltroVagas
-            vagas={vagas}
-            valor={filtroVaga}
-            aoMudar={setFiltroVaga}
-          />
+          <div className="brk-filtros">
+            <FiltroVagas
+              vagas={vagas}
+              valor={filtroVaga}
+              aoMudar={setFiltroVaga}
+            />
+            <div className="brk-search">
+              <span className="brk-search-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <input
+                className="brk-input"
+                type="search"
+                placeholder="Buscar candidato por nome, vaga ou e-mail…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+          </div>
           {erroAcao && <MensagemErro texto={erroAcao} />}
           {visiveis.length === 0 ? (
             <PainelVazio
-              titulo="Nenhum candidato nesta vaga"
-              descricao="Não há candidatos para a vaga selecionada. Troque o filtro ou cadastre um novo candidato."
-              acao={<BotaoSecundario onClick={() => setFiltroVaga(TODAS)}>Ver todas as vagas</BotaoSecundario>}
+              titulo="Nenhum resultado"
+              descricao={
+                busca
+                  ? `Nenhum candidato corresponde a "${busca}".`
+                  : 'Nenhum candidato encontrado para os filtros ativos.'
+              }
             />
           ) : (
             <Kanban candidatos={visiveis} aoAtualizar={carregar} aoErroAcao={setErroAcao} />

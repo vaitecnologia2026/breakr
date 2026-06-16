@@ -20,7 +20,7 @@ const STATS_CONFIG = [
   { chave: 'operacao.contratosEmVigor', rotulo: 'Contratos em vigor', link: '/contratos', icone: '◫', cor: 'amarelo' as const },
   { chave: 'clientes.onboard', rotulo: 'Em onboarding', link: '/clientes', icone: '◐', cor: 'neutro' as const },
   { chave: 'operacao.conteudosEmProducao', rotulo: 'Conteúdos em produção', link: '/conteudos', icone: '◧', cor: 'neutro' as const },
-  { chave: 'operacao.candidatosEmProcesso', rotulo: 'Candidatos em processo', link: '/recrutamento', icone: '◎', cor: 'neutro' as const },
+  { chave: 'operacao.onboardingsEmAndamento', rotulo: 'Onboardings em andamento', link: '/clientes', icone: '◎', cor: 'neutro' as const },
 ] as const;
 
 function getVal(resumo: Resumo, chave: string): number {

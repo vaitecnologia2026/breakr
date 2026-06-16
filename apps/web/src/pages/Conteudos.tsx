@@ -106,8 +106,8 @@ export function Conteudos() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
-  // Erro transitório de uma ação de card (mover status), mostrado acima do quadro.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -126,12 +126,45 @@ export function Conteudos() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtrados = q
+    ? conteudos.filter(
+        (c) =>
+          c.titulo.toLowerCase().includes(q) ||
+          (c.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
+          TIPO_META[c.tipo].toLowerCase().includes(q),
+      )
+    : conteudos;
+
   return (
     <PaginaShell
       titulo="Conteúdo"
       subtitulo="Funil de produção das peças"
       acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova peça</BotaoPrimario>}
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar por título, cliente ou tipo…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+        {busca && !carregando && (
+          <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)', whiteSpace: 'nowrap' }}>
+            {filtrados.length} de {conteudos.length} peças
+          </span>
+        )}
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -142,10 +175,15 @@ export function Conteudos() {
           descricao="Crie a primeira peça de conteúdo para começar a mover o funil."
           acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova peça</BotaoPrimario>}
         />
+      ) : filtrados.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhuma peça corresponde a "${busca}".`}
+        />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
-          <Kanban conteudos={conteudos} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
+          <Kanban conteudos={filtrados} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
         </>
       )}
 

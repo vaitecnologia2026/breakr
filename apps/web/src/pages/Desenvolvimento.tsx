@@ -86,8 +86,8 @@ export function Desenvolvimento() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
-  // Erro transitório de uma ação de card (mover), mostrado acima do quadro.
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -106,12 +106,39 @@ export function Desenvolvimento() {
     carregar();
   }, []);
 
+  const q = busca.toLowerCase().trim();
+  const filtrados = q
+    ? bugs.filter(
+        (b) =>
+          b.titulo.toLowerCase().includes(q) ||
+          (b.descricao ?? '').toLowerCase().includes(q),
+      )
+    : bugs;
+
   return (
     <PaginaShell
       titulo="Desenvolvimento"
       subtitulo="Board de bugs e tarefas"
       acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Novo bug</BotaoPrimario>}
     >
+      <div className="brk-filtros">
+        <div className="brk-search">
+          <span className="brk-search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            className="brk-input"
+            type="search"
+            placeholder="Buscar bug por título ou descrição…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+      </div>
+
       {carregando ? (
         <EstadoCarregando />
       ) : erro ? (
@@ -122,10 +149,15 @@ export function Desenvolvimento() {
           descricao="Registre o primeiro bug para começar a mover o board."
           acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Novo bug</BotaoPrimario>}
         />
+      ) : filtrados.length === 0 ? (
+        <PainelVazio
+          titulo="Nenhum resultado"
+          descricao={`Nenhum bug corresponde a "${busca}".`}
+        />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
-          <Kanban bugs={bugs} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
+          <Kanban bugs={filtrados} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
         </>
       )}
 
