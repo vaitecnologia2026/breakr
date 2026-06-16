@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Logo } from './Logo';
 
@@ -22,7 +22,7 @@ function Ico({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Ícones individuais ───────────────────────────────────────────────────────
+// ─── Ícones ───────────────────────────────────────────────────────────────────
 
 const IcoHome = () => (
   <Ico>
@@ -30,14 +30,12 @@ const IcoHome = () => (
     <polyline points="9 22 9 12 15 12 15 22" />
   </Ico>
 );
-
 const IcoBriefcase = () => (
   <Ico>
     <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
   </Ico>
 );
-
 const IcoUsers = () => (
   <Ico>
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -46,7 +44,6 @@ const IcoUsers = () => (
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </Ico>
 );
-
 const IcoFileText = () => (
   <Ico>
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -56,14 +53,12 @@ const IcoFileText = () => (
     <polyline points="10 9 9 9 8 9" />
   </Ico>
 );
-
 const IcoCreditCard = () => (
   <Ico>
     <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
     <line x1="1" y1="10" x2="23" y2="10" />
   </Ico>
 );
-
 const IcoLayout = () => (
   <Ico>
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -71,7 +66,6 @@ const IcoLayout = () => (
     <line x1="9" y1="21" x2="9" y2="9" />
   </Ico>
 );
-
 const IcoImage = () => (
   <Ico>
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -79,26 +73,22 @@ const IcoImage = () => (
     <polyline points="21 15 16 10 5 21" />
   </Ico>
 );
-
 const IcoStar = () => (
   <Ico>
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </Ico>
 );
-
 const IcoTrendingUp = () => (
   <Ico>
     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
     <polyline points="17 6 23 6 23 12" />
   </Ico>
 );
-
 const IcoDiamond = () => (
   <Ico>
     <path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z" />
   </Ico>
 );
-
 const IcoUserPlus = () => (
   <Ico>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -107,7 +97,6 @@ const IcoUserPlus = () => (
     <line x1="22" y1="11" x2="16" y2="11" />
   </Ico>
 );
-
 const IcoShoppingBag = () => (
   <Ico>
     <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
@@ -115,26 +104,22 @@ const IcoShoppingBag = () => (
     <path d="M16 10a4 4 0 0 1-8 0" />
   </Ico>
 );
-
 const IcoCode = () => (
   <Ico>
     <polyline points="16 18 22 12 16 6" />
     <polyline points="8 6 2 12 8 18" />
   </Ico>
 );
-
 const IcoZap = () => (
   <Ico>
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </Ico>
 );
-
 const IcoMessageCircle = () => (
   <Ico>
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </Ico>
 );
-
 const IcoUserCheck = () => (
   <Ico>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -142,26 +127,18 @@ const IcoUserCheck = () => (
     <polyline points="16 11 18 13 22 9" />
   </Ico>
 );
-
 const IcoSettings = () => (
   <Ico>
     <circle cx="12" cy="12" r="3" />
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </Ico>
 );
-
 const IcoChevronLeft = () => (
-  <Ico>
-    <polyline points="15 18 9 12 15 6" />
-  </Ico>
+  <Ico><polyline points="15 18 9 12 15 6" /></Ico>
 );
-
 const IcoChevronRight = () => (
-  <Ico>
-    <polyline points="9 18 15 12 9 6" />
-  </Ico>
+  <Ico><polyline points="9 18 15 12 9 6" /></Ico>
 );
-
 const IcoLogOut = () => (
   <Ico>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -170,7 +147,7 @@ const IcoLogOut = () => (
   </Ico>
 );
 
-// ─── Dados de navegação ───────────────────────────────────────────────────────
+// ─── Tipos ───────────────────────────────────────────────────────────────────
 
 interface NavItem {
   para: string;
@@ -179,36 +156,92 @@ interface NavItem {
   fim?: boolean;
 }
 
-const LINKS: NavItem[] = [
-  { para: '/', rotulo: 'Dashboard', icone: <IcoHome />, fim: true },
-  { para: '/comercial', rotulo: 'Comercial', icone: <IcoBriefcase /> },
-  { para: '/clientes', rotulo: 'Clientes', icone: <IcoUsers /> },
-  { para: '/contratos', rotulo: 'Contratos', icone: <IcoFileText /> },
-  { para: '/cobrancas', rotulo: 'Cobranças', icone: <IcoCreditCard /> },
-  { para: '/projetos', rotulo: 'Projetos', icone: <IcoLayout /> },
-  { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
-  { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },
-  { para: '/trafego', rotulo: 'Tráfego', icone: <IcoTrendingUp /> },
-  { para: '/squads', rotulo: 'Squads', icone: <IcoDiamond /> },
-  { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
-  { para: '/compras', rotulo: 'Compras', icone: <IcoShoppingBag /> },
-  { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: <IcoCode /> },
-  { para: '/automacoes', rotulo: 'Automações', icone: <IcoZap /> },
-  { para: '/atendimento', rotulo: 'Atendimento', icone: <IcoMessageCircle /> },
+interface NavGroup {
+  label: string;
+  icone: React.ReactNode;
+  collapsible?: boolean;
+  items: NavItem[];
+}
+
+// ─── Grupos de navegação ──────────────────────────────────────────────────────
+
+const GRUPOS: NavGroup[] = [
+  {
+    label: 'Início',
+    icone: <IcoHome />,
+    items: [{ para: '/', rotulo: 'Dashboard', icone: <IcoHome />, fim: true }],
+  },
+  {
+    label: 'Pipeline',
+    icone: <IcoUsers />,
+    collapsible: true,
+    items: [
+      { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
+      { para: '/clientes',   rotulo: 'Clientes',   icone: <IcoUsers /> },
+      { para: '/contratos',  rotulo: 'Contratos',  icone: <IcoFileText /> },
+      { para: '/cobrancas',  rotulo: 'Cobranças',  icone: <IcoCreditCard /> },
+      { para: '/projetos',   rotulo: 'Projetos',   icone: <IcoLayout /> },
+    ],
+  },
+  {
+    label: 'Marketing',
+    icone: <IcoImage />,
+    collapsible: true,
+    items: [
+      { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
+      { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },
+      { para: '/trafego',   rotulo: 'Tráfego',   icone: <IcoTrendingUp /> },
+    ],
+  },
+  {
+    label: 'Operações',
+    icone: <IcoSettings />,
+    collapsible: true,
+    items: [
+      { para: '/squads',       rotulo: 'Squads',     icone: <IcoDiamond /> },
+      { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
+      { para: '/compras',      rotulo: 'Compras',    icone: <IcoShoppingBag /> },
+      { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: <IcoCode /> },
+      { para: '/automacoes',   rotulo: 'Automações', icone: <IcoZap /> },
+    ],
+  },
+  {
+    label: 'Atendimento',
+    icone: <IcoMessageCircle />,
+    items: [{ para: '/atendimento', rotulo: 'Atendimento', icone: <IcoMessageCircle /> }],
+  },
 ];
 
-const LINKS_ADMIN: NavItem[] = [
-  { para: '/equipe', rotulo: 'Equipe', icone: <IcoUserCheck /> },
-  { para: '/configuracoes', rotulo: 'Configurações', icone: <IcoSettings /> },
-];
+const GRUPO_ADMIN: NavGroup = {
+  label: 'Gestão',
+  icone: <IcoUserCheck />,
+  collapsible: true,
+  items: [
+    { para: '/equipe',        rotulo: 'Equipe',        icone: <IcoUserCheck /> },
+    { para: '/configuracoes', rotulo: 'Configurações', icone: <IcoSettings /> },
+  ],
+};
 
-// ─── Componente principal ─────────────────────────────────────────────────────
+const TODOS_ITENS: NavItem[] = GRUPOS.flatMap((g) => g.items);
+
+// ─── Chaves de persistência ───────────────────────────────────────────────────
 
 const COLLAPSED_KEY = 'brk.sidebar.collapsed';
+const GROUPS_KEY    = 'brk.sidebar.groups';
+
+function readGroupsState(): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(GROUPS_KEY) ?? '{}'); } catch { return {}; }
+}
+function writeGroupsState(s: Record<string, boolean>) {
+  try { localStorage.setItem(GROUPS_KEY, JSON.stringify(s)); } catch { /* noop */ }
+}
+
+// ─── Sidebar principal ────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const { usuario, logout } = useAuth();
   const isAdmin = usuario?.cargo === 'ADMIN' || usuario?.cargo === 'SUPERADMIN';
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; }
   });
@@ -219,46 +252,44 @@ export function Sidebar() {
     try { localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0'); } catch { /* noop */ }
   }
 
+  const todosItens = [...TODOS_ITENS, ...(isAdmin ? GRUPO_ADMIN.items : [])];
+
   return (
     <aside className={`brk-sidebar${collapsed ? ' collapsed' : ''}`}>
-      {/* Logo */}
       <div className="brk-sidebar-logo">
         <Logo tamanho={collapsed ? 20 : 22} />
       </div>
 
-      {/* Navegação */}
       <nav className="brk-sidebar-nav">
-        <div className="brk-sidebar-group">
-          <span className="brk-sidebar-label">Principal</span>
-          {LINKS.map((l) => (
-            <SidebarLink key={l.para} {...l} />
-          ))}
-        </div>
-
-        {isAdmin && (
+        {collapsed ? (
+          // Collapsed: ícones planos sem grupos
           <div className="brk-sidebar-group">
-            <span className="brk-sidebar-label">Gestão</span>
-            {LINKS_ADMIN.map((l) => (
-              <SidebarLink key={l.para} {...l} />
+            {todosItens.map((item) => (
+              <SidebarLink key={item.para} {...item} />
             ))}
           </div>
+        ) : (
+          // Expandido: grupos com submenus
+          <>
+            {GRUPOS.map((grupo) => (
+              <NavGrupo key={grupo.label} {...grupo} />
+            ))}
+            {isAdmin && <NavGrupo {...GRUPO_ADMIN} />}
+          </>
         )}
       </nav>
 
-      {/* Footer */}
       <div className="brk-sidebar-footer">
-        {/* Toggle collapse */}
         <button
           type="button"
           className="brk-sidebar-toggle"
           onClick={toggleCollapse}
-          title={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+          title={collapsed ? 'Expandir' : 'Recolher'}
         >
           {collapsed ? <IcoChevronRight /> : <IcoChevronLeft />}
           <span className="brk-sidebar-toggle-label">Recolher</span>
         </button>
 
-        {/* Usuário + logout */}
         <div className="brk-sidebar-user-area">
           <span className="brk-sidebar-avatar" title={usuario?.nome ?? ''}>
             {usuario?.nome?.charAt(0).toUpperCase() ?? 'U'}
@@ -281,14 +312,85 @@ export function Sidebar() {
   );
 }
 
+// ─── Grupo colapsável ─────────────────────────────────────────────────────────
+
+function NavGrupo({ label, icone, collapsible, items }: NavGroup) {
+  const location = useLocation();
+
+  const hasActiveChild = items.some((item) => {
+    if (item.fim) return location.pathname === item.para;
+    return location.pathname === item.para || location.pathname.startsWith(item.para + '/');
+  });
+
+  const [aberto, setAberto] = useState<boolean>(() => {
+    if (!collapsible) return true;
+    const saved = readGroupsState();
+    // Default: aberto = true (a menos que o usuário tenha fechado explicitamente)
+    return saved[label] !== false;
+  });
+
+  useEffect(() => {
+    if (hasActiveChild && !aberto) {
+      setAberto(true);
+      const saved = readGroupsState();
+      writeGroupsState({ ...saved, [label]: true });
+    }
+  }, [hasActiveChild, label]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggle() {
+    const next = !aberto;
+    setAberto(next);
+    const saved = readGroupsState();
+    writeGroupsState({ ...saved, [label]: next });
+  }
+
+  // Grupo sem cabeçalho (não colapsável = "Início" e "Atendimento")
+  if (!collapsible) {
+    return (
+      <div className="brk-sidebar-group">
+        {items.map((item) => (
+          <SidebarLink key={item.para} {...item} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="brk-sidebar-group">
+      <button
+        type="button"
+        className="brk-sidebar-group-header"
+        onClick={toggle}
+        aria-expanded={aberto}
+      >
+        <span className="brk-sidebar-icon">{icone}</span>
+        <span className="brk-sidebar-group-header-text">{label}</span>
+        <span className={`brk-sidebar-group-chevron${aberto ? ' open' : ''}`}>
+          <IcoChevronRight />
+        </span>
+      </button>
+
+      {aberto && (
+        <div className="brk-sidebar-submenu">
+          {items.map((item) => (
+            <SidebarLink key={item.para} {...item} sub />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Link de navegação ────────────────────────────────────────────────────────
 
-function SidebarLink({ para, rotulo, icone, fim }: NavItem) {
+function SidebarLink({ para, rotulo, icone, fim, sub }: NavItem & { sub?: boolean }) {
   return (
     <NavLink
       to={para}
       end={fim}
-      className={({ isActive }) => `brk-sidebar-item${isActive ? ' active' : ''}`}
+      className={({ isActive }) =>
+        `brk-sidebar-item${sub ? ' sub' : ''}${isActive ? ' active' : ''}`
+      }
       title={rotulo}
     >
       <span className="brk-sidebar-icon" aria-hidden="true">{icone}</span>
