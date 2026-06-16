@@ -30,6 +30,8 @@ export class PainelService {
 
   async resumo() {
     const agora = new Date();
+    const SETENTA_DUAS_HORAS = new Date(agora.getTime() - 72 * 60 * 60 * 1000);
+
     const [
       clientesAtivos,
       clientesOnboard,
@@ -48,6 +50,8 @@ export class PainelService {
       bugsAbertos,
       bugsCriticos,
       execucoesMotor,
+      csatData,
+      conteudosSlaRisco,
     ] = await Promise.all([
       this.prisma.cliente.count({ where: { status: ClienteStatus.ATIVO } }),
       this.prisma.cliente.count({ where: { status: ClienteStatus.ONBOARD } }),
@@ -83,6 +87,21 @@ export class PainelService {
         },
       }),
       this.prisma.jobExecution.count(),
+      // CSAT: media das avaliacoes de conteudo aprovadas via portal (1..5 estrelas).
+      this.prisma.conteudo.aggregate({
+        _avg: { estrelas: true },
+        _count: { estrelas: true },
+        where: { estrelas: { not: null } },
+      }),
+      // SLA 72h: pecas ativas (em producao/revisao/aprovacao) sem atividade nas ultimas 72h.
+      this.prisma.conteudo.count({
+        where: {
+          status: {
+            in: [StatusConteudo.PRODUCAO, StatusConteudo.REVISAO, StatusConteudo.APROVACAO_CLIENTE],
+          },
+          atualizadoEm: { lt: SETENTA_DUAS_HORAS },
+        },
+      }),
     ]);
 
     // Acoes necessarias: so entram buckets com itens (count > 0), ordenadas por urgencia.
@@ -108,6 +127,12 @@ export class PainelService {
     if (conteudosParaAprovar) {
       acoes.push({ chave: 'conteudo-aprovacao', label: 'Pecas aguardando o cliente', count: conteudosParaAprovar, link: '/conteudos', tom: 'info' });
     }
+    if (conteudosSlaRisco) {
+      acoes.push({ chave: 'sla-risco', label: 'Pecas sem atividade +72h (SLA)', count: conteudosSlaRisco, link: '/conteudos', tom: 'erro' });
+    }
+
+    const csatMedia = csatData._avg.estrelas;
+    const csatTotal = csatData._count.estrelas;
 
     return {
       clientes: { ativos: clientesAtivos, onboard: clientesOnboard, total: clientesTotal },
@@ -119,6 +144,10 @@ export class PainelService {
         candidatosEmProcesso,
       },
       motor: { execucoes: execucoesMotor },
+      csat: {
+        media: csatMedia !== null ? Math.round(csatMedia * 10) / 10 : null,
+        total: csatTotal,
+      },
       acoes,
     };
   }

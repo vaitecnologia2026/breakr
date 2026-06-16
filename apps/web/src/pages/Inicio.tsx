@@ -11,6 +11,7 @@ interface Resumo {
   comercial: { leadsAtivos: number };
   operacao: { contratosEmVigor: number; conteudosEmProducao: number; onboardingsEmAndamento: number; candidatosEmProcesso: number };
   motor: { execucoes: number };
+  csat: { media: number | null; total: number };
   acoes: Acao[];
 }
 
@@ -108,6 +109,42 @@ export function Inicio() {
               <strong style={{ color: 'var(--texto)' }}>{resumo.clientes.total}</strong> clientes na carteira
             </span>
           </div>
+
+          {/* CSAT */}
+          {resumo.csat.total > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                padding: '14px 18px',
+                borderRadius: 'var(--r-lg)',
+                background: 'var(--superficie)',
+                border: '1px solid var(--borda)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <svg key={n} width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.77l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85L12 3.5Z"
+                      fill={n <= Math.round(resumo.csat.media ?? 0) ? '#ff9406' : 'transparent'}
+                      stroke={n <= Math.round(resumo.csat.media ?? 0) ? '#ff9406' : 'var(--borda-forte)'}
+                      strokeWidth="1.6"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ))}
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--texto)' }}>
+                {resumo.csat.media?.toFixed(1)} / 5
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>
+                CSAT · {resumo.csat.total} {resumo.csat.total === 1 ? 'avaliação' : 'avaliações'} de conteúdo
+              </span>
+            </div>
+          )}
 
           {/* Pendências */}
           {resumo.acoes.length > 0 && (
