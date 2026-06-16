@@ -7,7 +7,21 @@ import { Logo } from '../components/Logo';
 // Token de acesso para o período de demonstração de 48h.
 // Sobrescreva com a variável de ambiente VITE_GATE_TOKEN.
 const GATE_TOKEN = import.meta.env.VITE_GATE_TOKEN ?? 'BREAKR48H';
-const GATE_KEY = 'brk.gate';
+const GATE_KEY = 'brk.gate.ts';
+const GATE_TTL_MS = 48 * 60 * 60 * 1000; // 48 horas
+
+function gateValido(): boolean {
+  try {
+    const ts = localStorage.getItem(GATE_KEY);
+    return !!ts && Date.now() - parseInt(ts, 10) < GATE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function marcarGate() {
+  try { localStorage.setItem(GATE_KEY, String(Date.now())); } catch { /* noop */ }
+}
 
 const KEYFRAMES = `
 @keyframes gate-out {
@@ -37,11 +51,11 @@ export function Login() {
 
   // gate = mostra tela de token | login = mostra formulário de login
   const [tela, setTela] = useState<'gate' | 'transicao' | 'login'>(() =>
-    sessionStorage.getItem(GATE_KEY) === '1' ? 'login' : 'gate',
+    gateValido() ? 'login' : 'gate',
   );
 
   function aoValidarToken() {
-    sessionStorage.setItem(GATE_KEY, '1');
+    marcarGate();
     setTela('transicao');
     setTimeout(() => setTela('login'), 480);
   }
