@@ -9,12 +9,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CriarSquadDto } from './dto/criar-squad.dto';
 import { AdicionarMembroDto } from './dto/adicionar-membro.dto';
 
-// Inclui os membros com o usuario reduzido (id, nome, cargo).
+// Inclui membros (usuario reduzido) + clientes ativos/em onboarding do squad.
 const INCLUDE_MEMBROS = {
   membros: {
     include: {
       usuario: { select: { id: true, nome: true, cargo: true } },
     },
+  },
+  clientes: {
+    where: { status: { in: ['ATIVO', 'ONBOARD'] as const } },
+    select: { id: true },
   },
 } satisfies Prisma.SquadInclude;
 
@@ -22,7 +26,7 @@ const INCLUDE_MEMBROS = {
 export class SquadsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Lista squads com membros e o usuario de cada membro.
+  // Lista squads com membros e contagem de clientes ativos/em onboarding.
   listar() {
     return this.prisma.squad.findMany({
       orderBy: { nome: 'asc' },

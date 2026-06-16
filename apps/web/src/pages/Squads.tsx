@@ -34,6 +34,7 @@ interface Squad {
   nome: string;
   ativo: boolean;
   membros: MembroSquad[];
+  clientes: { id: string }[];
 }
 
 // Rótulo amigável + cor de acento por função no squad.
@@ -197,10 +198,18 @@ function CardSquad({ squad }: { squad: Squad }) {
             >
               {squad.nome}
             </h3>
-            <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
-              {squad.membros.length}{' '}
-              {squad.membros.length === 1 ? 'membro' : 'membros'}
-            </span>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+              <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
+                {squad.membros.length}{' '}
+                {squad.membros.length === 1 ? 'membro' : 'membros'}
+              </span>
+              {squad.clientes.length > 0 && (
+                <span style={{ fontSize: 12, color: 'var(--amarelo-fagulha)', fontWeight: 600 }}>
+                  {squad.clientes.length}{' '}
+                  {squad.clientes.length === 1 ? 'cliente' : 'clientes'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <BadgeAtivo ativo={squad.ativo} />
