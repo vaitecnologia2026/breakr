@@ -90,6 +90,7 @@ export class PortalService {
     }
     const conteudo = await this.prisma.conteudo.findUnique({
       where: { id: conteudoId },
+      select: { id: true, clienteId: true, status: true, responsavelId: true },
     });
     if (!conteudo || conteudo.clienteId !== cliente.id) {
       throw new NotFoundException('Peca nao encontrada neste portal');
@@ -100,38 +101,83 @@ export class PortalService {
     return conteudo;
   }
 
-  // Cliente aprova a peca: avalia (1..5), comenta e a peca segue para AGENDADO.
+  // Cliente aprova a peca: avalia dimensionalmente e a peca segue para AGENDADO.
+  // Cria registro Avaliacao (M18) com as dimensoes qualidade e facilidade.
   async aprovar(
     codigo: string,
     conteudoId: string,
-    dados: { estrelas: number; comentario?: string },
+    dados: {
+      estrelas: number;
+      qualidadeGrafica?: number;
+      qualidadeTexto?: number;
+      facilidadeAprovar?: number;
+      comentario?: string;
+    },
   ) {
-    await this.conteudoDoCliente(codigo, conteudoId);
-    return this.prisma.conteudo.update({
-      where: { id: conteudoId },
-      data: {
-        status: StatusConteudo.AGENDADO,
-        estrelas: dados.estrelas,
-        comentarioCliente: dados.comentario,
-        aprovadoEm: new Date(),
-      },
+    const conteudo = await this.conteudoDoCliente(codigo, conteudoId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.conteudo.update({
+        where: { id: conteudoId },
+        data: {
+          status: StatusConteudo.AGENDADO,
+          estrelas: dados.estrelas,
+          comentarioCliente: dados.comentario,
+          aprovadoEm: new Date(),
+        },
+      });
+
+      // Cria Avaliacao dimensional apenas quando ao menos uma dimensao e informada.
+      const temDimensao =
+        dados.qualidadeGrafica != null ||
+        dados.qualidadeTexto != null ||
+        dados.facilidadeAprovar != null;
+
+      if (temDimensao) {
+        await tx.avaliacao.create({
+          data: {
+            conteudoId,
+            responsavelId: conteudo.responsavelId ?? undefined,
+            qualidadeGrafica: dados.qualidadeGrafica,
+            qualidadeTexto: dados.qualidadeTexto,
+            facilidadeAprovar: dados.facilidadeAprovar,
+          },
+        });
+      }
+
+      return updated;
     });
   }
 
-  // Cliente pede ajuste: a peca volta para PRODUCAO e conta um rework.
+  // Cliente pede ajuste: a peca volta para PRODUCAO e registra ReworkLog EXTERNO.
   async solicitarAjuste(
     codigo: string,
     conteudoId: string,
     dados: { comentario: string },
   ) {
     await this.conteudoDoCliente(codigo, conteudoId);
-    return this.prisma.conteudo.update({
-      where: { id: conteudoId },
-      data: {
-        status: StatusConteudo.PRODUCAO,
-        comentarioCliente: dados.comentario,
-        reworkCount: { increment: 1 },
-      },
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.conteudo.update({
+        where: { id: conteudoId },
+        data: {
+          status: StatusConteudo.PRODUCAO,
+          comentarioCliente: dados.comentario,
+          reworkCount: { increment: 1 },
+        },
+      });
+
+      await tx.reworkLog.create({
+        data: {
+          conteudoId,
+          statusDe: StatusConteudo.APROVACAO_CLIENTE,
+          statusPara: StatusConteudo.PRODUCAO,
+          origem: 'EXTERNO',
+          comentario: dados.comentario,
+        },
+      });
+
+      return updated;
     });
   }
 

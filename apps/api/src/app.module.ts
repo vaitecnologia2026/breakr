@@ -27,6 +27,7 @@ import { PainelModule } from './painel/painel.module';
 import { IaModule } from './ia/ia.module';
 import { TrafegoModule } from './trafego/trafego.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { QualidadeModule } from './qualidade/qualidade.module';
 
 @Module({
   imports: [
@@ -68,6 +69,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     TrafegoModule,
     // Webhooks externos (Autentique, Asaas, etc.) — sem JWT.
     WebhooksModule,
+    // Dashboard de Qualidade & Rework (M18).
+    QualidadeModule,
   ],
 })
 export class AppModule {}

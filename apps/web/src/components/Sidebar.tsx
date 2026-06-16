@@ -10,6 +10,7 @@ const LINKS = [
   { para: '/contratos', rotulo: 'Contratos', icone: '◫', fim: false },
   { para: '/cobrancas', rotulo: 'Cobranças', icone: '◈', fim: false },
   { para: '/conteudos', rotulo: 'Conteúdo', icone: '◧', fim: false },
+  { para: '/qualidade', rotulo: 'Qualidade', icone: '◈', fim: false },
   { para: '/trafego', rotulo: 'Tráfego', icone: '◈', fim: false },
   { para: '/squads', rotulo: 'Squads', icone: '◉', fim: false },
   { para: '/recrutamento', rotulo: 'Recrutamento', icone: '◈', fim: false },

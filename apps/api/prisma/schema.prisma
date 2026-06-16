@@ -96,7 +96,8 @@ model Usuario {
   notificacoes Notificacao[]
 
   // Pecas de conteudo sob responsabilidade do usuario (Fase 2)
-  conteudosResponsavel Conteudo[] @relation("ConteudoResponsavel")
+  conteudosResponsavel Conteudo[]   @relation("ConteudoResponsavel")
+  avaliacoesRecebidas  Avaliacao[]  @relation("AvaliacaoResponsavel")
 
   // Leads sob responsabilidade do usuario (Fase 3 — comercial)
   leadsResponsavel Lead[] @relation("LeadResponsavel")
@@ -562,10 +563,53 @@ model Conteudo {
   responsavelId String?  @map("responsavel_id")
   responsavel   Usuario? @relation("ConteudoResponsavel", fields: [responsavelId], references: [id])
 
+  avaliacoes  Avaliacao[]
+  reworkLogs  ReworkLog[]
+
   @@index([clienteId])
   @@index([status])
   @@index([squadId])
   @@map("conteudo")
+}
+
+/// Avaliacao multi-dimensional pelo cliente apos aprovar uma peca (M18).
+/// Cada dimensao e opcional para nao bloquear a aprovacao.
+model Avaliacao {
+  id                String   @id @default(uuid())
+  qualidadeGrafica  Int?     @map("qualidade_grafica")  // 1..5
+  qualidadeTexto    Int?     @map("qualidade_texto")     // 1..5
+  facilidadeAprovar Int?     @map("facilidade_aprovar")  // 1..5
+  comentario        String?
+  criadoEm          DateTime @default(now()) @map("criado_em")
+
+  conteudoId    String   @map("conteudo_id")
+  conteudo      Conteudo @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
+
+  // Responsavel avaliado (derivo do conteudo.responsavelId no momento da criacao).
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("AvaliacaoResponsavel", fields: [responsavelId], references: [id])
+
+  @@index([conteudoId])
+  @@index([responsavelId])
+  @@map("avaliacao")
+}
+
+/// Log de retrabalho (M18). Criado automaticamente toda vez que uma peca
+/// volta para PRODUCAO, com a origem (INTERNO = revisao interna / EXTERNO = cliente).
+model ReworkLog {
+  id         String   @id @default(uuid())
+  statusDe   String   @map("status_de")
+  statusPara String   @map("status_para")
+  origem     String   // INTERNO | EXTERNO
+  comentario String?  // comentario do cliente (quando origem = EXTERNO)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  conteudoId String   @map("conteudo_id")
+  conteudo   Conteudo @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
+
+  @@index([conteudoId])
+  @@index([origem])
+  @@map("rework_log")
 }
 
 // ============================================================

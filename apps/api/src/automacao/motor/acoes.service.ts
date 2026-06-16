@@ -375,6 +375,43 @@ export class AcoesService {
       });
       return { waGroupId: grupo.waGroupId, nome: grupo.nome };
     });
+
+    // registrar_rework_interno: registra rework INTERNO quando um designer/revisor
+    // devolve uma peca para PRODUCAO apos revisao interna (nao pelo cliente).
+    // Requer payload.conteudoId e payload.responsavelId (quem gerou o rework).
+    // Params opcionais: comentario.
+    this.catalogo.set('registrar_rework_interno', async (params, ctx) => {
+      const conteudoId = String(ctx.payload.conteudoId ?? '');
+      const responsavelId = String(ctx.payload.responsavelId ?? '');
+      if (!conteudoId) throw new Error('payload.conteudoId ausente');
+
+      const conteudo = await this.prisma.conteudo.findUnique({
+        where: { id: conteudoId },
+        select: { id: true, status: true },
+      });
+      if (!conteudo) throw new Error('Conteudo nao encontrado');
+
+      await this.prisma.$transaction([
+        this.prisma.reworkLog.create({
+          data: {
+            conteudoId,
+            statusDe: conteudo.status,
+            statusPara: 'PRODUCAO',
+            origem: 'INTERNO',
+            comentario: params.comentario ? String(params.comentario) : undefined,
+          },
+        }),
+        this.prisma.conteudo.update({
+          where: { id: conteudoId },
+          data: {
+            status: 'PRODUCAO',
+            reworkCount: { increment: 1 },
+          },
+        }),
+      ]);
+
+      return { registrado: true, conteudoId };
+    });
   }
 
   // Substitui {{campo}} (ou {{a.b}}) pelo valor no payload.

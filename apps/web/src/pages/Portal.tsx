@@ -445,6 +445,9 @@ function PecaAprovacao({
   aoMudar: () => void;
 }) {
   const [estrelas, setEstrelas] = useState(5);
+  const [qualidadeGrafica, setQualidadeGrafica] = useState(5);
+  const [qualidadeTexto, setQualidadeTexto] = useState(5);
+  const [facilidadeAprovar, setFacilidadeAprovar] = useState(5);
   const [comentario, setComentario] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -455,6 +458,9 @@ function PecaAprovacao({
     try {
       await api.post(`/portal/${codigo}/conteudo/${peca.id}/aprovar`, {
         estrelas,
+        qualidadeGrafica,
+        qualidadeTexto,
+        facilidadeAprovar,
         comentario: comentario.trim() || undefined,
       });
       aoMudar();
@@ -501,9 +507,11 @@ function PecaAprovacao({
         <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 6 }}>{peca.descricao}</p>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Sua nota</span>
-        <Estrelas valor={estrelas} aoMudar={setEstrelas} desabilitado={enviando} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+        <RatingLinha label="Nota geral" valor={estrelas} aoMudar={setEstrelas} desabilitado={enviando} />
+        <RatingLinha label="Qualidade gráfica" valor={qualidadeGrafica} aoMudar={setQualidadeGrafica} desabilitado={enviando} />
+        <RatingLinha label="Qualidade do texto" valor={qualidadeTexto} aoMudar={setQualidadeTexto} desabilitado={enviando} />
+        <RatingLinha label="Facilidade de aprovar" valor={facilidadeAprovar} aoMudar={setFacilidadeAprovar} desabilitado={enviando} />
       </div>
 
       <textarea
@@ -569,6 +577,26 @@ function PecaAprovacao({
         </button>
       </div>
     </li>
+  );
+}
+
+// Linha de rating com label e estrelas.
+function RatingLinha({
+  label,
+  valor,
+  aoMudar,
+  desabilitado,
+}: {
+  label: string;
+  valor: number;
+  aoMudar: (n: number) => void;
+  desabilitado?: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 12, color: 'var(--texto-fraco)', minWidth: 140 }}>{label}</span>
+      <Estrelas valor={valor} aoMudar={aoMudar} desabilitado={desabilitado} />
+    </div>
   );
 }
 
