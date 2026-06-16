@@ -20,6 +20,8 @@ import { Configuracoes } from './pages/Configuracoes';
 import { Squads } from './pages/Squads';
 import { Equipe } from './pages/Equipe';
 import { Atendimento } from './pages/Atendimento';
+import { Inbox } from './pages/Inbox';
+import { Comunicados } from './pages/Comunicados';
 
 export function App() {
   return (
@@ -50,6 +52,8 @@ export function App() {
         <Route path="desenvolvimento" element={<Desenvolvimento />} />
         <Route path="automacoes" element={<Automacoes />} />
         <Route path="atendimento" element={<Atendimento />} />
+        <Route path="inbox" element={<Inbox />} />
+        <Route path="comunicados" element={<Comunicados />} />
         <Route path="equipe" element={<Equipe />} />
         <Route path="configuracoes" element={<Configuracoes />} />
       </Route>

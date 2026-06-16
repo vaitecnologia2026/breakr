@@ -151,4 +151,53 @@ export class PainelService {
       acoes,
     };
   }
+
+  async inbox() {
+    const agora = new Date();
+    const SLA_72H = new Date(agora.getTime() - 72 * 60 * 60 * 1000);
+
+    const [faturasVencidas, bugsCriticos, contratosRevisao, comprasSolicitadas, conteudosSla, conteudosAprovar] =
+      await Promise.all([
+        this.prisma.fatura.findMany({
+          where: { status: StatusFatura.PENDENTE, vencimento: { lt: agora } },
+          take: 10,
+          orderBy: { vencimento: 'asc' },
+          include: { cliente: { select: { nomeFantasia: true } } },
+        }),
+        this.prisma.bug.findMany({
+          where: { severidade: SeveridadeBug.CRITICA, status: { notIn: [StatusBug.RESOLVIDO, StatusBug.FECHADO] } },
+          take: 10,
+          orderBy: { criadoEm: 'desc' },
+          select: { id: true, titulo: true, severidade: true, status: true },
+        }),
+        this.prisma.contrato.findMany({
+          where: { status: StatusContrato.EM_REVISAO },
+          take: 10,
+          select: { id: true, codigoUnico: true, status: true, cliente: { select: { nomeFantasia: true } } },
+        }),
+        this.prisma.compra.findMany({
+          where: { status: StatusCompra.SOLICITADA },
+          take: 10,
+          orderBy: { criadoEm: 'desc' },
+          select: { id: true, descricao: true, valor: true, criadoEm: true },
+        }),
+        this.prisma.conteudo.findMany({
+          where: {
+            status: { in: [StatusConteudo.PRODUCAO, StatusConteudo.REVISAO, StatusConteudo.APROVACAO_CLIENTE] },
+            atualizadoEm: { lt: SLA_72H },
+          },
+          take: 10,
+          orderBy: { atualizadoEm: 'asc' },
+          select: { id: true, titulo: true, status: true, cliente: { select: { nomeFantasia: true } } },
+        }),
+        this.prisma.conteudo.findMany({
+          where: { status: StatusConteudo.APROVACAO_CLIENTE },
+          take: 10,
+          orderBy: { atualizadoEm: 'asc' },
+          select: { id: true, titulo: true, status: true, cliente: { select: { nomeFantasia: true } } },
+        }),
+      ]);
+
+    return { faturasVencidas, bugsCriticos, contratosRevisao, comprasSolicitadas, conteudosSla, conteudosAprovar };
+  }
 }

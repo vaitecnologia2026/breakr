@@ -83,6 +83,8 @@ export function Cobrancas() {
   const [erro, setErro] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<StatusFatura | ''>('');
+  const [filtroCliente, setFiltroCliente] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -101,15 +103,23 @@ export function Cobrancas() {
     carregar();
   }, []);
 
+  const clientesUnicos = Array.from(
+    new Map(faturas.map((f) => [f.clienteId, f.cliente?.nomeFantasia ?? f.clienteId])).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+
   const q = busca.toLowerCase().trim();
-  const filtradas = q
-    ? faturas.filter(
-        (f) =>
-          (f.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
-          f.codigoUnico.toLowerCase().includes(q) ||
-          CORES_STATUS[f.status].rotulo.toLowerCase().includes(q),
-      )
-    : faturas;
+  const filtradas = faturas.filter((f) => {
+    if (filtroStatus && f.status !== filtroStatus) return false;
+    if (filtroCliente && f.clienteId !== filtroCliente) return false;
+    if (q) {
+      return (
+        (f.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
+        f.codigoUnico.toLowerCase().includes(q) ||
+        CORES_STATUS[f.status].rotulo.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   return (
     <PaginaShell
@@ -132,6 +142,36 @@ export function Cobrancas() {
             disabled={carregando}
           />
         </div>
+        <select
+          className="brk-select-filtro"
+          value={filtroStatus}
+          onChange={(e) => setFiltroStatus(e.target.value as StatusFatura | '')}
+          disabled={carregando}
+        >
+          <option value="">Todos os status</option>
+          {(Object.keys(CORES_STATUS) as StatusFatura[]).map((s) => (
+            <option key={s} value={s}>{CORES_STATUS[s].rotulo}</option>
+          ))}
+        </select>
+        <select
+          className="brk-select-filtro"
+          value={filtroCliente}
+          onChange={(e) => setFiltroCliente(e.target.value)}
+          disabled={carregando || clientesUnicos.length === 0}
+        >
+          <option value="">Todos os clientes</option>
+          {clientesUnicos.map(([id, nome]) => (
+            <option key={id} value={id}>{nome}</option>
+          ))}
+        </select>
+        {(filtroStatus || filtroCliente || busca) && (
+          <button
+            className="brk-btn-limpar-filtro"
+            onClick={() => { setFiltroStatus(''); setFiltroCliente(''); setBusca(''); }}
+          >
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       {carregando ? (

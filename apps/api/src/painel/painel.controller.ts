@@ -13,4 +13,10 @@ export class PainelController {
   resumo() {
     return this.painel.resumo();
   }
+
+  // GET /painel/inbox — itens pendentes detalhados (listas, nao contadores).
+  @Get('inbox')
+  inbox() {
+    return this.painel.inbox();
+  }
 }

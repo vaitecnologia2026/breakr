@@ -29,6 +29,7 @@ import { TrafegoModule } from './trafego/trafego.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { QualidadeModule } from './qualidade/qualidade.module';
 import { AtendimentoModule } from './atendimento/atendimento.module';
+import { ComunicadosModule } from './comunicados/comunicados.module';
 
 @Module({
   imports: [
@@ -74,6 +75,8 @@ import { AtendimentoModule } from './atendimento/atendimento.module';
     QualidadeModule,
     // Inbox WhatsApp / Atendimento (M22).
     AtendimentoModule,
+    // Canal de comunicados internos.
+    ComunicadosModule,
   ],
 })
 export class AppModule {}

@@ -109,6 +109,9 @@ model Usuario {
   // Atendimento WhatsApp (M22)
   conversasAtendente Conversa[] @relation("ConversaAtendente")
 
+  // Comunicados internos (autor)
+  comunicados Comunicado[] @relation("ComunicadoAutor")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -869,6 +872,22 @@ model WebhookLog {
 // ============================================================
 // CONFIGURACOES — IA (provedores de LLM)
 // ============================================================
+
+/// Canal de comunicados internos — anúncios da administração para todos os colaboradores.
+model Comunicado {
+  id           String   @id @default(uuid())
+  titulo       String
+  corpo        String
+  fixado       Boolean  @default(false)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  autorId String?  @map("autor_id")
+  autor   Usuario? @relation("ComunicadoAutor", fields: [autorId], references: [id])
+
+  @@index([fixado])
+  @@map("comunicado")
+}
 
 /// Configuracao de IA (singleton, id fixo "singleton"). Guarda as chaves dos 3
 /// provedores e qual esta ativo. As chaves NUNCA voltam inteiras pela API

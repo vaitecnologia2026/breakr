@@ -108,6 +108,7 @@ export function Conteudos() {
   const [modalAberto, setModalAberto] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
+  const [filtroCliente, setFiltroCliente] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -126,15 +127,22 @@ export function Conteudos() {
     carregar();
   }, []);
 
+  const clientesUnicos = Array.from(
+    new Map(conteudos.map((c) => [c.clienteId, c.cliente?.nomeFantasia ?? c.clienteId])).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+
   const q = busca.toLowerCase().trim();
-  const filtrados = q
-    ? conteudos.filter(
-        (c) =>
-          c.titulo.toLowerCase().includes(q) ||
-          (c.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
-          TIPO_META[c.tipo].toLowerCase().includes(q),
-      )
-    : conteudos;
+  const filtrados = conteudos.filter((c) => {
+    if (filtroCliente && c.clienteId !== filtroCliente) return false;
+    if (q) {
+      return (
+        c.titulo.toLowerCase().includes(q) ||
+        (c.cliente?.nomeFantasia ?? '').toLowerCase().includes(q) ||
+        TIPO_META[c.tipo].toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   return (
     <PaginaShell
@@ -158,7 +166,26 @@ export function Conteudos() {
             disabled={carregando}
           />
         </div>
-        {busca && !carregando && (
+        <select
+          className="brk-select-filtro"
+          value={filtroCliente}
+          onChange={(e) => setFiltroCliente(e.target.value)}
+          disabled={carregando || clientesUnicos.length === 0}
+        >
+          <option value="">Todos os clientes</option>
+          {clientesUnicos.map(([id, nome]) => (
+            <option key={id} value={id}>{nome}</option>
+          ))}
+        </select>
+        {(filtroCliente || busca) && !carregando && (
+          <button
+            className="brk-btn-limpar-filtro"
+            onClick={() => { setFiltroCliente(''); setBusca(''); }}
+          >
+            Limpar
+          </button>
+        )}
+        {!carregando && (filtroCliente || busca) && (
           <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)', whiteSpace: 'nowrap' }}>
             {filtrados.length} de {conteudos.length} peças
           </span>
