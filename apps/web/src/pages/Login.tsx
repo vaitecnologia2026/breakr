@@ -396,37 +396,17 @@ function FormLogin({
 function LogoVAI() {
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-      <svg
-        width="90"
-        height="54"
-        viewBox="0 0 90 54"
-        fill="none"
-        style={{ animation: 'vai-pulse 3s ease-in-out infinite' }}
-        aria-label="VAI Tecnologia"
-      >
-        <defs>
-          <linearGradient id="vai-grad" x1="0" y1="0" x2="90" y2="54" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#94122C" />
-            <stop offset="0.48" stopColor="#CA3F17" />
-            <stop offset="1" stopColor="#FF9406" />
-          </linearGradient>
-        </defs>
-        {/* V */}
-        <path
-          d="M2 6 L18 48 L26 48 L34 6 L27 6 L22 32 L17 6 Z"
-          fill="url(#vai-grad)"
-        />
-        {/* A */}
-        <path
-          d="M36 48 L44 6 L52 6 L60 48 L53 48 L49.5 28 L46.5 28 L43 48 Z M47 10 L45 22 L51 22 Z"
-          fill="url(#vai-grad)"
-        />
-        {/* I */}
-        <path
-          d="M64 6 H88 V13 H80 V41 H88 V48 H64 V41 H72 V13 H64 Z"
-          fill="url(#vai-grad)"
-        />
-      </svg>
+      <img
+        src="/vai-logo.png"
+        alt="VAI Tecnologia"
+        width={110}
+        height={55}
+        style={{
+          objectFit: 'contain',
+          animation: 'vai-pulse 3s ease-in-out infinite',
+          imageRendering: 'auto',
+        }}
+      />
       <span
         style={{
           fontSize: 10,
