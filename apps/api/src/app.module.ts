@@ -28,6 +28,7 @@ import { IaModule } from './ia/ia.module';
 import { TrafegoModule } from './trafego/trafego.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { QualidadeModule } from './qualidade/qualidade.module';
+import { AtendimentoModule } from './atendimento/atendimento.module';
 
 @Module({
   imports: [
@@ -71,6 +72,8 @@ import { QualidadeModule } from './qualidade/qualidade.module';
     WebhooksModule,
     // Dashboard de Qualidade & Rework (M18).
     QualidadeModule,
+    // Inbox WhatsApp / Atendimento (M22).
+    AtendimentoModule,
   ],
 })
 export class AppModule {}

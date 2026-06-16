@@ -106,6 +106,9 @@ model Usuario {
   comprasSolicitadas Compra[] @relation("CompraSolicitante")
   bugsResponsavel    Bug[]    @relation("BugResponsavel")
 
+  // Atendimento WhatsApp (M22)
+  conversasAtendente Conversa[] @relation("ConversaAtendente")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -233,6 +236,9 @@ model Cliente {
 
   // Tráfego pago (Fase 2 — M17)
   campanhas Campanha[]
+
+  // Atendimento WhatsApp (M22)
+  conversas Conversa[]
 
   @@index([squadId])
   @@index([status])
@@ -775,6 +781,94 @@ enum ProvedorIa {
   ANTHROPIC
   GEMINI
 }
+
+// ============================================================
+// ATENDIMENTO — WhatsApp / Inbox (M22)
+// ============================================================
+
+/// Status de uma conversa de atendimento.
+enum StatusConversa {
+  PENDENTE
+  ATENDENDO
+  RESOLVIDO
+}
+
+/// Configuracao do canal WhatsApp (singleton).
+/// accessToken nunca volta inteiro pela API (mascarado no service).
+model ConfiguracaoWhatsapp {
+  id                 String   @id @default("singleton")
+  phoneNumberId      String?  @map("phone_number_id")
+  accessToken        String?  @map("access_token")
+  webhookVerifyToken String?  @map("webhook_verify_token")
+  waBaId             String?  @map("waba_id")
+  ativo              Boolean  @default(false)
+  atualizadoEm       DateTime @updatedAt @map("atualizado_em")
+
+  @@map("configuracao_whatsapp")
+}
+
+/// Conversa de atendimento (1 thread por numero ativo).
+/// Vinculada a um Cliente quando o numero e conhecido; nula para numeros avulsos.
+model Conversa {
+  id           String         @id @default(uuid())
+  status       StatusConversa @default(PENDENTE)
+  waTelefone   String?        @map("wa_telefone")
+  assunto      String?
+  ultimaMsgEm  DateTime?      @map("ultima_msg_em")
+  criadoEm     DateTime       @default(now()) @map("criado_em")
+  atualizadoEm DateTime       @updatedAt @map("atualizado_em")
+
+  clienteId String?  @map("cliente_id")
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  atendenteId String?  @map("atendente_id")
+  atendente   Usuario? @relation("ConversaAtendente", fields: [atendenteId], references: [id])
+
+  mensagens Mensagem[]
+
+  @@index([clienteId])
+  @@index([status])
+  @@index([atendenteId])
+  @@index([waTelefone])
+  @@map("conversa")
+}
+
+/// Mensagem de uma conversa (inbound = cliente, outbound = atendente/sistema).
+model Mensagem {
+  id         String    @id @default(uuid())
+  autor      String    // CLIENTE | ATENDENTE | SISTEMA
+  direcao    String    // inbound | outbound
+  tipo       String    @default("text") // text | image | audio | document
+  texto      String?
+  arquivoUrl String?   @map("arquivo_url")
+  waMsgId    String?   @unique @map("wa_msg_id")
+  entregueEm DateTime? @map("entregue_em")
+  lidoEm     DateTime? @map("lido_em")
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+
+  conversaId String   @map("conversa_id")
+  conversa   Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+
+  @@index([conversaId])
+  @@map("mensagem")
+}
+
+/// Log de webhooks recebidos (observabilidade / idempotencia).
+model WebhookLog {
+  id         String   @id @default(uuid())
+  fonte      String   // meta | vai
+  payload    Json
+  processado Boolean  @default(false)
+  conversaId String?  @map("conversa_id")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([criadoEm])
+  @@map("webhook_log")
+}
+
+// ============================================================
+// CONFIGURACOES — IA (provedores de LLM)
+// ============================================================
 
 /// Configuracao de IA (singleton, id fixo "singleton"). Guarda as chaves dos 3
 /// provedores e qual esta ativo. As chaves NUNCA voltam inteiras pela API

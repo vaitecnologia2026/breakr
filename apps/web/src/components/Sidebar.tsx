@@ -18,6 +18,7 @@ const LINKS = [
   { para: '/compras', rotulo: 'Compras', icone: '◫', fim: false },
   { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: '◈', fim: false },
   { para: '/automacoes', rotulo: 'Automações', icone: '◈', fim: false },
+  { para: '/atendimento', rotulo: 'Atendimento', icone: '◉', fim: false },
 ] as const;
 
 const LINKS_ADMIN = [

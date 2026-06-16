@@ -19,6 +19,7 @@ import { Automacoes } from './pages/Automacoes';
 import { Configuracoes } from './pages/Configuracoes';
 import { Squads } from './pages/Squads';
 import { Equipe } from './pages/Equipe';
+import { Atendimento } from './pages/Atendimento';
 
 export function App() {
   return (
@@ -48,6 +49,7 @@ export function App() {
         <Route path="compras" element={<Compras />} />
         <Route path="desenvolvimento" element={<Desenvolvimento />} />
         <Route path="automacoes" element={<Automacoes />} />
+        <Route path="atendimento" element={<Atendimento />} />
         <Route path="equipe" element={<Equipe />} />
         <Route path="configuracoes" element={<Configuracoes />} />
       </Route>
