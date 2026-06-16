@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Logo } from './Logo';
+import { abrirBusca } from './GlobalSearch';
 
 // ─── SVG Icon helper ──────────────────────────────────────────────────────────
 
@@ -224,6 +225,37 @@ const GRUPO_ADMIN: NavGroup = {
 
 const TODOS_ITENS: NavItem[] = GRUPOS.flatMap((g) => g.items);
 
+// ─── Ícone de estrela ─────────────────────────────────────────────────────────
+
+function IcoStar16({ filled }: { filled: boolean }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+function IcoBusca() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+// ─── Favoritos ────────────────────────────────────────────────────────────────
+
+const FAV_KEY = 'brk.favoritos';
+
+interface FavItem { para: string; rotulo: string; }
+
+function lerFavoritos(): FavItem[] {
+  try { return JSON.parse(localStorage.getItem(FAV_KEY) ?? '[]'); } catch { return []; }
+}
+function gravarFavoritos(favs: FavItem[]) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch { /* noop */ }
+}
+
 // ─── Chaves de persistência ───────────────────────────────────────────────────
 
 const COLLAPSED_KEY = 'brk.sidebar.collapsed';
@@ -254,13 +286,49 @@ export function Sidebar() {
 
   const todosItens = [...TODOS_ITENS, ...(isAdmin ? GRUPO_ADMIN.items : [])];
 
+  // Favoritos
+  const [favoritos, setFavoritos] = useState<FavItem[]>(lerFavoritos);
+  function toggleFav(item: NavItem) {
+    setFavoritos((prev) => {
+      const existe = prev.some((f) => f.para === item.para);
+      const next = existe
+        ? prev.filter((f) => f.para !== item.para)
+        : [...prev, { para: item.para, rotulo: item.rotulo }];
+      gravarFavoritos(next);
+      return next;
+    });
+  }
+
   return (
     <aside className={`brk-sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="brk-sidebar-logo">
         <Logo tamanho={collapsed ? 20 : 22} />
       </div>
 
+      {/* Botão de busca (só expandido) */}
+      {!collapsed && (
+        <button className="brk-sidebar-busca" onClick={abrirBusca} title="Buscar (Ctrl+K)">
+          <IcoBusca />
+          <span className="brk-sidebar-busca-text">Buscar…</span>
+          <kbd className="brk-sidebar-busca-kbd">⌘K</kbd>
+        </button>
+      )}
+
       <nav className="brk-sidebar-nav">
+        {/* Favoritos */}
+        {!collapsed && favoritos.length > 0 && (
+          <div className="brk-sidebar-group">
+            <span className="brk-sidebar-label">Favoritos</span>
+            {favoritos.map((fav) => {
+              const item = todosItens.find((i) => i.para === fav.para);
+              if (!item) return null;
+              return (
+                <SidebarLink key={fav.para} {...item} favoritado onToggleFav={() => toggleFav(item)} />
+              );
+            })}
+          </div>
+        )}
+
         {collapsed ? (
           // Collapsed: ícones planos sem grupos
           <div className="brk-sidebar-group">
@@ -272,9 +340,9 @@ export function Sidebar() {
           // Expandido: grupos com submenus
           <>
             {GRUPOS.map((grupo) => (
-              <NavGrupo key={grupo.label} {...grupo} />
+              <NavGrupo key={grupo.label} {...grupo} favoritos={favoritos} onToggleFav={toggleFav} />
             ))}
-            {isAdmin && <NavGrupo {...GRUPO_ADMIN} />}
+            {isAdmin && <NavGrupo {...GRUPO_ADMIN} favoritos={favoritos} onToggleFav={toggleFav} />}
           </>
         )}
       </nav>
@@ -314,7 +382,10 @@ export function Sidebar() {
 
 // ─── Grupo colapsável ─────────────────────────────────────────────────────────
 
-function NavGrupo({ label, icone, collapsible, items }: NavGroup) {
+function NavGrupo({ label, icone, collapsible, items, favoritos, onToggleFav }: NavGroup & {
+  favoritos: FavItem[];
+  onToggleFav: (item: NavItem) => void;
+}) {
   const location = useLocation();
 
   const hasActiveChild = items.some((item) => {
@@ -349,7 +420,10 @@ function NavGrupo({ label, icone, collapsible, items }: NavGroup) {
     return (
       <div className="brk-sidebar-group">
         {items.map((item) => (
-          <SidebarLink key={item.para} {...item} />
+          <SidebarLink key={item.para} {...item}
+            favoritado={favoritos.some((f) => f.para === item.para)}
+            onToggleFav={() => onToggleFav(item)}
+          />
         ))}
       </div>
     );
@@ -373,7 +447,10 @@ function NavGrupo({ label, icone, collapsible, items }: NavGroup) {
       {aberto && (
         <div className="brk-sidebar-submenu">
           {items.map((item) => (
-            <SidebarLink key={item.para} {...item} sub />
+            <SidebarLink key={item.para} {...item} sub
+              favoritado={favoritos.some((f) => f.para === item.para)}
+              onToggleFav={() => onToggleFav(item)}
+            />
           ))}
         </div>
       )}
@@ -383,19 +460,33 @@ function NavGrupo({ label, icone, collapsible, items }: NavGroup) {
 
 // ─── Link de navegação ────────────────────────────────────────────────────────
 
-function SidebarLink({ para, rotulo, icone, fim, sub }: NavItem & { sub?: boolean }) {
+function SidebarLink({
+  para, rotulo, icone, fim, sub, favoritado, onToggleFav,
+}: NavItem & { sub?: boolean; favoritado?: boolean; onToggleFav?: () => void }) {
   return (
-    <NavLink
-      to={para}
-      end={fim}
-      className={({ isActive }) =>
-        `brk-sidebar-item${sub ? ' sub' : ''}${isActive ? ' active' : ''}`
-      }
-      title={rotulo}
-    >
-      <span className="brk-sidebar-icon" aria-hidden="true">{icone}</span>
-      <span className="brk-sidebar-item-label">{rotulo}</span>
-    </NavLink>
+    <div className="brk-sidebar-item-wrap">
+      <NavLink
+        to={para}
+        end={fim}
+        className={({ isActive }) =>
+          `brk-sidebar-item${sub ? ' sub' : ''}${isActive ? ' active' : ''}`
+        }
+        title={rotulo}
+      >
+        <span className="brk-sidebar-icon" aria-hidden="true">{icone}</span>
+        <span className="brk-sidebar-item-label">{rotulo}</span>
+      </NavLink>
+      {onToggleFav && (
+        <button
+          type="button"
+          className={`brk-sidebar-fav${favoritado ? ' on' : ''}`}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }}
+          title={favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+        >
+          <IcoStar16 filled={!!favoritado} />
+        </button>
+      )}
+    </div>
   );
 }
 

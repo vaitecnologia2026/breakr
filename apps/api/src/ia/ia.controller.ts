@@ -5,6 +5,7 @@ import { CargosGuard } from '../common/rbac/cargos.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
 import { IaConfigService } from './ia-config.service';
 import { IaService } from './ia.service';
+import { IaAssistenteService } from './ia-assistente.service';
 import { IntegracoesConfigService } from './integracoes-config.service';
 import { AtualizarIaDto } from './dto/atualizar-ia.dto';
 
@@ -14,6 +15,7 @@ export class IaController {
   constructor(
     private readonly config: IaConfigService,
     private readonly ia: IaService,
+    private readonly assistente: IaAssistenteService,
     private readonly integracoes: IntegracoesConfigService,
   ) {}
 
@@ -36,6 +38,14 @@ export class IaController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
   testar() {
     return this.ia.testar();
+  }
+
+  @Post('ia/assistente')
+  async assistenteChat(
+    @Body() body: { mensagem: string; historico?: { role: 'user' | 'assistant'; conteudo: string }[] },
+  ) {
+    const resposta = await this.assistente.chat(body.mensagem, body.historico ?? []);
+    return { resposta };
   }
 
   @Get('integracoes')
