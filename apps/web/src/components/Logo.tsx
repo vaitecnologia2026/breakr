@@ -9,40 +9,64 @@ interface LogoProps {
   comTexto?: boolean;
 }
 
+const KEYFRAMES = `
+@keyframes brk-raio-strike {
+  0%   { opacity: 0; transform: scale(0.4) translateY(-6px); filter: brightness(3); }
+  40%  { opacity: 1; transform: scale(1.18) translateY(0);   filter: brightness(2.5); }
+  65%  { transform: scale(0.94);                              filter: brightness(1); }
+  80%  { transform: scale(1.06); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+@keyframes brk-text-enter {
+  0%   { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+`;
+
 export function Logo({ tamanho = 28, comTexto = true }: LogoProps) {
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        userSelect: 'none',
-      }}
-    >
-      <Raio tamanho={tamanho} />
-      {comTexto && (
+    <>
+      <style>{KEYFRAMES}</style>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 10,
+          userSelect: 'none',
+        }}
+      >
         <span
           style={{
-            fontWeight: 800,
-            fontSize: tamanho * 0.72,
-            letterSpacing: '-0.03em',
-            lineHeight: 1,
-            color: 'var(--cinza-vapor)',
+            display: 'inline-flex',
+            animation: 'brk-raio-strike 0.65s cubic-bezier(0.22,1,0.36,1) both',
           }}
         >
-          Breakr{' '}
-          <span className="brk-gradient-text" style={{ fontWeight: 800 }}>
-            OS
-          </span>
+          <Raio tamanho={tamanho} />
         </span>
-      )}
-    </span>
+        {comTexto && (
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: tamanho * 0.72,
+              letterSpacing: '-0.03em',
+              lineHeight: 1,
+              color: 'var(--cinza-vapor)',
+              animation: 'brk-text-enter 0.45s 0.25s cubic-bezier(0.22,1,0.36,1) both',
+            }}
+          >
+            Breakr{' '}
+            <span className="brk-gradient-text" style={{ fontWeight: 800 }}>
+              OS
+            </span>
+          </span>
+        )}
+      </span>
+    </>
   );
 }
 
 /** Apenas o raio (ícone), em gradiente brasa. */
 export function Raio({ tamanho = 28 }: { tamanho?: number }) {
-  // gradientId único por instância evita colisão de <defs> em SVGs múltiplos.
   const gradientId = `brk-raio-${Math.random().toString(36).slice(2, 9)}`;
   return (
     <svg
