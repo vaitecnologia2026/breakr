@@ -6,7 +6,12 @@ import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacoesService } from '../../notificacoes/notificacoes.service';
 import { SquadsService } from '../../squads/squads.service';
-import { WHATSAPP_PORT, WhatsappPort } from '../../integracoes';
+import {
+  ASAAS_PORT, AsaasPort,
+  AUTENTIQUE_PORT, AutentiquePort,
+  GOOGLE_MEET_PORT, GoogleMeetPort,
+  WHATSAPP_PORT, WhatsappPort,
+} from '../../integracoes';
 import { Acao, ContextoExecucao, ResultadoAcao } from './tipos';
 
 type Handler = (
@@ -24,6 +29,9 @@ export class AcoesService {
     private readonly notificacoes: NotificacoesService,
     private readonly squads: SquadsService,
     @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
+    @Inject(ASAAS_PORT) private readonly asaas: AsaasPort,
+    @Inject(AUTENTIQUE_PORT) private readonly autentique: AutentiquePort,
+    @Inject(GOOGLE_MEET_PORT) private readonly googleMeet: GoogleMeetPort,
   ) {
     this.registrarPadrao();
   }
@@ -207,6 +215,126 @@ export class AcoesService {
       const novoNome = `${sigla}-${c.tipo}-${mes}-${c.codigoUnico}`;
       await this.prisma.conteudo.update({ where: { id: conteudoId }, data: { codigoUnico: novoNome } });
       return { codigoAnterior: c.codigoUnico, codigoNovo: novoNome };
+    });
+
+    // criar_cobranca_asaas: gera boleto/PIX no Asaas e persiste o id externo na Fatura.
+    // Requer payload.faturaId + params.asaasClienteId (id do cliente no Asaas).
+    // Params opcionais: formaPagamento (BOLETO|PIX|CREDIT_CARD), diasVencimento (padrão 5).
+    // Nota: asaasClienteId é cadastrado manualmente no Asaas e informado na configuração da regra.
+    this.catalogo.set('criar_cobranca_asaas', async (params, ctx) => {
+      const faturaId = String(ctx.payload.faturaId ?? '');
+      if (!faturaId) throw new Error('payload.faturaId ausente');
+      const asaasClienteId = String(params.asaasClienteId ?? ctx.payload.asaasClienteId ?? '');
+      if (!asaasClienteId) throw new Error('params.asaasClienteId ausente — informe o id do cliente no Asaas na configuracao da regra');
+
+      const fatura = await this.prisma.fatura.findUnique({ where: { id: faturaId } });
+      if (!fatura) throw new Error('Fatura nao encontrada');
+      if (fatura.asaasId) {
+        return { jaExistia: true, asaasId: fatura.asaasId };
+      }
+
+      const dias = params.diasVencimento ? Number(params.diasVencimento) : 5;
+      const vencimento = new Date();
+      vencimento.setDate(vencimento.getDate() + dias);
+
+      const forma = (params.formaPagamento as 'BOLETO' | 'PIX' | 'CREDIT_CARD') ?? 'BOLETO';
+      const cobranca = await this.asaas.criarCobranca({
+        clienteId: asaasClienteId,
+        valor: Number(fatura.valor),
+        vencimento: vencimento.toISOString().slice(0, 10),
+        descricao: `Fatura Breakr ${fatura.codigoUnico}`,
+        formaPagamento: forma,
+      });
+
+      await this.prisma.fatura.update({
+        where: { id: faturaId },
+        data: { asaasId: cobranca.id, meio: forma },
+      });
+
+      return {
+        asaasId: cobranca.id,
+        linkBoleto: cobranca.linkBoleto,
+        pixCopiaECola: cobranca.pixCopiaECola,
+        vencimento: cobranca.vencimento,
+      };
+    });
+
+    // enviar_contrato_autentique: envia o PDF do contrato para assinatura eletrônica.
+    // Persiste autentiqueId + muda status para AGUARDANDO_ASSINATURA.
+    // Requer payload.contratoId. O contrato deve ter docUrl preenchida.
+    this.catalogo.set('enviar_contrato_autentique', async (params, ctx) => {
+      const contratoId = String(ctx.payload.contratoId ?? '');
+      if (!contratoId) throw new Error('payload.contratoId ausente');
+      const contrato = await this.prisma.contrato.findUnique({
+        where: { id: contratoId },
+        include: { cliente: { select: { nomeFantasia: true } } },
+      });
+      if (!contrato) throw new Error('Contrato nao encontrado');
+      if (!contrato.docUrl) throw new Error('Contrato sem docUrl — faça upload do PDF primeiro');
+      if (contrato.autentiqueId) {
+        return { jaEnviado: true, autentiqueId: contrato.autentiqueId };
+      }
+
+      // email do signatário vem de params (configurável na regra) ou do payload.
+      // Cliente não tem campo email no schema — deve ser passado na configuração da regra.
+      const emailCliente = String(params.emailCliente ?? ctx.payload.emailCliente ?? '');
+      const nomeCliente = String(params.nomeCliente ?? contrato.cliente.nomeFantasia);
+      const signatarios = emailCliente
+        ? [{ nome: nomeCliente, email: emailCliente }]
+        : [];
+
+      if (signatarios.length === 0) throw new Error('params.emailCliente ausente — informe o e-mail do signatário na configuração da regra');
+
+      const doc = await this.autentique.enviarParaAssinatura({
+        nomeDocumento: `Contrato Breakr — ${contrato.cliente.nomeFantasia} (${contrato.codigoUnico})`,
+        pdfUrl: contrato.docUrl,
+        signatarios,
+      });
+
+      await this.prisma.contrato.update({
+        where: { id: contratoId },
+        data: { autentiqueId: doc.id, status: 'AGUARDANDO_ASSINATURA' },
+      });
+
+      return { autentiqueId: doc.id, linkAssinatura: doc.linkAssinatura, status: doc.status };
+    });
+
+    // criar_meet_comercial: cria reunião Google Meet para o lead e salva link na observacao.
+    // Params: titulo (opcional), duracaoMinutos (padrão 60), inicio (ISO datetime, padrão +1 dia 10h).
+    // Requer payload.leadId.
+    this.catalogo.set('criar_meet_comercial', async (params, ctx) => {
+      const leadId = String(ctx.payload.leadId ?? '');
+      if (!leadId) throw new Error('payload.leadId ausente');
+      const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
+      if (!lead) throw new Error('Lead nao encontrado');
+
+      const inicio = String(params.inicio ?? (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        d.setHours(10, 0, 0, 0);
+        return d.toISOString();
+      })());
+
+      const titulo = this.interpolar(
+        String(params.titulo ?? 'Demo Breakr — {{leadNome}}'),
+        { ...ctx.payload, leadNome: lead.nome },
+      );
+      const convidados = lead.email ? [lead.email] : [];
+
+      const result = await this.googleMeet.criarMeet({
+        titulo,
+        inicio,
+        duracaoMinutos: params.duracaoMinutos ? Number(params.duracaoMinutos) : 60,
+        convidados,
+      });
+
+      const obs = `[Meet] ${result.meetLink} | ${new Date(inicio).toLocaleString('pt-BR')}`;
+      await this.prisma.lead.update({
+        where: { id: leadId },
+        data: { observacao: lead.observacao ? `${lead.observacao}\n${obs}` : obs },
+      });
+
+      return { meetLink: result.meetLink, eventoId: result.eventoId };
     });
 
     // analisar_meta_ads: aciona sugestao de IA sobre metricas de campanha.

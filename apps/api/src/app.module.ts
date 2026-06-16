@@ -26,6 +26,7 @@ import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module'
 import { PainelModule } from './painel/painel.module';
 import { IaModule } from './ia/ia.module';
 import { TrafegoModule } from './trafego/trafego.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -65,6 +66,8 @@ import { TrafegoModule } from './trafego/trafego.module';
     IaModule,
     // Tráfego pago + IA assistiva (Fase 2 — M17).
     TrafegoModule,
+    // Webhooks externos (Autentique, Asaas, etc.) — sem JWT.
+    WebhooksModule,
   ],
 })
 export class AppModule {}

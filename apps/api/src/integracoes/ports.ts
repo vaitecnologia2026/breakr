@@ -125,3 +125,25 @@ export interface WhatsappPort {
   /** Cria o grupo do cliente (e adiciona o CS como admin). */
   criarGrupo(input: WhatsappGrupoInput): Promise<WhatsappGrupo>;
 }
+
+// ---------------------------------------------------------------
+// 5. Google Meet — videoconferência (reunião de demonstração/onboarding)
+// ---------------------------------------------------------------
+export interface GoogleMeetInput {
+  titulo: string;
+  // ISO datetime (ex.: 2026-06-20T10:00:00-03:00)
+  inicio: string;
+  // Duração em minutos (padrão: 60)
+  duracaoMinutos?: number;
+  convidados?: string[]; // e-mails
+}
+
+export interface GoogleMeetLink {
+  meetLink: string; // https://meet.google.com/xxx-yyyy-zzz
+  eventoId: string; // id do evento no Google Calendar
+}
+
+export interface GoogleMeetPort {
+  /** Cria um evento com Google Meet e retorna o link. */
+  criarMeet(input: GoogleMeetInput): Promise<GoogleMeetLink>;
+}

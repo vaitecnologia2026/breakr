@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   ASAAS_PORT,
   AUTENTIQUE_PORT,
+  GOOGLE_MEET_PORT,
   SPEED_PORT,
   WHATSAPP_PORT,
 } from './tokens';
@@ -17,11 +18,13 @@ import { AsaasStubService } from './stubs/asaas.stub.service';
 import { SpeedStubService } from './stubs/speed.stub.service';
 import { AutentiqueStubService } from './stubs/autentique.stub.service';
 import { WhatsappStubService } from './stubs/whatsapp.stub.service';
+import { GoogleMeetStubService } from './stubs/google-meet.stub.service';
 // Adapters reais
 import { WhatsappMegaService } from './real/whatsapp-mega.service';
 import { AsaasService } from './real/asaas.service';
 import { AutentiqueService } from './real/autentique.service';
 import { SpeedService } from './real/speed.service';
+import { GoogleMeetService } from './real/google-meet.service';
 
 const logger = new Logger('IntegracoesModule');
 
@@ -31,6 +34,7 @@ const providers: Provider[] = [
   SpeedStubService,
   AutentiqueStubService,
   WhatsappStubService,
+  GoogleMeetStubService,
 
   {
     provide: WHATSAPP_PORT,
@@ -89,10 +93,29 @@ const providers: Provider[] = [
       return stub;
     },
   },
+
+  {
+    provide: GOOGLE_MEET_PORT,
+    inject: [ConfigService, GoogleMeetStubService],
+    useFactory: (config: ConfigService, stub: GoogleMeetStubService) => {
+      const clientId = config.get<string>('GOOGLE_CLIENT_ID');
+      const clientSecret = config.get<string>('GOOGLE_CLIENT_SECRET');
+      const refreshToken = config.get<string>('GOOGLE_REFRESH_TOKEN');
+      if (clientId && clientSecret && refreshToken) {
+        const calendarId = config.get<string>('GOOGLE_CALENDAR_ID') ?? 'primary';
+        logger.log('Google Meet: adapter REAL ativo.');
+        return new GoogleMeetService(clientId, clientSecret, refreshToken, calendarId);
+      }
+      logger.log(
+        'Google Meet: usando STUB (defina GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + GOOGLE_REFRESH_TOKEN para ativar).',
+      );
+      return stub;
+    },
+  },
 ];
 
 @Module({
   providers,
-  exports: [ASAAS_PORT, SPEED_PORT, AUTENTIQUE_PORT, WHATSAPP_PORT],
+  exports: [ASAAS_PORT, SPEED_PORT, AUTENTIQUE_PORT, WHATSAPP_PORT, GOOGLE_MEET_PORT],
 })
 export class IntegracoesModule {}

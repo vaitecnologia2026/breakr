@@ -14,3 +14,4 @@ export const ASAAS_PORT = 'ASAAS_PORT';
 export const SPEED_PORT = 'SPEED_PORT';
 export const AUTENTIQUE_PORT = 'AUTENTIQUE_PORT';
 export const WHATSAPP_PORT = 'WHATSAPP_PORT';
+export const GOOGLE_MEET_PORT = 'GOOGLE_MEET_PORT';
