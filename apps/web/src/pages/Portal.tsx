@@ -155,6 +155,7 @@ export function Portal() {
         ) : (
           <>
             <Cabecalho dados={dados} />
+            <CardNovaDemanda codigo={codigo ?? ''} />
             {dados.conteudosParaAprovar.length > 0 && (
               <CardAprovacoes
                 pecas={dados.conteudosParaAprovar}
@@ -637,6 +638,265 @@ function BadgeTipo({ tipo }: { tipo: string }) {
     >
       {rotulo}
     </span>
+  );
+}
+
+/* ----------------------- Card nova demanda (M18+) -------------------- */
+
+const TIPOS_DEMANDA = [
+  { valor: 'POST', rotulo: 'Post' },
+  { valor: 'REELS', rotulo: 'Reels' },
+  { valor: 'STORY', rotulo: 'Story' },
+  { valor: 'CARROSSEL', rotulo: 'Carrossel' },
+  { valor: 'VIDEO', rotulo: 'Vídeo' },
+];
+
+const PRIORIDADES_DEMANDA = [
+  { valor: 'URGENTE', rotulo: 'Urgente', cor: '#e2738a' },
+  { valor: 'NORMAL', rotulo: 'Normal', cor: '#4aa3f0' },
+  { valor: 'PLANEJADO', rotulo: 'Planejado', cor: '#67e0a3' },
+];
+
+function CardNovaDemanda({ codigo }: { codigo: string }) {
+  const [aberto, setAberto] = useState(false);
+  const [tipo, setTipo] = useState('POST');
+  const [prioridade, setPrioridade] = useState('NORMAL');
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState(false);
+
+  async function enviar() {
+    if (titulo.trim().length < 3) {
+      setErro('Informe o título da solicitação (mínimo 3 caracteres).');
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/demanda`, {
+        titulo: titulo.trim(),
+        tipo,
+        prioridade,
+        descricao: descricao.trim() || undefined,
+      });
+      setSucesso(true);
+    } catch {
+      setErro('Não foi possível enviar a solicitação. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function novaSolicitacao() {
+    setSucesso(false);
+    setTitulo('');
+    setDescricao('');
+    setPrioridade('NORMAL');
+    setTipo('POST');
+    setErro(null);
+  }
+
+  return (
+    <Card>
+      <TituloCard>Solicitar conteúdo</TituloCard>
+
+      {sucesso ? (
+        <div style={{ marginTop: 12 }}>
+          <p style={{ fontSize: 14, color: '#67e0a3', fontWeight: 600 }}>
+            Solicitação enviada. A equipe Breakr vai pegar em breve.
+          </p>
+          <button
+            type="button"
+            onClick={novaSolicitacao}
+            style={{
+              marginTop: 12,
+              border: '1px solid var(--borda-forte)',
+              background: 'transparent',
+              color: 'var(--texto-suave)',
+              fontWeight: 600,
+              fontSize: 13.5,
+              padding: '8px 14px',
+              borderRadius: 10,
+              cursor: 'pointer',
+            }}
+          >
+            + Nova solicitação
+          </button>
+        </div>
+      ) : !aberto ? (
+        <div style={{ marginTop: 10 }}>
+          <p style={{ fontSize: 13.5, color: 'var(--texto-fraco)', marginBottom: 12 }}>
+            Precisa de um post, reels, story ou outro conteúdo? Avise a equipe com um clique.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAberto(true)}
+            className="brk-gradient-bg"
+            style={{
+              border: 'none',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 13.5,
+              padding: '9px 18px',
+              borderRadius: 10,
+              cursor: 'pointer',
+            }}
+          >
+            + Solicitar conteúdo
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12.5, color: 'var(--texto-fraco)', display: 'block', marginBottom: 6 }}>
+              Tipo de conteúdo
+            </label>
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+              disabled={enviando}
+              style={{
+                width: '100%',
+                background: 'var(--superficie-3)',
+                border: '1px solid var(--borda-forte)',
+                borderRadius: 10,
+                padding: '9px 12px',
+                color: 'var(--texto)',
+                fontSize: 13.5,
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            >
+              {TIPOS_DEMANDA.map((t) => (
+                <option key={t.valor} value={t.valor}>{t.rotulo}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12.5, color: 'var(--texto-fraco)', display: 'block', marginBottom: 6 }}>
+              Prioridade
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {PRIORIDADES_DEMANDA.map((p) => (
+                <button
+                  key={p.valor}
+                  type="button"
+                  onClick={() => setPrioridade(p.valor)}
+                  disabled={enviando}
+                  style={{
+                    border: `1px solid ${prioridade === p.valor ? p.cor : 'var(--borda-forte)'}`,
+                    background: prioridade === p.valor ? `${p.cor}22` : 'transparent',
+                    color: prioridade === p.valor ? p.cor : 'var(--texto-fraco)',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    padding: '5px 14px',
+                    borderRadius: 999,
+                    cursor: enviando ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {p.rotulo}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12.5, color: 'var(--texto-fraco)', display: 'block', marginBottom: 6 }}>
+              Título <span style={{ color: '#e2738a' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Ex.: Post de lançamento do combo de verão"
+              disabled={enviando}
+              style={{
+                width: '100%',
+                background: 'var(--superficie-3)',
+                border: '1px solid var(--borda-forte)',
+                borderRadius: 10,
+                padding: '9px 12px',
+                color: 'var(--texto)',
+                fontSize: 13.5,
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12.5, color: 'var(--texto-fraco)', display: 'block', marginBottom: 6 }}>
+              Detalhes (opcional)
+            </label>
+            <textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Tema, referências, data desejada…"
+              rows={3}
+              disabled={enviando}
+              style={{
+                width: '100%',
+                background: 'var(--superficie-3)',
+                border: '1px solid var(--borda-forte)',
+                borderRadius: 10,
+                padding: '10px 12px',
+                color: 'var(--texto)',
+                fontSize: 13.5,
+                resize: 'vertical',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {erro && <p style={{ fontSize: 12.5, color: '#e2738a', marginTop: -4 }}>{erro}</p>}
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={enviar}
+              disabled={enviando}
+              className="brk-gradient-bg"
+              style={{
+                border: 'none',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13.5,
+                padding: '9px 18px',
+                borderRadius: 10,
+                cursor: enviando ? 'not-allowed' : 'pointer',
+                opacity: enviando ? 0.6 : 1,
+              }}
+            >
+              {enviando ? 'Enviando…' : 'Enviar solicitação'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAberto(false); setErro(null); }}
+              disabled={enviando}
+              style={{
+                border: '1px solid var(--borda-forte)',
+                background: 'transparent',
+                color: 'var(--texto-suave)',
+                fontWeight: 600,
+                fontSize: 13.5,
+                padding: '9px 14px',
+                borderRadius: 10,
+                cursor: enviando ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

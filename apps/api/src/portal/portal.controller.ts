@@ -13,6 +13,7 @@ import {
 import { PortalService } from './portal.service';
 import { AprovarConteudoDto } from './dto/aprovar-conteudo.dto';
 import { AjusteConteudoDto } from './dto/ajuste-conteudo.dto';
+import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
 
 @Controller('portal')
 export class PortalController {
@@ -42,5 +43,14 @@ export class PortalController {
     @Body() dto: AjusteConteudoDto,
   ) {
     return this.portal.solicitarAjuste(codigo, id, dto);
+  }
+
+  // POST /portal/:codigo/demanda — cliente submete uma nova solicitacao de conteudo.
+  @Post(':codigo/demanda')
+  submeterDemanda(
+    @Param('codigo') codigo: string,
+    @Body() dto: SubmeterDemandaDto,
+  ) {
+    return this.portal.submeterDemanda(codigo, dto);
   }
 }

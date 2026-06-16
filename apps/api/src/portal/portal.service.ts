@@ -6,12 +6,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { StatusConteudo } from '@prisma/client';
+import { StatusConteudo, TipoConteudo } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
+import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
 
 @Injectable()
 export class PortalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly codigoUnicoSvc: CodigoUnicoService,
+  ) {}
 
   async obterPorCodigo(codigo: string) {
     const cliente = await this.prisma.cliente.findUnique({
@@ -127,6 +132,31 @@ export class PortalService {
         comentarioCliente: dados.comentario,
         reworkCount: { increment: 1 },
       },
+    });
+  }
+
+  // Cliente solicita uma nova peca de conteudo pelo portal — entra como IDEIA
+  // para a equipe pegar no kanban de Conteudos.
+  async submeterDemanda(codigo: string, dados: SubmeterDemandaDto) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { codigoUnico: codigo },
+    });
+    if (!cliente) throw new NotFoundException('Portal nao encontrado');
+
+    const descricaoFinal = dados.descricao
+      ? `[${dados.prioridade}] ${dados.descricao}`
+      : `[${dados.prioridade}]`;
+
+    return this.prisma.conteudo.create({
+      data: {
+        titulo: dados.titulo,
+        descricao: descricaoFinal,
+        tipo: dados.tipo as TipoConteudo,
+        status: StatusConteudo.IDEIA,
+        codigoUnico: this.codigoUnicoSvc.gerar('DEM'),
+        clienteId: cliente.id,
+      },
+      select: { id: true, codigoUnico: true, titulo: true, status: true },
     });
   }
 }
