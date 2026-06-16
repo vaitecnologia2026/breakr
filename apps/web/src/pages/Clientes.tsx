@@ -17,6 +17,7 @@ interface Cliente {
   squadId: string | null;
   planoId: string | null;
   criadoEm: string;
+  onboarding: { progresso: number; concluido: boolean } | null;
 }
 
 const STATUS_COR: Record<ClienteStatus, 'verde' | 'amarelo' | 'vermelho' | 'neutro' | 'azul'> = {
@@ -114,9 +115,9 @@ export function Clientes() {
             <thead>
               <tr>
                 <ThNovo>Cliente</ThNovo>
-                <ThNovo>Código</ThNovo>
-                <ThNovo>CNPJ</ThNovo>
+                <ThNovo>Código / Portal</ThNovo>
                 <ThNovo>Status</ThNovo>
+                <ThNovo>Onboarding</ThNovo>
                 <ThNovo>Squad</ThNovo>
                 <ThNovo>Criado em</ThNovo>
               </tr>
@@ -134,17 +135,47 @@ export function Clientes() {
                     </div>
                   </TdNovo>
                   <TdNovo>
-                    <code style={{ fontSize: 12, background: 'var(--superficie-3)', padding: '2px 8px', borderRadius: 6, color: 'var(--texto-suave)' }}>
-                      {c.codigoUnico}
-                    </code>
-                  </TdNovo>
-                  <TdNovo>
-                    <span style={{ color: c.cnpj ? 'var(--texto-suave)' : 'var(--texto-fraco)' }}>
-                      {c.cnpj ?? '—'}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <code style={{ fontSize: 12, background: 'var(--superficie-3)', padding: '2px 8px', borderRadius: 6, color: 'var(--texto-suave)' }}>
+                        {c.codigoUnico}
+                      </code>
+                      <a
+                        href={`/portal/${c.codigoUnico}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 11.5, color: 'var(--amarelo-fagulha)', display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+                      >
+                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        Portal
+                      </a>
+                    </div>
                   </TdNovo>
                   <TdNovo>
                     <Badge cor={STATUS_COR[c.status]}>{STATUS_ROTULO[c.status]}</Badge>
+                  </TdNovo>
+                  <TdNovo>
+                    {c.onboarding ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 80 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--superficie-3)', overflow: 'hidden' }}>
+                            <div
+                              className="brk-gradient-bg"
+                              style={{ width: `${c.onboarding.progresso}%`, height: '100%', borderRadius: 999 }}
+                            />
+                          </div>
+                          <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)', minWidth: 28 }}>
+                            {c.onboarding.progresso}%
+                          </span>
+                        </div>
+                        {c.onboarding.concluido && (
+                          <span style={{ fontSize: 11, color: '#67e0a3', fontWeight: 600 }}>Concluído</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--texto-fraco)', fontSize: 13 }}>—</span>
+                    )}
                   </TdNovo>
                   <TdNovo>
                     <span style={{ color: c.squadId ? 'var(--texto-suave)' : 'var(--texto-fraco)' }}>

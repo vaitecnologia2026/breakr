@@ -14,11 +14,15 @@ export class ClientesService {
     private readonly codigoUnico: CodigoUnicoService,
   ) {}
 
-  // Lista todos os clientes (mais recentes primeiro).
-  listar(): Promise<Cliente[]> {
+  // Lista todos os clientes (mais recentes primeiro) com progresso de onboarding.
+  listar() {
     return this.prisma.cliente.findMany({
       orderBy: { criadoEm: 'desc' },
-      include: { squad: true, plano: true },
+      include: {
+        squad: true,
+        plano: true,
+        onboarding: { select: { progresso: true, concluido: true } },
+      },
     });
   }
 
