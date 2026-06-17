@@ -39,6 +39,7 @@ import { Agenda } from './pages/Agenda';
 import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
 import { Medalhas } from './pages/Medalhas';
+import { Perfil } from './pages/Perfil';
 
 export function App() {
   return (
@@ -81,6 +82,7 @@ export function App() {
         <Route path="reunioes" element={<Reunioes />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="medalhas" element={<Medalhas />} />
+        <Route path="perfil" element={<Perfil />} />
         <Route path="inventario" element={<Inventario />} />
         <Route path="educacional" element={<Educacional />} />
         <Route path="ouvidoria" element={<Ouvidoria />} />

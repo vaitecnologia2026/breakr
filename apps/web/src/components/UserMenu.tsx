@@ -175,9 +175,9 @@ export function UserMenu() {
           <div className="brk-user-dropdown-sep" />
 
           {/* Links */}
-          <button type="button" className="brk-user-dropdown-item" onClick={() => ir('/configuracoes')}>
+          <button type="button" className="brk-user-dropdown-item" onClick={() => ir('/perfil')}>
             <IcoUser />
-            <span>Perfil & Conta</span>
+            <span>Meu perfil</span>
           </button>
           <button type="button" className="brk-user-dropdown-item" onClick={() => ir('/chat')}>
             <IcoChat />
