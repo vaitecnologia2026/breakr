@@ -1,8 +1,7 @@
 /**
  * Atendimento (M22) — Inbox WhatsApp.
- * Layout: Kanban 3 colunas (PENDENTE | ATENDENDO | RESOLVIDO).
- * Clicando em um card abre painel de chat lateral.
- * Polling a cada 5 s para novas mensagens.
+ * Layout: Painel de lista (esquerda) + Painel de chat (direita).
+ * Estilo VAI CRM: avatares com iniciais, tabs Ativos/Pendentes/Grupos, SLA timer.
  */
 import {
   useEffect,
@@ -12,9 +11,10 @@ import {
 } from 'react';
 import { api } from '../lib/api';
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Status = 'PENDENTE' | 'ATENDENDO' | 'RESOLVIDO';
+type TabInbox = 'ATIVOS' | 'PENDENTES' | 'GRUPOS';
 
 interface ClienteMin {
   id: string;
@@ -65,7 +65,7 @@ interface InboxData {
   resolvido: Conversa[];
 }
 
-// ─── Utilitários ─────────────────────────────────────────────────────────────
+// ─── Utilitários ──────────────────────────────────────────────────────────────
 
 function tempoRelativo(isoStr: string | null): string {
   if (!isoStr) return '';
@@ -78,11 +78,46 @@ function tempoRelativo(isoStr: string | null): string {
   return `${Math.floor(h / 24)}d`;
 }
 
+function slaTimer(isoStr: string): string {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return '< 1m';
+}
+
 function formatarHora(isoStr: string): string {
   return new Date(isoStr).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+const CORES_AVATAR = ['#d05028', '#2a72d5', '#27a567', '#c4880e', '#8e44c4', '#d4466b', '#0891b2'];
+
+function corAvatar(nome: string): string {
+  let h = 0;
+  for (let i = 0; i < nome.length; i++) h = (h * 31 + nome.charCodeAt(i)) % CORES_AVATAR.length;
+  return CORES_AVATAR[h];
+}
+
+function iniciais(nome: string): string {
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function nomeContato(c: Conversa): string {
+  return c.cliente?.nomeFantasia ?? c.waTelefone ?? 'Número avulso';
+}
+
+function ultimaMsgPreview(c: Conversa): string {
+  const m = c.mensagens[0];
+  if (!m) return c.assunto ?? 'Conversa iniciada';
+  if (!m.texto) return '🎵 Áudio';
+  return m.texto;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -96,6 +131,8 @@ export function Atendimento() {
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [tabAtiva, setTabAtiva] = useState<TabInbox>('ATIVOS');
+  const [busca, setBusca] = useState('');
   const [modalNova, setModalNova] = useState(false);
   const [clientes, setClientes] = useState<ClienteMin[]>([]);
   const [novaConversa, setNovaConversa] = useState({ clienteId: '', waTelefone: '', assunto: '' });
@@ -114,7 +151,6 @@ export function Atendimento() {
   const ultimaContagemRef = useRef(0);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Carrega inbox
   async function carregarInbox() {
     try {
       const res = await api.get<InboxData>('/atendimento');
@@ -127,35 +163,14 @@ export function Atendimento() {
     }
   }
 
-  // Carrega detalhe de uma conversa (mensagens)
-  async function carregarDetalhe(id: string) {
-    setCarregandoDetalhe(true);
-    try {
-      const res = await api.get<ConversaDetalhe>(`/atendimento/${id}`);
-      setDetalhe(res.data);
-    } catch {
-      /* silencia */
-    } finally {
-      setCarregandoDetalhe(false);
-    }
-  }
-
   useEffect(() => {
     carregarInbox();
     pollingRef.current = setInterval(carregarInbox, 5000);
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, []);
 
-  // Carrega o detalhe da conversa selecionada e o mantem atualizado com um poll
-  // proprio (5s), sem reagir ao poll do inbox. O guard `ativo` descarta respostas
-  // de uma conversa anterior quando o usuario troca de selecao (race).
   useEffect(() => {
-    if (!selecionada) {
-      setDetalhe(null);
-      return;
-    }
+    if (!selecionada) { setDetalhe(null); return; }
     const id = selecionada;
     let ativo = true;
     async function carregar(comLoading: boolean) {
@@ -163,22 +178,14 @@ export function Atendimento() {
       try {
         const res = await api.get<ConversaDetalhe>(`/atendimento/${id}`);
         if (ativo) setDetalhe(res.data);
-      } catch {
-        /* silencia */
-      } finally {
-        if (ativo && comLoading) setCarregandoDetalhe(false);
-      }
+      } catch { /* silencia */ }
+      finally { if (ativo && comLoading) setCarregandoDetalhe(false); }
     }
     carregar(true);
     const t = setInterval(() => carregar(false), 5000);
-    return () => {
-      ativo = false;
-      clearInterval(t);
-    };
+    return () => { ativo = false; clearInterval(t); };
   }, [selecionada]);
 
-  // Scroll para a última mensagem apenas quando chega mensagem nova (evita
-  // forçar scroll a cada refresh do poll).
   useEffect(() => {
     const total = detalhe?.mensagens?.length ?? 0;
     if (total > ultimaContagemRef.current) {
@@ -186,11 +193,6 @@ export function Atendimento() {
     }
     ultimaContagemRef.current = total;
   }, [detalhe?.mensagens]);
-
-  function abrirConversa(id: string) {
-    // O efeito de [selecionada] cuida de carregar o detalhe e iniciar o poll.
-    setSelecionada(id);
-  }
 
   async function aceitar() {
     if (!selecionada) return;
@@ -217,11 +219,10 @@ export function Atendimento() {
     try {
       await api.post(`/atendimento/${selecionada}/mensagens`, { texto: texto.trim() });
       setTexto('');
-      carregarDetalhe(selecionada);
+      const res = await api.get<ConversaDetalhe>(`/atendimento/${selecionada}`);
+      setDetalhe(res.data);
       carregarInbox();
-    } finally {
-      setEnviando(false);
-    }
+    } finally { setEnviando(false); }
   }
 
   async function criarConversa(e: FormEvent) {
@@ -237,9 +238,7 @@ export function Atendimento() {
       setModalNova(false);
       setNovaConversa({ clienteId: '', waTelefone: '', assunto: '' });
       carregarInbox();
-    } finally {
-      setCriando(false);
-    }
+    } finally { setCriando(false); }
   }
 
   async function abrirModalNova() {
@@ -276,293 +275,249 @@ export function Atendimento() {
         ativo: waConfig.ativo,
       });
       setModalConfig(false);
-    } finally {
-      setSalvandoConfig(false);
-    }
+    } finally { setSalvandoConfig(false); }
   }
 
-  // Conversa selecionada no detalhe ou na lista
+  // Filtra conversas por tab e busca
+  const todasConversas = [...inbox.atendendo, ...inbox.pendente, ...inbox.resolvido];
+
+  const conversasPorTab: Conversa[] = (() => {
+    if (tabAtiva === 'ATIVOS') return inbox.atendendo;
+    if (tabAtiva === 'PENDENTES') return inbox.pendente;
+    return [];
+  })();
+
+  const conversasFiltradas = busca.trim()
+    ? conversasPorTab.filter((c) => {
+        const q = busca.toLowerCase();
+        return (
+          nomeContato(c).toLowerCase().includes(q) ||
+          (c.waTelefone ?? '').includes(q)
+        );
+      })
+    : conversasPorTab;
+
   const conversaAtiva = detalhe ?? (
-    [...inbox.pendente, ...inbox.atendendo, ...inbox.resolvido].find((c) => c.id === selecionada) ?? null
+    todasConversas.find((c) => c.id === selecionada) ?? null
   );
 
   if (carregando) return <EstadoCarregando />;
   if (erro) return <EstadoErro mensagem={erro} onRetry={carregarInbox} />;
 
   return (
-    <div style={{ display: 'flex', height: '100%', flexDirection: 'column', gap: 0 }}>
-      {/* Header da página */}
+    <div style={{ display: 'flex', height: '100%', gap: 0, overflow: 'hidden' }}>
+
+      {/* ── Painel esquerdo: lista de conversas ─────────────────────────────── */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 0 20px 0',
+          width: 360,
           flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--superficie)',
+          borderRight: '1px solid var(--borda)',
+          height: '100%',
+          overflow: 'hidden',
         }}
       >
-        <div>
-          <h1
-            style={{ fontSize: 22, fontWeight: 800, margin: 0, color: 'var(--texto)' }}
-          >
-            Atendimento
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--texto-suave)' }}>
-            Inbox WhatsApp · {inbox.pendente.length} pendente
-            {inbox.pendente.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <BotaoSecundario onClick={abrirModalConfig}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-            WhatsApp
-          </BotaoSecundario>
-          <BotaoPrimario onClick={abrirModalNova}>+ Nova conversa</BotaoPrimario>
-        </div>
-      </div>
-
-      {/* Corpo: Kanban + painel de chat */}
-      <div style={{ display: 'flex', flex: 1, gap: 16, overflow: 'hidden', minHeight: 0 }}>
-        {/* Kanban */}
+        {/* Header */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: selecionada ? '1fr' : 'repeat(3, 1fr)',
-            gap: 16,
-            flex: selecionada ? '0 0 380px' : 1,
-            overflow: 'hidden',
-            transition: 'flex 0.2s ease',
+            padding: '16px 16px 12px',
+            borderBottom: '1px solid var(--borda)',
+            flexShrink: 0,
           }}
         >
-          {!selecionada ? (
-            <>
-              <Coluna
-                titulo="Pendente"
-                cor="#e2a944"
-                conversas={inbox.pendente}
-                selecionada={selecionada}
-                onSelecionar={abrirConversa}
-              />
-              <Coluna
-                titulo="Atendendo"
-                cor="#4a9edd"
-                conversas={inbox.atendendo}
-                selecionada={selecionada}
-                onSelecionar={abrirConversa}
-              />
-              <Coluna
-                titulo="Resolvido"
-                cor="#5cb85c"
-                conversas={inbox.resolvido}
-                selecionada={selecionada}
-                onSelecionar={abrirConversa}
-              />
-            </>
-          ) : (
-            // Quando painel está aberto: lista única com todas as conversas + filtro visual
-            <ColunaCompacta
-              inbox={inbox}
-              selecionada={selecionada}
-              onSelecionar={abrirConversa}
-              onFechar={() => setSelecionada(null)}
-            />
-          )}
-        </div>
-
-        {/* Painel de chat */}
-        {selecionada && conversaAtiva && (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              background: 'var(--superficie)',
-              border: '1px solid var(--borda)',
-              borderRadius: 14,
-              overflow: 'hidden',
-              minWidth: 0,
-            }}
-          >
-            {/* Header do chat */}
-            <div
-              style={{
-                padding: '14px 18px',
-                borderBottom: '1px solid var(--borda)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexShrink: 0,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: 'var(--preto-fumaca)',
-                    border: '1px solid var(--borda)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: 'var(--laranja-fagulha)',
-                  }}
-                >
-                  {(conversaAtiva.cliente?.nomeFantasia ?? conversaAtiva.waTelefone ?? '?').charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--texto)' }}>
-                    {conversaAtiva.cliente?.nomeFantasia ?? 'Número avulso'}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
-                    {conversaAtiva.waTelefone ?? 'sem número'} ·{' '}
-                    <BadgeStatus status={conversaAtiva.status} />
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                {conversaAtiva.status === 'PENDENTE' && (
-                  <BotaoPrimario onClick={aceitar}>Aceitar</BotaoPrimario>
-                )}
-                {conversaAtiva.status === 'ATENDENDO' && (
-                  <BotaoSecundario onClick={resolver} estilo="verde">
-                    Resolver
-                  </BotaoSecundario>
-                )}
-                {conversaAtiva.status === 'RESOLVIDO' && (
-                  <BotaoSecundario onClick={reabrir}>Reabrir</BotaoSecundario>
-                )}
-                <button
-                  onClick={() => setSelecionada(null)}
-                  style={{
-                    background: 'none',
-                    border: '1px solid var(--borda)',
-                    borderRadius: 8,
-                    padding: '6px 10px',
-                    color: 'var(--texto-suave)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--texto)' }}>
+                Atendimento
+              </h2>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--texto-fraco)' }}>
+                {inbox.pendente.length} pendente{inbox.pendente.length !== 1 ? 's' : ''} · {inbox.atendendo.length} ativo{inbox.atendendo.length !== 1 ? 's' : ''}
+              </p>
             </div>
-
-            {/* Mensagens */}
-            <div
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '16px 18px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              {carregandoDetalhe ? (
-                <div style={{ color: 'var(--texto-fraco)', fontSize: 13, textAlign: 'center', marginTop: 40 }}>
-                  Carregando mensagens…
-                </div>
-              ) : detalhe?.mensagens.length === 0 ? (
-                <div style={{ color: 'var(--texto-fraco)', fontSize: 13, textAlign: 'center', marginTop: 40 }}>
-                  Nenhuma mensagem ainda.
-                </div>
-              ) : (
-                detalhe?.mensagens.map((msg) => (
-                  <BubbleMensagem key={msg.id} mensagem={msg} />
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Compositor */}
-            <form
-              onSubmit={enviarMensagem}
-              style={{
-                padding: '12px 14px',
-                borderTop: '1px solid var(--borda)',
-                display: 'flex',
-                gap: 8,
-                flexShrink: 0,
-              }}
-            >
-              <input
-                type="text"
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder={
-                  conversaAtiva.status === 'RESOLVIDO'
-                    ? 'Conversa resolvida. Reabra para responder.'
-                    : 'Digite uma mensagem…'
-                }
-                disabled={conversaAtiva.status === 'RESOLVIDO' || enviando}
-                style={{
-                  flex: 1,
-                  background: 'var(--preto-fumaca)',
-                  border: '1px solid var(--borda-forte)',
-                  borderRadius: 10,
-                  padding: '10px 14px',
-                  color: 'var(--texto)',
-                  fontSize: 14,
-                  outline: 'none',
-                  opacity: conversaAtiva.status === 'RESOLVIDO' ? 0.5 : 1,
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--amarelo-fagulha)';
-                  e.currentTarget.style.boxShadow = '0 0 0 2px var(--foco)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--borda-forte)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <BotaoIcone onClick={abrirModalConfig} title="Configurar WhatsApp">
+                <IcoConfig />
+              </BotaoIcone>
               <button
-                type="submit"
-                disabled={!texto.trim() || enviando || conversaAtiva.status === 'RESOLVIDO'}
+                onClick={abrirModalNova}
                 className="brk-gradient-bg"
                 style={{
                   border: 'none',
-                  borderRadius: 10,
-                  padding: '10px 18px',
+                  borderRadius: 8,
+                  padding: '6px 12px',
                   color: '#fff',
                   fontWeight: 700,
-                  fontSize: 14,
+                  fontSize: 12,
                   cursor: 'pointer',
-                  opacity: (!texto.trim() || enviando || conversaAtiva.status === 'RESOLVIDO') ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {enviando ? '…' : 'Enviar'}
+                <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Nova
               </button>
-            </form>
+            </div>
           </div>
+
+          {/* Barra de busca */}
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <span
+              style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--texto-fraco)',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <IcoBusca />
+            </span>
+            <input
+              type="text"
+              placeholder="Buscar por nome, número..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--superficie-2)',
+                border: '1px solid var(--borda)',
+                borderRadius: 9,
+                padding: '8px 36px 8px 34px',
+                color: 'var(--texto)',
+                fontSize: 13,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--laranja-brasa)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--borda)'; }}
+            />
+            <button
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--texto-fraco)',
+                display: 'flex',
+                alignItems: 'center',
+                padding: 2,
+              }}
+              title="Filtros"
+            >
+              <IcoFiltro />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {([
+              { key: 'ATIVOS' as TabInbox, label: 'Ativos', count: inbox.atendendo.length, icon: '🎧' },
+              { key: 'PENDENTES' as TabInbox, label: 'Pendentes', count: inbox.pendente.length, icon: '⏱' },
+              { key: 'GRUPOS' as TabInbox, label: 'Grupos', count: 0, icon: '💬' },
+            ]).map((tab) => {
+              const ativa = tabAtiva === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setTabAtiva(tab.key)}
+                  style={{
+                    flex: 1,
+                    background: ativa ? 'rgba(208,80,40,0.14)' : 'transparent',
+                    border: ativa ? '1px solid rgba(208,80,40,0.35)' : '1px solid var(--borda)',
+                    borderRadius: 8,
+                    padding: '6px 4px',
+                    cursor: 'pointer',
+                    color: ativa ? 'var(--laranja-brasa)' : 'var(--texto-suave)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                  <span
+                    style={{
+                      background: ativa ? 'var(--laranja-brasa)' : 'var(--superficie-3)',
+                      color: ativa ? '#fff' : 'var(--texto-fraco)',
+                      borderRadius: 99,
+                      padding: '1px 5px',
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Lista de conversas */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+          {conversasFiltradas.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--texto-fraco)', fontSize: 13 }}>
+              {busca ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa aqui.'}
+            </div>
+          ) : (
+            conversasFiltradas.map((c) => (
+              <ItemConversa
+                key={c.id}
+                conversa={c}
+                ativa={selecionada === c.id}
+                onClick={() => setSelecionada(c.id)}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ── Painel direito: chat ─────────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        {!selecionada || !conversaAtiva ? (
+          <EstadoVazio onNova={abrirModalNova} />
+        ) : (
+          <PainelChat
+            conversa={conversaAtiva}
+            detalhe={detalhe}
+            carregandoDetalhe={carregandoDetalhe}
+            texto={texto}
+            setTexto={setTexto}
+            enviando={enviando}
+            onEnviar={enviarMensagem}
+            onAceitar={aceitar}
+            onResolver={resolver}
+            onReabrir={reabrir}
+            onFechar={() => setSelecionada(null)}
+            messagesEndRef={messagesEndRef}
+          />
         )}
       </div>
 
       {/* Modal nova conversa */}
       {modalNova && (
         <Overlay onClose={() => setModalNova(false)}>
-          <form
-            onSubmit={criarConversa}
-            style={{
-              background: 'var(--superficie)',
-              border: '1px solid var(--borda)',
-              borderRadius: 16,
-              padding: 28,
-              width: 420,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
-            }}
-          >
-            <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--texto)' }}>
-              Nova conversa
-            </h2>
+          <form onSubmit={criarConversa} style={estiloModal}>
+            <div style={{ marginBottom: 4 }}>
+              <h2 style={estiloTituloModal}>Nova conversa</h2>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--texto-fraco)' }}>
+                Inicia um atendimento via WhatsApp.
+              </p>
+            </div>
 
             <CampoForm rotulo="Cliente (opcional)">
               <select
@@ -597,7 +552,7 @@ export function Atendimento() {
               />
             </CampoForm>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <div style={estiloRodapeModal}>
               <BotaoSecundario onClick={() => setModalNova(false)}>Cancelar</BotaoSecundario>
               <BotaoPrimario type="submit" disabled={criando}>
                 {criando ? 'Criando…' : 'Criar conversa'}
@@ -610,24 +565,10 @@ export function Atendimento() {
       {/* Modal configurações WhatsApp */}
       {modalConfig && (
         <Overlay onClose={() => setModalConfig(false)}>
-          <form
-            onSubmit={salvarConfig}
-            style={{
-              background: 'var(--superficie)',
-              border: '1px solid var(--borda)',
-              borderRadius: 16,
-              padding: 28,
-              width: 460,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
-            }}
-          >
-            <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--texto)' }}>
-                Configuração WhatsApp
-              </h2>
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--texto-suave)' }}>
+          <form onSubmit={salvarConfig} style={{ ...estiloModal, width: 480 }}>
+            <div style={{ marginBottom: 4 }}>
+              <h2 style={estiloTituloModal}>Configuração WhatsApp</h2>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--texto-fraco)' }}>
                 Meta Cloud API — Phone Number ID + token permanente.
               </p>
             </div>
@@ -677,7 +618,7 @@ export function Atendimento() {
                 type="checkbox"
                 checked={waConfig.ativo}
                 onChange={(e) => setWaConfig((v) => ({ ...v, ativo: e.target.checked }))}
-                style={{ width: 16, height: 16, accentColor: 'var(--laranja-fagulha)' }}
+                style={{ width: 16, height: 16, accentColor: 'var(--laranja-brasa)' }}
               />
               <span style={{ fontSize: 13, color: 'var(--texto-suave)', fontWeight: 600 }}>
                 Canal ativo (envia mensagens pela Meta API)
@@ -686,22 +627,22 @@ export function Atendimento() {
 
             <div
               style={{
-                background: 'rgba(255,200,0,0.06)',
-                border: '1px solid rgba(255,200,0,0.2)',
+                background: 'rgba(255,200,0,0.05)',
+                border: '1px solid rgba(255,200,0,0.18)',
                 borderRadius: 8,
                 padding: '10px 14px',
-                fontSize: 12,
+                fontSize: 11,
                 color: 'var(--texto-suave)',
               }}
             >
               URL do webhook a registrar na Meta:
               <br />
-              <code style={{ color: 'var(--amarelo-fagulha)', wordBreak: 'break-all' }}>
+              <code style={{ color: 'var(--amarelo-fagulha)', wordBreak: 'break-all', fontSize: 10.5 }}>
                 {window.location.origin.replace('breakr.vai-sistema.com', 'breakr-api.up.railway.app')}/atendimento/webhooks/meta
               </code>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <div style={estiloRodapeModal}>
               <BotaoSecundario onClick={() => setModalConfig(false)}>Cancelar</BotaoSecundario>
               <BotaoPrimario type="submit" disabled={salvandoConfig}>
                 {salvandoConfig ? 'Salvando…' : 'Salvar configuração'}
@@ -714,275 +655,440 @@ export function Atendimento() {
   );
 }
 
-// ─── Coluna Kanban ───────────────────────────────────────────────────────────
+// ─── Item de conversa (lista) ─────────────────────────────────────────────────
 
-function Coluna({
-  titulo,
-  cor,
-  conversas,
-  selecionada,
-  onSelecionar,
-}: {
-  titulo: string;
-  cor: string;
-  conversas: Conversa[];
-  selecionada: string | null;
-  onSelecionar: (id: string) => void;
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--superficie)',
-        border: '1px solid var(--borda)',
-        borderRadius: 14,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Header da coluna */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--borda)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: cor,
-            flexShrink: 0,
-          }}
-        />
-        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--texto)' }}>{titulo}</span>
-        <span
-          style={{
-            marginLeft: 'auto',
-            background: 'var(--preto-fumaca)',
-            border: '1px solid var(--borda)',
-            borderRadius: 99,
-            padding: '1px 8px',
-            fontSize: 11,
-            color: 'var(--texto-suave)',
-            fontWeight: 700,
-          }}
-        >
-          {conversas.length}
-        </span>
-      </div>
-
-      {/* Cards */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {conversas.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              color: 'var(--texto-fraco)',
-              fontSize: 12,
-              padding: '32px 12px',
-            }}
-          >
-            Nenhuma conversa
-          </div>
-        ) : (
-          conversas.map((c) => (
-            <CardConversa
-              key={c.id}
-              conversa={c}
-              ativa={selecionada === c.id}
-              onClick={() => onSelecionar(c.id)}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Coluna compacta (lista única) quando painel está aberto
-function ColunaCompacta({
-  inbox,
-  selecionada,
-  onSelecionar,
-  onFechar,
-}: {
-  inbox: InboxData;
-  selecionada: string | null;
-  onSelecionar: (id: string) => void;
-  onFechar: () => void;
-}) {
-  const [filtro, setFiltro] = useState<Status | 'TODAS'>('TODAS');
-  const todas = [...inbox.pendente, ...inbox.atendendo, ...inbox.resolvido];
-  const filtradas = filtro === 'TODAS' ? todas : todas.filter((c) => c.status === filtro);
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--superficie)',
-        border: '1px solid var(--borda)',
-        borderRadius: 14,
-        overflow: 'hidden',
-        height: '100%',
-      }}
-    >
-      <div
-        style={{
-          padding: '10px 12px',
-          borderBottom: '1px solid var(--borda)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--texto)' }}>Conversas</span>
-          <button
-            onClick={onFechar}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--texto-fraco)',
-              cursor: 'pointer',
-              fontSize: 14,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {(['TODAS', 'PENDENTE', 'ATENDENDO', 'RESOLVIDO'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setFiltro(s)}
-              style={{
-                flex: 1,
-                background: filtro === s ? 'var(--laranja-fagulha)' : 'var(--preto-fumaca)',
-                border: '1px solid var(--borda)',
-                borderRadius: 6,
-                padding: '4px 0',
-                color: filtro === s ? '#fff' : 'var(--texto-suave)',
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {s === 'TODAS' ? 'Todas' : s.charAt(0) + s.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {filtradas.map((c) => (
-          <CardConversa
-            key={c.id}
-            conversa={c}
-            ativa={selecionada === c.id}
-            onClick={() => onSelecionar(c.id)}
-            compacto
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Card de conversa ────────────────────────────────────────────────────────
-
-function CardConversa({
-  conversa,
+function ItemConversa({
+  conversa: c,
   ativa,
   onClick,
-  compacto = false,
 }: {
   conversa: Conversa;
   ativa: boolean;
   onClick: () => void;
-  compacto?: boolean;
 }) {
-  const ultimaMsg = conversa.mensagens[0];
+  const nome = nomeContato(c);
+  const cor = corAvatar(nome);
+  const ini = iniciais(nome);
+  const ultimaMsg = ultimaMsgPreview(c);
+  const hora = tempoRelativo(c.ultimaMsgEm ?? c.criadoEm);
+  const isPendente = c.status === 'PENDENTE';
+  const sla = slaTimer(c.criadoEm);
 
   return (
     <button
       onClick={onClick}
       style={{
-        background: ativa ? 'rgba(202,63,23,0.12)' : 'var(--preto-fumaca)',
-        border: `1px solid ${ativa ? 'var(--laranja-fagulha)' : 'var(--borda)'}`,
-        borderRadius: 10,
-        padding: compacto ? '10px 12px' : '12px 14px',
+        width: '100%',
+        background: ativa ? 'rgba(208,80,40,0.1)' : 'transparent',
+        border: 'none',
+        borderLeft: `3px solid ${ativa ? 'var(--laranja-brasa)' : 'transparent'}`,
+        padding: '10px 14px 10px 13px',
         textAlign: 'left',
         cursor: 'pointer',
-        width: '100%',
-        transition: 'background 0.15s, border-color 0.15s',
+        transition: 'background 0.12s',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
       }}
-      onMouseEnter={(e) => {
-        if (!ativa) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-      }}
-      onMouseLeave={(e) => {
-        if (!ativa) e.currentTarget.style.background = 'var(--preto-fumaca)';
-      }}
+      onMouseEnter={(e) => { if (!ativa) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+      onMouseLeave={(e) => { if (!ativa) e.currentTarget.style.background = 'transparent'; }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <span
-          style={{
-            fontSize: compacto ? 13 : 14,
-            fontWeight: 700,
-            color: 'var(--texto)',
-            lineHeight: 1.3,
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {conversa.cliente?.nomeFantasia ?? conversa.waTelefone ?? 'Número avulso'}
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flexShrink: 0 }}>
-          {tempoRelativo(conversa.ultimaMsgEm ?? conversa.criadoEm)}
-        </span>
-      </div>
-
-      {conversa.waTelefone && !conversa.cliente && (
-        <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginTop: 2 }}>
-          {conversa.waTelefone}
-        </div>
-      )}
-
-      {!compacto && (
+      {/* Avatar */}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
         <div
           style={{
-            fontSize: 12,
-            color: 'var(--texto-suave)',
-            marginTop: 5,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            background: cor,
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: ini.length > 2 ? 10 : 14,
+            fontWeight: 800,
+            color: '#fff',
+            letterSpacing: '-0.5px',
           }}
         >
-          {ultimaMsg
-            ? `${ultimaMsg.autor === 'ATENDENTE' ? 'Você: ' : ''}${ultimaMsg.texto ?? '[mídia]'}`
-            : conversa.assunto ?? 'Conversa iniciada'}
+          {ini}
         </div>
-      )}
+        {/* Badge WA */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -1,
+            right: -1,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: '#25d366',
+            border: '2px solid var(--superficie)',
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <IcoWA size={8} />
+        </div>
+      </div>
 
-      {compacto && (
-        <div style={{ marginTop: 4 }}>
-          <BadgeStatus status={conversa.status} />
+      {/* Conteúdo */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Linha 1: nome + hora + dot */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+          <span
+            style={{
+              flex: 1,
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--texto)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {nome}
+          </span>
+          {isPendente && (
+            <span style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#e53e3e',
+              flexShrink: 0,
+            }} />
+          )}
+          <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flexShrink: 0 }}>
+            {hora}
+          </span>
         </div>
-      )}
+
+        {/* Linha 2: última mensagem + badge de não lidas */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+          <span
+            style={{
+              flex: 1,
+              fontSize: 12,
+              color: 'var(--texto-suave)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {ultimaMsg}
+          </span>
+          {isPendente && (
+            <span
+              style={{
+                background: 'var(--laranja-brasa)',
+                color: '#fff',
+                borderRadius: 99,
+                padding: '1px 6px',
+                fontSize: 10,
+                fontWeight: 800,
+                flexShrink: 0,
+              }}
+            >
+              1
+            </span>
+          )}
+        </div>
+
+        {/* Linha 3: agente + SLA + canal */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'nowrap', overflow: 'hidden' }}>
+          {c.atendente ? (
+            <>
+              <IcoAgente size={11} color="var(--texto-fraco)" />
+              <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {c.atendente.nome}
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)' }}>Sem atendente</span>
+          )}
+          <span style={{ color: 'var(--borda-forte)', fontSize: 10, flexShrink: 0 }}>·</span>
+          <IcoClock size={10} color="var(--amarelo-fagulha)" />
+          <span style={{ fontSize: 10.5, color: 'var(--amarelo-fagulha)', fontWeight: 600, flexShrink: 0 }}>
+            {sla}
+          </span>
+          {c.waTelefone && (
+            <>
+              <span style={{ color: 'var(--borda-forte)', fontSize: 10, flexShrink: 0 }}>·</span>
+              <span style={{ fontSize: 10, color: 'var(--texto-fraco)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {c.waTelefone}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
     </button>
   );
 }
 
-// ─── Bubble de mensagem ──────────────────────────────────────────────────────
+// ─── Painel de chat ───────────────────────────────────────────────────────────
+
+function PainelChat({
+  conversa,
+  detalhe,
+  carregandoDetalhe,
+  texto,
+  setTexto,
+  enviando,
+  onEnviar,
+  onAceitar,
+  onResolver,
+  onReabrir,
+  onFechar,
+  messagesEndRef,
+}: {
+  conversa: Conversa | ConversaDetalhe;
+  detalhe: ConversaDetalhe | null;
+  carregandoDetalhe: boolean;
+  texto: string;
+  setTexto: (v: string) => void;
+  enviando: boolean;
+  onEnviar: (e: FormEvent) => void;
+  onAceitar: () => void;
+  onResolver: () => void;
+  onReabrir: () => void;
+  onFechar: () => void;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
+}) {
+  const nome = nomeContato(conversa);
+  const cor = corAvatar(nome);
+  const ini = iniciais(nome);
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--bg)',
+        height: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header do chat */}
+      <div
+        style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid var(--borda)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          background: 'var(--superficie)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ position: 'relative' }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: cor,
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 14,
+                fontWeight: 800,
+                color: '#fff',
+              }}
+            >
+              {ini}
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: -1,
+                right: -1,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: '#25d366',
+                border: '2px solid var(--superficie)',
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              <IcoWA size={7} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--texto)' }}>{nome}</div>
+            <div style={{ fontSize: 11, color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {conversa.waTelefone ?? 'sem número'}
+              <span style={{ color: 'var(--borda-forte)' }}>·</span>
+              <BadgeStatus status={conversa.status} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {conversa.status === 'PENDENTE' && (
+            <BotaoPrimario onClick={onAceitar}>Aceitar</BotaoPrimario>
+          )}
+          {conversa.status === 'ATENDENDO' && (
+            <BotaoSecundario onClick={onResolver} estilo="verde">
+              Resolver
+            </BotaoSecundario>
+          )}
+          {conversa.status === 'RESOLVIDO' && (
+            <BotaoSecundario onClick={onReabrir}>Reabrir</BotaoSecundario>
+          )}
+          <BotaoIcone onClick={onFechar} title="Fechar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </BotaoIcone>
+        </div>
+      </div>
+
+      {/* Área de mensagens */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '20px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          background: 'var(--bg)',
+        }}
+      >
+        {carregandoDetalhe ? (
+          <div style={{ textAlign: 'center', color: 'var(--texto-fraco)', fontSize: 13, marginTop: 60 }}>
+            Carregando mensagens…
+          </div>
+        ) : (detalhe?.mensagens.length === 0) ? (
+          <div style={{ textAlign: 'center', color: 'var(--texto-fraco)', fontSize: 13, marginTop: 60 }}>
+            Nenhuma mensagem ainda.
+          </div>
+        ) : (
+          detalhe?.mensagens.map((msg) => (
+            <BubbleMensagem key={msg.id} mensagem={msg} />
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Compositor */}
+      <form
+        onSubmit={onEnviar}
+        style={{
+          padding: '12px 16px',
+          borderTop: '1px solid var(--borda)',
+          display: 'flex',
+          gap: 8,
+          flexShrink: 0,
+          background: 'var(--superficie)',
+          alignItems: 'center',
+        }}
+      >
+        <input
+          type="text"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder={
+            conversa.status === 'RESOLVIDO'
+              ? 'Conversa resolvida. Reabra para responder.'
+              : 'Digite uma mensagem…'
+          }
+          disabled={conversa.status === 'RESOLVIDO' || enviando}
+          style={{
+            flex: 1,
+            background: 'var(--superficie-2)',
+            border: '1px solid var(--borda)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            color: 'var(--texto)',
+            fontSize: 14,
+            outline: 'none',
+            opacity: conversa.status === 'RESOLVIDO' ? 0.5 : 1,
+          }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--laranja-brasa)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--borda)'; }}
+        />
+        <button
+          type="submit"
+          disabled={!texto.trim() || enviando || conversa.status === 'RESOLVIDO'}
+          className="brk-gradient-bg"
+          style={{
+            border: 'none',
+            borderRadius: 10,
+            padding: '10px 20px',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: 'pointer',
+            opacity: (!texto.trim() || enviando || conversa.status === 'RESOLVIDO') ? 0.45 : 1,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {enviando ? '…' : 'Enviar'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ─── Estado vazio (sem conversa selecionada) ──────────────────────────────────
+
+function EstadoVazio({ onNova }: { onNova: () => void }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg)',
+        gap: 16,
+        padding: 40,
+      }}
+    >
+      <div
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: '50%',
+          background: 'rgba(37,211,102,0.1)',
+          border: '1px solid rgba(37,211,102,0.2)',
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
+        <IcoWA size={32} color="#25d366" />
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--texto)' }}>
+          Selecione uma conversa
+        </p>
+        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--texto-fraco)' }}>
+          Escolha na lista ao lado ou inicie uma nova conversa.
+        </p>
+      </div>
+      <button
+        onClick={onNova}
+        className="brk-gradient-bg"
+        style={{
+          border: 'none',
+          borderRadius: 9,
+          padding: '9px 20px',
+          color: '#fff',
+          fontWeight: 700,
+          fontSize: 13,
+          cursor: 'pointer',
+        }}
+      >
+        + Nova conversa
+      </button>
+    </div>
+  );
+}
+
+// ─── Bubble de mensagem ───────────────────────────────────────────────────────
 
 function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
   const isOutbound = mensagem.direcao === 'outbound';
@@ -990,14 +1096,14 @@ function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
 
   if (isSistema) {
     return (
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: 'center', margin: '6px 0' }}>
         <span
           style={{
             display: 'inline-block',
-            background: 'rgba(255,255,255,0.05)',
+            background: 'rgba(255,255,255,0.04)',
             border: '1px solid var(--borda)',
             borderRadius: 99,
-            padding: '3px 12px',
+            padding: '3px 14px',
             fontSize: 11,
             color: 'var(--texto-fraco)',
           }}
@@ -1009,19 +1115,17 @@ function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: isOutbound ? 'flex-end' : 'flex-start',
-      }}
-    >
+    <div style={{ display: 'flex', justifyContent: isOutbound ? 'flex-end' : 'flex-start' }}>
       <div
         style={{
-          maxWidth: '72%',
-          background: isOutbound ? 'var(--laranja-fagulha)' : 'var(--preto-fumaca)',
-          border: `1px solid ${isOutbound ? 'transparent' : 'var(--borda)'}`,
+          maxWidth: '68%',
+          background: isOutbound
+            ? 'linear-gradient(135deg, var(--laranja-brasa), var(--vermelho-fogo))'
+            : 'var(--superficie)',
+          border: isOutbound ? 'none' : '1px solid var(--borda)',
           borderRadius: isOutbound ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-          padding: '8px 12px',
+          padding: '9px 13px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
         }}
       >
         <p
@@ -1029,7 +1133,7 @@ function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
             margin: 0,
             fontSize: 13.5,
             color: isOutbound ? '#fff' : 'var(--texto)',
-            lineHeight: 1.45,
+            lineHeight: 1.5,
             wordBreak: 'break-word',
           }}
         >
@@ -1039,7 +1143,7 @@ function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
           style={{
             margin: '4px 0 0',
             fontSize: 10.5,
-            color: isOutbound ? 'rgba(255,255,255,0.65)' : 'var(--texto-fraco)',
+            color: isOutbound ? 'rgba(255,255,255,0.6)' : 'var(--texto-fraco)',
             textAlign: 'right',
           }}
         >
@@ -1050,7 +1154,7 @@ function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
   );
 }
 
-// ─── Badge de status ─────────────────────────────────────────────────────────
+// ─── Badge de status ──────────────────────────────────────────────────────────
 
 function BadgeStatus({ status }: { status: Status }) {
   const mapa: Record<Status, { label: string; cor: string; bg: string }> = {
@@ -1064,10 +1168,10 @@ function BadgeStatus({ status }: { status: Status }) {
       style={{
         display: 'inline-block',
         background: bg,
-        border: `1px solid ${cor}33`,
+        border: `1px solid ${cor}44`,
         borderRadius: 99,
         padding: '1px 8px',
-        fontSize: 11,
+        fontSize: 10.5,
         fontWeight: 700,
         color: cor,
       }}
@@ -1077,24 +1181,107 @@ function BadgeStatus({ status }: { status: Status }) {
   );
 }
 
-// ─── Primitivas UI ────────────────────────────────────────────────────────────
+// ─── Ícones SVG ───────────────────────────────────────────────────────────────
+
+function IcoWA({ size = 12, color = '#fff' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
+function IcoBusca() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function IcoFiltro() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+      <line x1="11" y1="18" x2="13" y2="18" />
+    </svg>
+  );
+}
+
+function IcoConfig() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function IcoAgente({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function IcoClock({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+// ─── Primitivas UI ─────────────────────────────────────────────────────────────
 
 const estiloInput: React.CSSProperties = {
-  background: 'var(--preto-fumaca)',
-  border: '1px solid var(--borda-forte)',
-  borderRadius: 10,
-  padding: '11px 14px',
+  background: 'var(--superficie-2)',
+  border: '1px solid var(--borda)',
+  borderRadius: 9,
+  padding: '10px 14px',
   color: 'var(--texto)',
-  fontSize: 14,
+  fontSize: 13.5,
   width: '100%',
   outline: 'none',
   boxSizing: 'border-box',
 };
 
+const estiloModal: React.CSSProperties = {
+  background: 'var(--superficie)',
+  border: '1px solid var(--borda)',
+  borderRadius: 16,
+  padding: 28,
+  width: 430,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16,
+  maxHeight: '90vh',
+  overflowY: 'auto',
+};
+
+const estiloTituloModal: React.CSSProperties = {
+  fontSize: 17,
+  fontWeight: 800,
+  margin: 0,
+  color: 'var(--texto)',
+};
+
+const estiloRodapeModal: React.CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  justifyContent: 'flex-end',
+  marginTop: 4,
+};
+
 function CampoForm({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)' }}>{rotulo}</span>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--texto-suave)' }}>{rotulo}</span>
       {children}
     </label>
   );
@@ -1125,7 +1312,7 @@ function BotaoPrimario({
         fontWeight: 700,
         fontSize: 13,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.6 : 1,
+        opacity: disabled ? 0.55 : 1,
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
@@ -1151,8 +1338,8 @@ function BotaoSecundario({
       type="button"
       onClick={onClick}
       style={{
-        background: estilo === 'verde' ? 'rgba(92,184,92,0.12)' : 'var(--preto-fumaca)',
-        border: `1px solid ${estilo === 'verde' ? '#5cb85c55' : 'var(--borda)'}`,
+        background: estilo === 'verde' ? 'rgba(92,184,92,0.1)' : 'var(--superficie-2)',
+        border: `1px solid ${estilo === 'verde' ? 'rgba(92,184,92,0.35)' : 'var(--borda)'}`,
         borderRadius: 9,
         padding: '8px 14px',
         color: estilo === 'verde' ? '#5cb85c' : 'var(--texto-suave)',
@@ -1170,17 +1357,49 @@ function BotaoSecundario({
   );
 }
 
+function BotaoIcone({
+  children,
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      style={{
+        background: 'var(--superficie-2)',
+        border: '1px solid var(--borda)',
+        borderRadius: 8,
+        width: 32,
+        height: 32,
+        display: 'grid',
+        placeItems: 'center',
+        cursor: 'pointer',
+        color: 'var(--texto-suave)',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.6)',
+        background: 'rgba(0,0,0,0.65)',
         display: 'grid',
         placeItems: 'center',
         zIndex: 200,
-        backdropFilter: 'blur(4px)',
+        backdropFilter: 'blur(6px)',
       }}
       onClick={onClose}
     >
@@ -1191,7 +1410,7 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
 
 function EstadoCarregando() {
   return (
-    <div style={{ display: 'grid', placeItems: 'center', height: 300, color: 'var(--texto-fraco)', fontSize: 14 }}>
+    <div style={{ display: 'grid', placeItems: 'center', height: 300, color: 'var(--texto-fraco)', fontSize: 13 }}>
       Carregando atendimento…
     </div>
   );
@@ -1204,7 +1423,7 @@ function EstadoErro({ mensagem, onRetry }: { mensagem: string; onRetry: () => vo
       <button
         onClick={onRetry}
         style={{
-          background: 'var(--preto-fumaca)',
+          background: 'var(--superficie-2)',
           border: '1px solid var(--borda)',
           borderRadius: 8,
           padding: '8px 16px',
