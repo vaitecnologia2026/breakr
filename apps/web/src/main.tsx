@@ -2,11 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './lib/auth';
+import { TemaProvider } from './lib/theme';
+import { FavoritosProvider } from './lib/favoritos';
 import { App } from './App';
 import './index.css';
 
-// Ponto de entrada do front do Breakr OS.
-// Monta a aplicação dentro do roteador e do provedor de autenticação.
 const elementoRaiz = document.getElementById('root');
 if (!elementoRaiz) {
   throw new Error('Elemento #root não encontrado no index.html.');
@@ -15,9 +15,13 @@ if (!elementoRaiz) {
 createRoot(elementoRaiz).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <TemaProvider>
+        <AuthProvider>
+          <FavoritosProvider>
+            <App />
+          </FavoritosProvider>
+        </AuthProvider>
+      </TemaProvider>
     </BrowserRouter>
   </StrictMode>,
 );
