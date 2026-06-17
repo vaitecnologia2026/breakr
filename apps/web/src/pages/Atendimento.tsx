@@ -16,6 +16,90 @@ import { api } from '../lib/api';
 type Status = 'PENDENTE' | 'ATENDENDO' | 'RESOLVIDO';
 type TabInbox = 'ATIVOS' | 'PENDENTES' | 'GRUPOS';
 
+interface TemplateGrupo {
+  id: string;
+  categoria: string;
+  emoji: string;
+  titulo: string;
+  modelo: string;
+}
+
+// ─── Modelos de mensagem em grupo ─────────────────────────────────────────────
+
+const TEMPLATES_GRUPO: TemplateGrupo[] = [
+  {
+    id: 'boas-vindas',
+    categoria: 'Início',
+    emoji: '👋',
+    titulo: 'Boas-vindas ao grupo',
+    modelo: `Olá, equipe! 👋\n\nSejam bem-vindos ao grupo de acompanhamento do projeto *[Nome do Cliente]*.\n\nAqui compartilharemos atualizações, aprovações e resultados do nosso trabalho juntos.\n\nQualquer dúvida, pode chamar. Vamos nessa! 🚀`,
+  },
+  {
+    id: 'relatorio-semanal',
+    categoria: 'Relatório',
+    emoji: '📊',
+    titulo: 'Relatório semanal',
+    modelo: `📊 *RELATÓRIO SEMANAL — Semana [X]*\n\nOlá! Segue o resumo de desempenho:\n\n✅ Alcance orgânico: [X]\n✅ Engajamento: [X]%\n✅ Novos seguidores: +[X]\n✅ Leads gerados: [X]\n\n📈 Destaque: [descrever]\n⚠️ Ponto de atenção: [descrever]\n\nQualquer dúvida, estamos à disposição!`,
+  },
+  {
+    id: 'aprovacao-conteudo',
+    categoria: 'Conteúdo',
+    emoji: '✅',
+    titulo: 'Aprovação de conteúdo',
+    modelo: `Olá! Temos novos conteúdos prontos para aprovação. 📲\n\n📱 Posts: [X]\n🎬 Reels: [X]\n📖 Stories: [X]\n\n⏰ Prazo de aprovação: [data]\n\nOs conteúdos estão disponíveis no portal. Qualquer ajuste, é só sinalizar! 💬`,
+  },
+  {
+    id: 'lembrete-reuniao',
+    categoria: 'Reunião',
+    emoji: '📅',
+    titulo: 'Lembrete de reunião',
+    modelo: `⏰ *LEMBRETE DE REUNIÃO*\n\nOlá! Nossa reunião de alinhamento está chegando:\n\n📅 Data: [dia/mês]\n🕐 Horário: [hora]\n📍 Link: [link ou endereço]\n📋 Pauta: [tópicos principais]\n\nAté lá! 👋`,
+  },
+  {
+    id: 'resultados-mes',
+    categoria: 'Relatório',
+    emoji: '🎯',
+    titulo: 'Resultados do mês',
+    modelo: `🎯 *RESULTADOS DO MÊS — [Mês/Ano]*\n\nSegue o fechamento mensal:\n\n📈 Crescimento: +[X]%\n👥 Total de seguidores: [X]\n🔥 Post destaque: [X] visualizações\n💰 Leads gerados: [X]\n💵 ROI estimado: [X]%\n\nÓtimo mês! Continue assim. 🚀`,
+  },
+  {
+    id: 'analise-trafego',
+    categoria: 'Tráfego',
+    emoji: '🚀',
+    titulo: 'Análise de tráfego pago',
+    modelo: `🚀 *TRÁFEGO PAGO — [Período]*\n\n💰 Investimento: R$[X]\n👁 Impressões: [X]\n🖱 Cliques: [X]\n🎯 CTR: [X]%\n💡 CPL: R$[X]\n📋 Leads gerados: [X]\n\nCampanhas ativas:\n• [Nome] — [status]\n\nQualquer ajuste nas campanhas, é só avisar!`,
+  },
+  {
+    id: 'update-onboarding',
+    categoria: 'Onboarding',
+    emoji: '📋',
+    titulo: 'Atualização de onboarding',
+    modelo: `📋 *ATUALIZAÇÃO DE ONBOARDING*\n\nOlá! Segue o status do onboarding:\n\n✅ Concluído:\n• [etapa 1]\n• [etapa 2]\n\n🔄 Em andamento:\n• [etapa 3]\n\n⏳ Próximos passos:\n• [etapa 4]\n\nSeguimos avançando! 💪`,
+  },
+  {
+    id: 'feedback-incentivo',
+    categoria: 'Feedback',
+    emoji: '⭐',
+    titulo: 'Mensagem de incentivo',
+    modelo: `Olá, equipe! 🌟\n\nQueria registrar o quanto estamos satisfeitos com o trabalho de vocês.\n\nOs resultados estão chegando e a qualidade está ótima.\n\nMuito obrigado pela dedicação! Continuem assim. 🙌`,
+  },
+  {
+    id: 'novo-produto',
+    categoria: 'Vendas',
+    emoji: '💰',
+    titulo: 'Lançamento / novo serviço',
+    modelo: `Atenção, equipe! 🎉\n\nEstamos lançando um novo serviço/produto:\n\n🏷 Nome: [produto/serviço]\n💵 Valor: R$[X]\n📆 Data de lançamento: [data]\n🎯 Público-alvo: [descrição]\n\nPrecisamos de energia total para divulgar isso! Qualquer dúvida, estamos aqui. 🔥`,
+  },
+  {
+    id: 'urgente',
+    categoria: 'Urgente',
+    emoji: '⚡',
+    titulo: 'Comunicado urgente',
+    modelo: `⚡ *COMUNICADO URGENTE*\n\nOlá a todos!\n\nPrecisamos de atenção imediata sobre:\n\n📌 [Descrever o assunto urgente]\n\n✅ Ação necessária: [o que precisa ser feito]\n⏰ Prazo: [hora/data]\n\nPor favor, confirmar o recebimento desta mensagem. Obrigado!`,
+  },
+];
+
+
 interface ClienteMin {
   id: string;
   nomeFantasia: string;
@@ -133,6 +217,10 @@ export function Atendimento() {
   const [enviando, setEnviando] = useState(false);
   const [tabAtiva, setTabAtiva] = useState<TabInbox>('ATIVOS');
   const [busca, setBusca] = useState('');
+  const [templateSelecionado, setTemplateSelecionado] = useState<TemplateGrupo | null>(null);
+  const [modeloEditado, setModeloEditado] = useState('');
+  const [copiado, setCopiado] = useState(false);
+
   const [modalNova, setModalNova] = useState(false);
   const [clientes, setClientes] = useState<ClienteMin[]>([]);
   const [novaConversa, setNovaConversa] = useState({ clienteId: '', waTelefone: '', assunto: '' });
@@ -423,13 +511,17 @@ export function Atendimento() {
             {([
               { key: 'ATIVOS' as TabInbox, label: 'Ativos', count: inbox.atendendo.length, icon: '🎧' },
               { key: 'PENDENTES' as TabInbox, label: 'Pendentes', count: inbox.pendente.length, icon: '⏱' },
-              { key: 'GRUPOS' as TabInbox, label: 'Grupos', count: 0, icon: '💬' },
+              { key: 'GRUPOS' as TabInbox, label: 'Grupos', count: TEMPLATES_GRUPO.length, icon: '💬' },
             ]).map((tab) => {
               const ativa = tabAtiva === tab.key;
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setTabAtiva(tab.key)}
+                  onClick={() => {
+                    setTabAtiva(tab.key);
+                    if (tab.key === 'GRUPOS') setSelecionada(null);
+                    else { setTemplateSelecionado(null); setModeloEditado(''); }
+                  }}
                   style={{
                     flex: 1,
                     background: ativa ? 'rgba(208,80,40,0.14)' : 'transparent',
@@ -467,33 +559,60 @@ export function Atendimento() {
           </div>
         </div>
 
-        {/* Lista de conversas */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-          {conversasFiltradas.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--texto-fraco)', fontSize: 13 }}>
-              {busca ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa aqui.'}
-            </div>
-          ) : (
-            conversasFiltradas.map((c) => (
-              <ItemConversa
-                key={c.id}
-                conversa={c}
-                ativa={selecionada === c.id}
-                onClick={() => setSelecionada(c.id)}
-                onAceitar={c.status === 'PENDENTE' ? async () => {
-                  setSelecionada(c.id);
-                  await api.post(`/atendimento/${c.id}/aceitar`);
-                  carregarInbox();
-                } : undefined}
-              />
-            ))
-          )}
-        </div>
+        {/* Lista de conversas / modelos de grupo */}
+        {tabAtiva === 'GRUPOS' ? (
+          <PainelTemplatesLista
+            selecionado={templateSelecionado}
+            onSelecionar={(t) => {
+              setTemplateSelecionado(t);
+              setModeloEditado(t.modelo);
+            }}
+          />
+        ) : (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+            {conversasFiltradas.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--texto-fraco)', fontSize: 13 }}>
+                {busca ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa aqui.'}
+              </div>
+            ) : (
+              conversasFiltradas.map((c) => (
+                <ItemConversa
+                  key={c.id}
+                  conversa={c}
+                  ativa={selecionada === c.id}
+                  onClick={() => setSelecionada(c.id)}
+                  onAceitar={c.status === 'PENDENTE' ? async () => {
+                    setSelecionada(c.id);
+                    await api.post(`/atendimento/${c.id}/aceitar`);
+                    carregarInbox();
+                  } : undefined}
+                />
+              ))
+            )}
+          </div>
+        )}
       </div>
 
-      {/* ── Painel direito: chat ─────────────────────────────────────────────── */}
+      {/* ── Painel direito: chat / modelos ──────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        {!selecionada || !conversaAtiva ? (
+        {tabAtiva === 'GRUPOS' ? (
+          templateSelecionado ? (
+            <PainelComporTemplate
+              template={templateSelecionado}
+              modelo={modeloEditado}
+              setModelo={setModeloEditado}
+              copiado={copiado}
+              onCopiar={() => {
+                navigator.clipboard.writeText(modeloEditado);
+                setCopiado(true);
+                setTimeout(() => setCopiado(false), 2000);
+              }}
+              onFechar={() => { setTemplateSelecionado(null); setModeloEditado(''); }}
+            />
+          ) : (
+            <EstadoVazioGrupos />
+          )
+        ) : !selecionada || !conversaAtiva ? (
           <EstadoVazio onNova={abrirModalNova} />
         ) : (
           <PainelChat
@@ -697,7 +816,7 @@ function ItemConversa({
         alignItems: 'flex-start',
         gap: 10,
       }}
-      onMouseEnter={(e) => { if (!ativa) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+      onMouseEnter={(e) => { if (!ativa) e.currentTarget.style.background = 'var(--superficie-3)'; }}
       onMouseLeave={(e) => { if (!ativa) e.currentTarget.style.background = 'transparent'; }}
     >
       {/* Avatar */}
@@ -1101,6 +1220,265 @@ function PainelChat({
   );
 }
 
+// ─── Templates de grupo ───────────────────────────────────────────────────────
+
+function PainelTemplatesLista({
+  selecionado,
+  onSelecionar,
+}: {
+  selecionado: TemplateGrupo | null;
+  onSelecionar: (t: TemplateGrupo) => void;
+}) {
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+      <p style={{
+        padding: '8px 16px 6px',
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: 'var(--texto-fraco)',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        margin: 0,
+      }}>
+        Modelos de mensagem
+      </p>
+      {TEMPLATES_GRUPO.map((t) => {
+        const ativo = selecionado?.id === t.id;
+        const preview = t.modelo.replace(/\*/g, '').replace(/\n/g, ' ').slice(0, 68) + '…';
+        return (
+          <button
+            key={t.id}
+            onClick={() => onSelecionar(t)}
+            style={{
+              width: '100%',
+              background: ativo ? 'rgba(208,80,40,0.10)' : 'transparent',
+              border: 'none',
+              borderLeft: `3px solid ${ativo ? 'var(--laranja-brasa)' : 'transparent'}`,
+              padding: '10px 14px 10px 13px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              transition: 'background 0.12s',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+            onMouseEnter={(e) => { if (!ativo) e.currentTarget.style.background = 'var(--superficie-3)'; }}
+            onMouseLeave={(e) => { if (!ativo) e.currentTarget.style.background = 'transparent'; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1 }}>{t.emoji}</span>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {t.titulo}
+              </span>
+              <span style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: 99,
+                background: ativo ? 'rgba(208,80,40,0.15)' : 'var(--superficie-3)',
+                color: ativo ? 'var(--laranja-brasa)' : 'var(--texto-fraco)',
+                flexShrink: 0,
+                letterSpacing: '0.04em',
+                border: `1px solid ${ativo ? 'rgba(208,80,40,0.25)' : 'var(--borda)'}`,
+              }}>
+                {t.categoria}
+              </span>
+            </div>
+            <p style={{
+              margin: 0,
+              fontSize: 11.5,
+              color: 'var(--texto-fraco)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              paddingLeft: 22,
+            }}>
+              {preview}
+            </p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PainelComporTemplate({
+  template,
+  modelo,
+  setModelo,
+  copiado,
+  onCopiar,
+  onFechar,
+}: {
+  template: TemplateGrupo;
+  modelo: string;
+  setModelo: (v: string) => void;
+  copiado: boolean;
+  onCopiar: () => void;
+  onFechar: () => void;
+}) {
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', height: '100%', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{
+        padding: '12px 20px',
+        borderBottom: '1px solid var(--borda)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+        background: 'var(--superficie)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 22, lineHeight: 1 }}>{template.emoji}</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--texto)' }}>{template.titulo}</div>
+            <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginTop: 1 }}>
+              Edite o modelo e copie para enviar no WhatsApp
+            </div>
+          </div>
+        </div>
+        <BotaoIcone onClick={onFechar} title="Fechar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </BotaoIcone>
+      </div>
+
+      {/* Área de edição */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Instrução */}
+        <div style={{
+          background: 'rgba(245,154,0,0.06)',
+          border: '1px solid rgba(245,154,0,0.2)',
+          borderRadius: 9,
+          padding: '10px 14px',
+          fontSize: 12,
+          color: 'var(--texto-suave)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <span style={{ fontSize: 14 }}>✏️</span>
+          Substitua os campos entre <strong>[colchetes]</strong> pelas informações do cliente antes de enviar.
+        </div>
+
+        {/* Textarea */}
+        <div style={{
+          background: 'var(--superficie)',
+          border: '1px solid var(--borda)',
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}>
+          <textarea
+            value={modelo}
+            onChange={(e) => setModelo(e.target.value)}
+            onFocus={(e) => { e.currentTarget.parentElement!.style.borderColor = 'var(--laranja-brasa)'; }}
+            onBlur={(e) => { e.currentTarget.parentElement!.style.borderColor = 'var(--borda)'; }}
+            style={{
+              width: '100%',
+              minHeight: 260,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              color: 'var(--texto)',
+              fontSize: 13.5,
+              lineHeight: 1.7,
+              padding: '16px 18px',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {/* Ações */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={onCopiar}
+            className="brk-gradient-bg"
+            style={{
+              border: 'none',
+              borderRadius: 9,
+              padding: '10px 22px',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              flexShrink: 0,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {copiado
+              ? <><span>✓</span> Copiado!</>
+              : <><span style={{ fontSize: 15 }}>⎘</span> Copiar mensagem</>
+            }
+          </button>
+          <button
+            onClick={() => setModelo(template.modelo)}
+            style={{
+              background: 'var(--superficie-2)',
+              border: '1px solid var(--borda)',
+              borderRadius: 9,
+              padding: '10px 16px',
+              color: 'var(--texto-suave)',
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Restaurar original
+          </button>
+          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--texto-fraco)', lineHeight: 1.4 }}>
+            Cole no WhatsApp Web ou no app para enviar ao grupo.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EstadoVazioGrupos() {
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      gap: 14,
+      padding: 40,
+    }}>
+      <div style={{
+        width: 68,
+        height: 68,
+        borderRadius: '50%',
+        background: 'rgba(208,80,40,0.07)',
+        border: '1px solid rgba(208,80,40,0.14)',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 28,
+      }}>
+        💬
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--texto)' }}>
+          Modelos de mensagem
+        </p>
+        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--texto-fraco)', lineHeight: 1.5, maxWidth: 280 }}>
+          Selecione um modelo na lista ao lado para editar e copiar para o WhatsApp.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Estado vazio (sem conversa selecionada) ──────────────────────────────────
 
 function EstadoVazio({ onNova }: { onNova: () => void }) {
@@ -1169,7 +1547,7 @@ function BubbleMensagem({ mensagem }: { mensagem: Mensagem }) {
         <span
           style={{
             display: 'inline-block',
-            background: 'rgba(255,255,255,0.04)',
+            background: 'var(--superficie-3)',
             border: '1px solid var(--borda)',
             borderRadius: 99,
             padding: '3px 14px',
