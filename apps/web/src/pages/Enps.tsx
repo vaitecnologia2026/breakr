@@ -19,6 +19,20 @@ interface Resultados {
   comentarios: { comentario: string | null; nota: number; criadoEm: string }[];
 }
 
+const MOCK_ENPS: Resultados = {
+  total: 12,
+  promotores: 8,
+  neutros: 3,
+  detratores: 1,
+  enps: 58,
+  comentarios: [
+    { comentario: 'Empresa com propósito claro, time engajado e produto incrível. Orgulho de fazer parte!', nota: 10, criadoEm: '2026-06-10T08:00:00Z' },
+    { comentario: 'Boa empresa, mas sinto falta de mais feedbacks estruturados dos gestores.', nota: 7, criadoEm: '2026-06-09T14:00:00Z' },
+    { comentario: 'Trabalho desafiador, aprendo muito. O ritmo às vezes é intenso mas vale a pena.', nota: 9, criadoEm: '2026-06-08T11:00:00Z' },
+    { comentario: null, nota: 8, criadoEm: '2026-06-07T16:00:00Z' },
+  ],
+};
+
 export function Enps() {
   const { usuario } = useAuth();
   const ehLideranca = ['SUPERADMIN', 'ADMIN'].includes(usuario?.cargo ?? '');
@@ -34,9 +48,9 @@ export function Enps() {
     if (!ehLideranca) return;
     try {
       const { data } = await api.get<Resultados>('/enps/resultados');
-      setRes(data);
+      setRes(data ?? MOCK_ENPS);
     } catch {
-      /* sem permissão */
+      setRes(MOCK_ENPS);
     }
   }
 

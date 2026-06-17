@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -13,6 +14,11 @@ export class CriarReuniaoDto {
   @IsString()
   @MaxLength(160)
   titulo!: string;
+
+  // Tipo p/ cor na agenda (gestão=verde, vendas/estratégica=roxo, financeiro=azul).
+  @IsOptional()
+  @IsIn(['GESTAO', 'VENDAS', 'FINANCEIRO', 'ESTRATEGICA', 'OUTRO'])
+  tipo?: string;
 
   @IsOptional()
   @IsString()

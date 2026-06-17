@@ -42,6 +42,10 @@ import { DiscModule } from './disc/disc.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { DesempenhoModule } from './desempenho/desempenho.module';
 import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
+import { AgendaModule } from './agenda/agenda.module';
+import { ComunicadosClienteModule } from './comunicados-cliente/comunicados-cliente.module';
+import { AgendarModule } from './agendar/agendar.module';
+import { MedalhasModule } from './medalhas/medalhas.module';
 
 @Module({
   imports: [
@@ -110,6 +114,13 @@ import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
     DesempenhoModule,
     // Financeiro interno — contas a pagar.
     ContasPagarModule,
+    // Agenda interna — feriados, sala presencial, home office.
+    AgendaModule,
+    // Comunicados aos clientes (banner no portal).
+    ComunicadosClienteModule,
+    // Agendamento público com colaborador (booking) + medalhas (gamificação).
+    AgendarModule,
+    MedalhasModule,
   ],
 })
 export class AppModule {}

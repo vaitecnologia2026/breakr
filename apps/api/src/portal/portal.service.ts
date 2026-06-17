@@ -42,6 +42,8 @@ export class PortalService {
         eventosOnboarding: { orderBy: { data: 'asc' } },
         // Aulas ja concluidas pelo cliente (para marcar o progresso).
         aulasConcluidas: { select: { aulaId: true } },
+        // Medalhas conquistadas (gamificacao).
+        medalhas: { include: { medalha: true }, orderBy: { concedidaEm: 'desc' } },
         // Pecas aguardando o aval do cliente (M18 — aprovacao no portal).
         conteudos: {
           where: { status: StatusConteudo.APROVACAO_CLIENTE },
@@ -63,6 +65,13 @@ export class PortalService {
     });
     const concluidas = new Set(cliente.aulasConcluidas.map((a) => a.aulaId));
 
+    // Banner: último comunicado ativo enviado aos clientes.
+    const comunicado = await this.prisma.comunicadoCliente.findFirst({
+      where: { ativo: true },
+      orderBy: { criadoEm: 'desc' },
+      select: { mensagem: true, criadoEm: true },
+    });
+
     return {
       cliente: {
         nomeFantasia: cliente.nomeFantasia,
@@ -73,6 +82,14 @@ export class PortalService {
       // CS responsavel pelo cliente (para a saudacao "seu CS" no onboarding).
       cs: csUsuario ? { nome: csUsuario.nome, fotoUrl: csUsuario.fotoUrl } : null,
       linkAreaMembros: cliente.linkAreaMembros,
+      // Banner de comunicado (ex.: "amanhã é feriado, sem expediente").
+      comunicado: comunicado ? { mensagem: comunicado.mensagem, criadoEm: comunicado.criadoEm } : null,
+      // Medalhas conquistadas (gamificação).
+      medalhas: cliente.medalhas.map((m) => ({
+        titulo: m.medalha.titulo,
+        icone: m.medalha.icone,
+        descricao: m.medalha.descricao,
+      })),
       plano: cliente.plano ? { nome: cliente.plano.nome } : null,
       contrato: contrato
         ? { status: contrato.status, vencimento: contrato.vencimento }

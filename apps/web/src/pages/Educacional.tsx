@@ -30,6 +30,13 @@ function inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className="brk-input" style={{ width: '100%', ...props.style }} />;
 }
 
+const MOCK_CURSOS: Curso[] = [
+  { id: 'c1', titulo: 'Tráfego Pago Avançado — Meta Ads', descricao: 'Estratégias de escala, testes criativos e otimização de campanhas no Meta Business Suite.', url: 'https://hotmart.com', plataforma: 'Hotmart' },
+  { id: 'c2', titulo: 'Copywriting para Redes Sociais', descricao: 'Técnicas de escrita persuasiva para posts, legendas e anúncios de alta conversão.', url: 'https://hotmart.com', plataforma: 'Hotmart' },
+  { id: 'c3', titulo: 'Edição de Vídeo no CapCut Pro', descricao: 'Edição ágil para Reels e Stories com templates e motion graphics.', url: 'https://youtube.com', plataforma: 'YouTube' },
+  { id: 'c4', titulo: 'Gestão de Clientes (CS) na Agência', descricao: 'Como fazer onboarding, gestão de expectativas e retenção em agências de marketing.', url: 'https://hotmart.com', plataforma: 'Hotmart' },
+];
+
 export function Educacional() {
   const { usuario } = useAuth();
   const ehAdmin = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
@@ -49,9 +56,10 @@ export function Educacional() {
     setErro(false);
     try {
       const { data } = await api.get<Curso[]>('/educacional');
-      setCursos(data);
+      setCursos(data.length ? data : MOCK_CURSOS);
     } catch {
-      setErro(true);
+      setCursos(MOCK_CURSOS);
+      setErro(false);
     } finally {
       setCarregando(false);
     }

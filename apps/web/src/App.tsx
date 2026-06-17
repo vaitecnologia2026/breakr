@@ -35,6 +35,10 @@ import { Enps } from './pages/Enps';
 import { Documentos } from './pages/Documentos';
 import { Desempenho } from './pages/Desempenho';
 import { Financeiro } from './pages/Financeiro';
+import { Agenda } from './pages/Agenda';
+import { ComunicadosCliente } from './pages/ComunicadosCliente';
+import { AgendarPublico } from './pages/AgendarPublico';
+import { Medalhas } from './pages/Medalhas';
 
 export function App() {
   return (
@@ -43,6 +47,7 @@ export function App() {
       <Route path="/portal/:codigo" element={<Portal />} />
       <Route path="/captacao" element={<Captacao />} />
       <Route path="/avaliacao-disc" element={<AvaliacaoDisc />} />
+      <Route path="/agendar" element={<AgendarPublico />} />
 
       <Route
         path="/"
@@ -71,8 +76,11 @@ export function App() {
         <Route path="atendimento" element={<Atendimento />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="comunicados" element={<Comunicados />} />
+        <Route path="comunicados-cliente" element={<ComunicadosCliente />} />
         <Route path="chat" element={<Chat />} />
         <Route path="reunioes" element={<Reunioes />} />
+        <Route path="agenda" element={<Agenda />} />
+        <Route path="medalhas" element={<Medalhas />} />
         <Route path="inventario" element={<Inventario />} />
         <Route path="educacional" element={<Educacional />} />
         <Route path="ouvidoria" element={<Ouvidoria />} />

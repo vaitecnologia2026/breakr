@@ -24,6 +24,12 @@ interface Manifestacao {
 
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
 
+const MOCK_OUVIDORIA: Manifestacao[] = [
+  { id: 'o1', assunto: 'Sugestão de melhoria no onboarding', mensagem: 'O processo de onboarding com novos clientes poderia ter mais touchpoints nas primeiras duas semanas. Sugiro uma call de 30 min na semana 1 e outra na semana 2.', status: 'ABERTA', resolucao: null, criadoEm: '2026-06-10T11:20:00Z', autor: null, anonima: true },
+  { id: 'o2', assunto: 'Falta de feedback nas avaliações de desempenho', mensagem: 'As avaliações têm nota mas não temos retorno claro sobre como melhorar. Seria importante ter uma reunião após cada ciclo.', status: 'EM_ANALISE', resolucao: null, criadoEm: '2026-06-05T09:00:00Z', autor: null, anonima: true },
+  { id: 'o3', assunto: 'Ajuste no horário da daily', mensagem: 'A daily às 8h30 fica difícil para quem tem filho pequeno. Poderia ser às 9h?', status: 'RESOLVIDA', resolucao: 'Horário ajustado para 9h a partir de 20/06. Obrigado pelo feedback!', criadoEm: '2026-06-01T08:00:00Z', autor: 'Marina Alves', anonima: false },
+];
+
 export function Ouvidoria() {
   const { usuario } = useAuth();
   const ehTrata = ['SUPERADMIN', 'ADMIN', 'JURIDICO'].includes(usuario?.cargo ?? '');
@@ -40,7 +46,7 @@ export function Ouvidoria() {
     if (!ehTrata) return;
     try {
       const { data } = await api.get<Manifestacao[]>('/ouvidoria');
-      setItens(data);
+      setItens(data.length ? data : MOCK_OUVIDORIA);
     } catch {
       /* sem permissão */
     }

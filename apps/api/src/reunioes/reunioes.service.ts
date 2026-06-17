@@ -30,7 +30,35 @@ export class ReunioesService {
         titulo: dto.titulo,
         descricao: dto.descricao,
         data: new Date(dto.data),
+        tipo: dto.tipo ?? 'OUTRO',
         meetLink,
+      },
+    });
+  }
+
+  // Garante a reunião presencial fixa do 2º sábado do mês (idempotente).
+  async garantirReuniaoSabado() {
+    const agora = new Date();
+    const primeiro = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const primeiroSabado = 1 + ((6 - primeiro.getDay() + 7) % 7);
+    const dia = primeiroSabado + 7; // 2º sábado
+    const dataReuniao = new Date(agora.getFullYear(), agora.getMonth(), dia, 10, 0, 0);
+
+    const inicioDia = new Date(dataReuniao);
+    inicioDia.setHours(0, 0, 0, 0);
+    const fimDia = new Date(dataReuniao);
+    fimDia.setHours(23, 59, 59, 999);
+    const TITULO = 'Reunião presencial mensal';
+    const existe = await this.prisma.reuniaoInterna.findFirst({
+      where: { titulo: TITULO, data: { gte: inicioDia, lte: fimDia } },
+    });
+    if (existe) return existe;
+    return this.prisma.reuniaoInterna.create({
+      data: {
+        titulo: TITULO,
+        descricao: 'Reunião presencial do time (2º sábado do mês).',
+        data: dataReuniao,
+        tipo: 'GESTAO',
       },
     });
   }

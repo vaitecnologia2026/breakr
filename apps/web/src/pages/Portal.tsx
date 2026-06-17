@@ -21,6 +21,8 @@ interface PortalData {
   squad: { nome: string } | null;
   cs: { nome: string; fotoUrl: string | null } | null;
   linkAreaMembros: string | null;
+  comunicado: { mensagem: string; criadoEm: string } | null;
+  medalhas: { titulo: string; icone: string | null; descricao: string | null }[];
   plano: { nome: string } | null;
   contrato: { status: string; vencimento: string | null } | null;
   onboarding: {
@@ -179,6 +181,11 @@ export function Portal() {
         ) : (
           <>
             <Cabecalho dados={dados} />
+            {dados.comunicado && (
+              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--amarelo)', fontSize: 14, fontWeight: 600 }}>
+                📢 {dados.comunicado.mensagem}
+              </div>
+            )}
             <CardNovaDemanda codigo={codigo ?? ''} />
             {dados.conteudosParaAprovar.length > 0 && (
               <CardAprovacoes
@@ -186,6 +193,19 @@ export function Portal() {
                 codigo={codigo ?? ''}
                 aoMudar={() => setVersao((v) => v + 1)}
               />
+            )}
+            {dados.medalhas.length > 0 && (
+              <Card>
+                <TituloCard>Suas conquistas</TituloCard>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+                  {dados.medalhas.map((m, i) => (
+                    <div key={i} title={m.descricao ?? ''} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 86 }}>
+                      <span style={{ fontSize: 30 }}>{m.icone ?? '🏅'}</span>
+                      <span style={{ fontSize: 11.5, textAlign: 'center', color: 'var(--texto-suave)' }}>{m.titulo}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             )}
             {dados.onboarding && <CardOnboarding onboarding={dados.onboarding} />}
             {dados.eventos.length > 0 && <CardAgenda eventos={dados.eventos} />}

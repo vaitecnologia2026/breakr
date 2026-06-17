@@ -85,6 +85,7 @@ const GRUPOS: NavGroup[] = [
       { para: '/',          rotulo: 'Dashboard',  icone: <IcoHome />, fim: true },
       { para: '/inbox',     rotulo: 'Inbox',      icone: <IcoInbox /> },
       { para: '/comunicados', rotulo: 'Comunicados', icone: <IcoBullhorn /> },
+      { para: '/comunicados-cliente', rotulo: 'Comunicar clientes', icone: <IcoBullhorn /> },
     ],
   },
   {
@@ -95,6 +96,7 @@ const GRUPOS: NavGroup[] = [
       { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
       { para: '/clientes',   rotulo: 'Clientes',   icone: <IcoUsers /> },
       { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoStar /> },
+      { para: '/medalhas',   rotulo: 'Medalhas',   icone: <IcoStar /> },
       { para: '/contratos',  rotulo: 'Contratos',  icone: <IcoFileText /> },
       { para: '/cobrancas',  rotulo: 'Cobranças',  icone: <IcoCreditCard /> },
       { para: '/financeiro', rotulo: 'Financeiro', icone: <IcoCreditCard /> },
@@ -118,6 +120,7 @@ const GRUPOS: NavGroup[] = [
     items: [
       { para: '/squads',       rotulo: 'Squads',       icone: <IcoDiamond /> },
       { para: '/reunioes',     rotulo: 'Reuniões',     icone: <IcoFileText /> },
+      { para: '/agenda',       rotulo: 'Agenda',       icone: <IcoFileText /> },
       { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
       { para: '/compras',      rotulo: 'Compras',      icone: <IcoShoppingBag /> },
       { para: '/inventario',   rotulo: 'Inventário',   icone: <IcoLayout /> },

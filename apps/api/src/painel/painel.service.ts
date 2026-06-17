@@ -253,14 +253,21 @@ export class PainelService {
     inicioDia.setHours(0, 0, 0, 0);
     const fimDia = new Date(agora);
     fimDia.setHours(23, 59, 59, 999);
-    const [reunioesHoje, whatsappPendente] = await Promise.all([
+    const [reunioesHoje, whatsappPendente, feriadoHojeReg, homeOfficeHojeRegs] = await Promise.all([
       this.prisma.reuniaoInterna.findMany({
         where: { data: { gte: inicioDia, lte: fimDia } },
         orderBy: { data: 'asc' },
         select: { id: true, titulo: true, data: true, meetLink: true },
       }),
       this.prisma.conversa.count({ where: { status: StatusConversa.PENDENTE } }),
+      this.prisma.feriado.findFirst({ where: { data: { gte: inicioDia, lte: fimDia } }, select: { titulo: true } }),
+      this.prisma.homeOffice.findMany({
+        where: { data: { gte: inicioDia, lte: fimDia } },
+        select: { usuario: { select: { nome: true } } },
+      }),
     ]);
+    const feriadoHoje = feriadoHojeReg?.titulo ?? null;
+    const homeOfficeHoje = homeOfficeHojeRegs.map((h) => h.usuario.nome);
 
     const cargo = usuario.cargo;
     const ehGestao = cargo === Cargo.SUPERADMIN || cargo === Cargo.ADMIN;
@@ -331,6 +338,8 @@ export class PainelService {
       atrasadas: pecas.filter((p) => p.atrasado).length,
       reunioesHoje,
       whatsappPendente,
+      feriadoHoje,
+      homeOfficeHoje,
       financeiro,
       trafego,
       cs,
