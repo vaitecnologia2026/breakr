@@ -22,6 +22,7 @@ const ROTA_NOME: Record<string, string> = {
   '/atendimento': 'Atendimento',
   '/inbox': 'Inbox',
   '/comunicados': 'Comunicados',
+  '/chat': 'Chat',
   '/equipe': 'Equipe',
   '/configuracoes': 'Configurações',
 };

@@ -121,6 +121,13 @@ const IcoMessageCircle = () => (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </Ico>
 );
+const IcoChat = () => (
+  <Ico>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    <line x1="9" y1="10" x2="15" y2="10" />
+    <line x1="9" y1="14" x2="13" y2="14" />
+  </Ico>
+);
 const IcoUserCheck = () => (
   <Ico>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -225,7 +232,10 @@ const GRUPOS: NavGroup[] = [
   {
     label: 'Atendimento',
     icone: <IcoMessageCircle />,
-    items: [{ para: '/atendimento', rotulo: 'Atendimento', icone: <IcoMessageCircle /> }],
+    items: [
+      { para: '/atendimento', rotulo: 'Atendimento', icone: <IcoMessageCircle /> },
+      { para: '/chat',        rotulo: 'Chat interno', icone: <IcoChat /> },
+    ],
   },
 ];
 

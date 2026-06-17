@@ -22,6 +22,7 @@ import { Equipe } from './pages/Equipe';
 import { Atendimento } from './pages/Atendimento';
 import { Inbox } from './pages/Inbox';
 import { Comunicados } from './pages/Comunicados';
+import { Chat } from './pages/Chat';
 
 export function App() {
   return (
@@ -54,6 +55,7 @@ export function App() {
         <Route path="atendimento" element={<Atendimento />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="comunicados" element={<Comunicados />} />
+        <Route path="chat" element={<Chat />} />
         <Route path="equipe" element={<Equipe />} />
         <Route path="configuracoes" element={<Configuracoes />} />
       </Route>

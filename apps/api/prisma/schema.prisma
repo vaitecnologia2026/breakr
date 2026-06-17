@@ -112,6 +112,9 @@ model Usuario {
   // Comunicados internos (autor)
   comunicados Comunicado[] @relation("ComunicadoAutor")
 
+  // Chat interno
+  mensagensChat MensagemChat[] @relation("MensagemChatAutor")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -887,6 +890,42 @@ model Comunicado {
 
   @@index([fixado])
   @@map("comunicado")
+}
+
+// ============================================================
+// CHAT INTERNO
+// ============================================================
+
+enum TipoCanal {
+  PUBLICO
+  PRIVADO
+}
+
+/// Canal de chat interno (geral, avisos, random, etc.)
+model CanalChat {
+  id        String         @id @default(uuid())
+  nome      String         @unique
+  descricao String?
+  tipo      TipoCanal      @default(PUBLICO)
+  criadoEm  DateTime       @default(now()) @map("criado_em")
+  mensagens MensagemChat[]
+
+  @@map("canal_chat")
+}
+
+/// Mensagem de chat interno enviada por um membro em um canal.
+model MensagemChat {
+  id        String    @id @default(uuid())
+  conteudo  String
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+  editadoEm DateTime? @map("editado_em")
+  canalId   String    @map("canal_id")
+  canal     CanalChat @relation(fields: [canalId], references: [id], onDelete: Cascade)
+  autorId   String?   @map("autor_id")
+  autor     Usuario?  @relation("MensagemChatAutor", fields: [autorId], references: [id])
+
+  @@index([canalId, criadoEm])
+  @@map("mensagem_chat")
 }
 
 /// Configuracao de IA (singleton, id fixo "singleton"). Guarda as chaves dos 3

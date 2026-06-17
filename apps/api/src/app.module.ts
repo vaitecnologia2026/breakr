@@ -30,6 +30,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { QualidadeModule } from './qualidade/qualidade.module';
 import { AtendimentoModule } from './atendimento/atendimento.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -77,6 +78,8 @@ import { ComunicadosModule } from './comunicados/comunicados.module';
     AtendimentoModule,
     // Canal de comunicados internos.
     ComunicadosModule,
+    // Chat interno (canais + mensagens com polling).
+    ChatModule,
   ],
 })
 export class AppModule {}
