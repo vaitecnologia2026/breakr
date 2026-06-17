@@ -30,6 +30,8 @@ interface MeuDia {
   atrasadas: number;
   reunioesHoje: ReuniaoHoje[];
   whatsappPendente: number;
+  feriadoHoje: string | null;
+  homeOfficeHoje: string[];
   financeiro: { faturasVencidas: number; faturasPendentes: number; contratosRevisao: number } | null;
   trafego: { campanhasAtivas: number } | null;
   cs: { atendimentosAbertos: number; onboardingsEmAndamento: number; onboardingsSlaEstourado: number } | null;
@@ -376,9 +378,9 @@ function MiniStat({ rotulo, valor, link, alerta }: { rotulo: string; valor: numb
 }
 
 function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
-  const { pecas, atrasadas, financeiro, trafego, cs, comercial, reunioesHoje, whatsappPendente } = meuDia;
+  const { pecas, atrasadas, financeiro, trafego, cs, comercial, reunioesHoje, whatsappPendente, feriadoHoje, homeOfficeHoje } = meuDia;
   const temBlocos = financeiro || trafego || cs || comercial;
-  const temConteudo = pecas.length > 0 || temBlocos || reunioesHoje.length > 0 || whatsappPendente > 0;
+  const temConteudo = pecas.length > 0 || temBlocos || reunioesHoje.length > 0 || whatsappPendente > 0 || !!feriadoHoje || homeOfficeHoje.length > 0;
 
   if (!temConteudo) return null;
 
@@ -401,6 +403,17 @@ function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
           </span>
         )}
       </div>
+
+      {feriadoHoje && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 13.5, fontWeight: 600, color: 'var(--amarelo)' }}>
+          🌴 Hoje é feriado: {feriadoHoje} — sem expediente.
+        </div>
+      )}
+      {homeOfficeHoje.length > 0 && (
+        <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+          Em home office hoje: {homeOfficeHoje.join(', ')}
+        </div>
+      )}
 
       {/* Blocos por cargo */}
       {(temBlocos || whatsappPendente > 0) && (

@@ -23,7 +23,16 @@ interface Reuniao {
   descricao: string | null;
   data: string;
   meetLink: string | null;
+  tipo: string;
 }
+
+const TIPO_REUNIAO: Record<string, { rotulo: string; cor: string }> = {
+  GESTAO: { rotulo: 'Gestão', cor: '#2ecc71' },
+  VENDAS: { rotulo: 'Vendas', cor: '#a855f7' },
+  ESTRATEGICA: { rotulo: 'Estratégica', cor: '#a855f7' },
+  FINANCEIRO: { rotulo: 'Financeiro', cor: '#4aa3f0' },
+  OUTRO: { rotulo: 'Outro', cor: '#9aa0ad' },
+};
 
 const rotulo: React.CSSProperties = {
   fontSize: 12.5,
@@ -41,6 +50,7 @@ export function Reunioes() {
   const [titulo, setTitulo] = useState('');
   const [data, setData] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [tipo, setTipo] = useState('OUTRO');
   const [gerarMeet, setGerarMeet] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
@@ -69,11 +79,13 @@ export function Reunioes() {
         titulo: titulo.trim(),
         data: new Date(data).toISOString(),
         descricao: descricao.trim() || undefined,
+        tipo,
         gerarMeet,
       });
       setTitulo('');
       setData('');
       setDescricao('');
+      setTipo('OUTRO');
       setGerarMeet(false);
       carregar();
     } finally {
@@ -105,6 +117,12 @@ export function Reunioes() {
           <div>
             <label style={rotulo}>Descrição (opcional)</label>
             <input className="brk-input" style={{ width: '100%' }} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+          </div>
+          <div>
+            <label style={rotulo}>Tipo</label>
+            <select className="brk-input" style={{ width: '100%' }} value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              {Object.entries(TIPO_REUNIAO).map(([k, v]) => <option key={k} value={k}>{v.rotulo}</option>)}
+            </select>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--texto-suave)', cursor: 'pointer' }}>
             <input type="checkbox" checked={gerarMeet} onChange={(e) => setGerarMeet(e.target.checked)} />
@@ -139,7 +157,10 @@ export function Reunioes() {
                   <div style={{ fontSize: 12.5, color: '#f0814f', fontWeight: 700 }}>
                     {new Date(r.data).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{r.titulo}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: (TIPO_REUNIAO[r.tipo] ?? TIPO_REUNIAO.OUTRO).cor, flexShrink: 0 }} />
+                    {r.titulo}
+                  </div>
                   {r.descricao && <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>{r.descricao}</div>}
                   {r.meetLink && (
                     <a href={r.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: '#f0814f', textDecoration: 'none' }}>

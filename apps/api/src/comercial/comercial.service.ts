@@ -70,6 +70,30 @@ export class ComercialService {
     });
   }
 
+  // Performance comercial: visão de gestão sobre o pipeline.
+  async performance() {
+    const leads = await this.prisma.lead.findMany({
+      select: { status: true, responsavel: { select: { nome: true } } },
+    });
+    const total = leads.length;
+    const ganhos = leads.filter((l) => l.status === StatusLead.GANHO).length;
+    const perdidos = leads.filter((l) => l.status === StatusLead.PERDIDO).length;
+    const abertos = total - ganhos - perdidos;
+    const fechados = ganhos + perdidos;
+    const taxaConversao = fechados > 0 ? Math.round((ganhos / fechados) * 100) : 0;
+
+    const mapa = new Map<string, { responsavel: string; ganhos: number; abertos: number }>();
+    for (const l of leads) {
+      const nome = l.responsavel?.nome ?? 'Sem responsável';
+      const r = mapa.get(nome) ?? { responsavel: nome, ganhos: 0, abertos: 0 };
+      if (l.status === StatusLead.GANHO) r.ganhos += 1;
+      else if (l.status !== StatusLead.PERDIDO) r.abertos += 1;
+      mapa.set(nome, r);
+    }
+    const ranking = [...mapa.values()].sort((a, b) => b.ganhos - a.ganhos);
+    return { total, abertos, ganhos, perdidos, taxaConversao, ranking };
+  }
+
   // Busca um lead pelo id.
   async obter(id: string): Promise<Lead> {
     const lead = await this.prisma.lead.findUnique({

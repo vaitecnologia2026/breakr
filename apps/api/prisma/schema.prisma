@@ -120,6 +120,13 @@ model Usuario {
   desempenhosRecebidos  AvaliacaoDesempenho[]  @relation("DesempenhoColaborador")
   desempenhosFeitos     AvaliacaoDesempenho[]  @relation("DesempenhoAvaliador")
 
+  // Agenda (Fase 5 — interno): agendamentos de sala e dias de home office
+  agendamentosSala AgendamentoSala[] @relation("AgendamentoSalaResponsavel")
+  homeOffice       HomeOffice[]      @relation("HomeOfficeUsuario")
+
+  // Agendamentos públicos recebidos (página de booking)
+  agendamentosRecebidos AgendamentoColaborador[] @relation("AgendamentoColaborador")
+
   // Atendimento WhatsApp (M22)
   conversasAtendente Conversa[] @relation("ConversaAtendente")
 
@@ -253,6 +260,7 @@ model Cliente {
   // Onboarding do cliente — agenda de eventos e aulas concluidas (gamificacao).
   eventosOnboarding OnboardingEvento[]
   aulasConcluidas   AulaConclusao[]
+  medalhas          ClienteMedalha[]
 
   // Operacao de marketing (Fase 2)
   conteudos Conteudo[]
@@ -1066,9 +1074,22 @@ model ReuniaoInterna {
   descricao String?
   data      DateTime
   meetLink  String?  @map("meet_link")
+  // Tipo p/ cor na agenda: GESTAO | VENDAS | FINANCEIRO | ESTRATEGICA | OUTRO.
+  tipo      String   @default("OUTRO")
   criadoEm  DateTime @default(now()) @map("criado_em")
 
   @@map("reuniao_interna")
+}
+
+/// Comunicado enviado a todos os clientes — vira banner fixado no portal e
+/// (quando o WhatsApp oficial entrar) também é disparado no grupo do cliente.
+model ComunicadoCliente {
+  id       String   @id @default(uuid())
+  mensagem String
+  ativo    Boolean  @default(true)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@map("comunicado_cliente")
 }
 
 /// Item de inventario interno (equipamentos, materiais). Plaqueta = etiqueta de
@@ -1128,6 +1149,94 @@ model RespostaEnps {
   criadoEm   DateTime @default(now()) @map("criado_em")
 
   @@map("resposta_enps")
+}
+
+/// Feriado cadastrado pela gestão — aparece na agenda de todos (ninguém trabalha).
+model Feriado {
+  id       String   @id @default(uuid())
+  data     DateTime @db.Date
+  titulo   String
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@map("feriado")
+}
+
+/// Agendamento da sala de reuniões presencial. Apenas CS e admin/superadmin
+/// podem agendar (RBAC no controller).
+model AgendamentoSala {
+  id       String   @id @default(uuid())
+  titulo   String
+  inicio   DateTime
+  fim      DateTime
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("AgendamentoSalaResponsavel", fields: [responsavelId], references: [id])
+
+  @@index([inicio])
+  @@map("agendamento_sala")
+}
+
+/// Dia de home office de um colaborador (controle de presença).
+model HomeOffice {
+  id       String   @id @default(uuid())
+  data     DateTime @db.Date
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  usuarioId String  @map("usuario_id")
+  usuario   Usuario @relation("HomeOfficeUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, data])
+  @@index([data])
+  @@map("home_office")
+}
+
+/// Agendamento público de horário com um colaborador (página de booking).
+model AgendamentoColaborador {
+  id       String   @id @default(uuid())
+  nome     String // quem agendou (cliente/lead)
+  email    String?
+  telefone String?
+  assunto  String?
+  inicio   DateTime
+  fim      DateTime
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  colaboradorId String  @map("colaborador_id")
+  colaborador   Usuario @relation("AgendamentoColaborador", fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  @@index([colaboradorId, inicio])
+  @@map("agendamento_colaborador")
+}
+
+/// Medalha de gamificação (configurável). Concedida a clientes; aparece no portal.
+model Medalha {
+  id        String   @id @default(uuid())
+  titulo    String
+  icone     String? // emoji ou nome de ícone
+  descricao String?
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  clientes ClienteMedalha[]
+
+  @@map("medalha")
+}
+
+/// Medalha conquistada por um cliente.
+model ClienteMedalha {
+  id          String   @id @default(uuid())
+  concedidaEm DateTime @default(now()) @map("concedida_em")
+
+  medalhaId String  @map("medalha_id")
+  medalha   Medalha @relation(fields: [medalhaId], references: [id], onDelete: Cascade)
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@unique([medalhaId, clienteId])
+  @@index([clienteId])
+  @@map("cliente_medalha")
 }
 
 /// Conta a pagar (financeiro interno). categoria é texto livre por enquanto;

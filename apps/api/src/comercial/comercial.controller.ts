@@ -35,6 +35,14 @@ export class ComercialController {
     return this.comercialService.listar({ status, responsavelId });
   }
 
+  // GET /comercial/leads/performance — visão de gestão do pipeline (antes de :id).
+  @Get('performance')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL)
+  performance() {
+    return this.comercialService.performance();
+  }
+
   // GET /comercial/leads/:id — detalhe de um lead.
   @Get(':id')
   obter(@Param('id', ParseUUIDPipe) id: string) {

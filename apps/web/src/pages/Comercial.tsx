@@ -87,8 +87,18 @@ function formatarValor(valor: string | null): string | null {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+interface PerformanceComercial {
+  total: number;
+  abertos: number;
+  ganhos: number;
+  perdidos: number;
+  taxaConversao: number;
+  ranking: { responsavel: string; ganhos: number; abertos: number }[];
+}
+
 export function Comercial() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [perf, setPerf] = useState<PerformanceComercial | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
@@ -101,6 +111,8 @@ export function Comercial() {
     try {
       const { data } = await api.get<Lead[]>('/comercial/leads');
       setLeads(data);
+      // Performance é só para gestão/comercial; ignora silenciosamente se 403.
+      api.get<PerformanceComercial>('/comercial/leads/performance').then(({ data: p }) => setPerf(p)).catch(() => setPerf(null));
     } catch {
       setErro('Não foi possível carregar os leads. Tente novamente.');
     } finally {
@@ -130,6 +142,32 @@ export function Comercial() {
         />
       ) : (
         <>
+          {perf && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
+              {[
+                { r: 'Em aberto', v: String(perf.abertos) },
+                { r: 'Ganhos', v: String(perf.ganhos) },
+                { r: 'Perdidos', v: String(perf.perdidos) },
+                { r: 'Conversão', v: `${perf.taxaConversao}%` },
+              ].map((k) => (
+                <div key={k.r} className="brk-card" style={{ flex: '1 1 120px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800 }}>{k.v}</div>
+                  <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{k.r}</div>
+                </div>
+              ))}
+              {perf.ranking.length > 0 && (
+                <div className="brk-card" style={{ flex: '2 1 240px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--texto-fraco)', marginBottom: 6 }}>Ranking (ganhos)</div>
+                  {perf.ranking.slice(0, 4).map((r) => (
+                    <div key={r.responsavel} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--texto-suave)' }}>
+                      <span>{r.responsavel}</span>
+                      <span><strong style={{ color: 'var(--cinza-vapor)' }}>{r.ganhos}</strong> · {r.abertos} abertos</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {erroAcao && <MensagemErro texto={erroAcao} />}
           <Kanban leads={leads} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
         </>
