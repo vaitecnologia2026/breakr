@@ -305,7 +305,7 @@ export function Atendimento() {
   if (erro) return <EstadoErro mensagem={erro} onRetry={carregarInbox} />;
 
   return (
-    <div style={{ display: 'flex', height: '100%', gap: 0, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', margin: '-28px -32px', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
 
       {/* ── Painel esquerdo: lista de conversas ─────────────────────────────── */}
       <div
@@ -480,6 +480,11 @@ export function Atendimento() {
                 conversa={c}
                 ativa={selecionada === c.id}
                 onClick={() => setSelecionada(c.id)}
+                onAceitar={c.status === 'PENDENTE' ? async () => {
+                  setSelecionada(c.id);
+                  await api.post(`/atendimento/${c.id}/aceitar`);
+                  carregarInbox();
+                } : undefined}
               />
             ))
           )}
@@ -661,10 +666,12 @@ function ItemConversa({
   conversa: c,
   ativa,
   onClick,
+  onAceitar,
 }: {
   conversa: Conversa;
   ativa: boolean;
   onClick: () => void;
+  onAceitar?: () => void;
 }) {
   const nome = nomeContato(c);
   const cor = corAvatar(nome);
@@ -818,6 +825,32 @@ function ItemConversa({
             </>
           )}
         </div>
+
+        {/* Botão Aceitar (só para PENDENTE) */}
+        {isPendente && onAceitar && (
+          <div
+            style={{ marginTop: 8 }}
+            onClick={(e) => { e.stopPropagation(); onAceitar(); }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'linear-gradient(135deg, var(--laranja-brasa), var(--vermelho-fogo))',
+                color: '#fff',
+                borderRadius: 7,
+                padding: '4px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                letterSpacing: '0.2px',
+              }}
+            >
+              ✓ Aceitar
+            </span>
+          </div>
+        )}
       </div>
     </button>
   );
@@ -972,62 +1005,98 @@ function PainelChat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Compositor */}
-      <form
-        onSubmit={onEnviar}
-        style={{
-          padding: '12px 16px',
-          borderTop: '1px solid var(--borda)',
-          display: 'flex',
-          gap: 8,
-          flexShrink: 0,
-          background: 'var(--superficie)',
-          alignItems: 'center',
-        }}
-      >
-        <input
-          type="text"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder={
-            conversa.status === 'RESOLVIDO'
-              ? 'Conversa resolvida. Reabra para responder.'
-              : 'Digite uma mensagem…'
-          }
-          disabled={conversa.status === 'RESOLVIDO' || enviando}
+      {/* Compositor / bloqueio por status */}
+      {conversa.status === 'PENDENTE' ? (
+        <div
           style={{
-            flex: 1,
-            background: 'var(--superficie-2)',
-            border: '1px solid var(--borda)',
-            borderRadius: 10,
-            padding: '10px 14px',
-            color: 'var(--texto)',
-            fontSize: 14,
-            outline: 'none',
-            opacity: conversa.status === 'RESOLVIDO' ? 0.5 : 1,
-          }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--laranja-brasa)'; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--borda)'; }}
-        />
-        <button
-          type="submit"
-          disabled={!texto.trim() || enviando || conversa.status === 'RESOLVIDO'}
-          className="brk-gradient-bg"
-          style={{
-            border: 'none',
-            borderRadius: 10,
-            padding: '10px 20px',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 13,
-            cursor: 'pointer',
-            opacity: (!texto.trim() || enviando || conversa.status === 'RESOLVIDO') ? 0.45 : 1,
-            whiteSpace: 'nowrap',
+            padding: '14px 20px',
+            borderTop: '1px solid var(--borda)',
+            background: 'var(--superficie)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            gap: 12,
           }}
         >
-          {enviando ? '…' : 'Enviar'}
-        </button>
-      </form>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--texto-suave)' }}>
+            Aceite esta conversa para enviar mensagens.
+          </p>
+          <button
+            onClick={onAceitar}
+            className="brk-gradient-bg"
+            style={{
+              border: 'none',
+              borderRadius: 9,
+              padding: '9px 20px',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            ✓ Aceitar conversa
+          </button>
+        </div>
+      ) : (
+        <form
+          onSubmit={onEnviar}
+          style={{
+            padding: '12px 16px',
+            borderTop: '1px solid var(--borda)',
+            display: 'flex',
+            gap: 8,
+            flexShrink: 0,
+            background: 'var(--superficie)',
+            alignItems: 'center',
+          }}
+        >
+          <input
+            type="text"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder={
+              conversa.status === 'RESOLVIDO'
+                ? 'Conversa resolvida. Reabra para responder.'
+                : 'Digite uma mensagem…'
+            }
+            disabled={conversa.status === 'RESOLVIDO' || enviando}
+            style={{
+              flex: 1,
+              background: 'var(--superficie-2)',
+              border: '1px solid var(--borda)',
+              borderRadius: 10,
+              padding: '10px 14px',
+              color: 'var(--texto)',
+              fontSize: 14,
+              outline: 'none',
+              opacity: conversa.status === 'RESOLVIDO' ? 0.5 : 1,
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--laranja-brasa)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--borda)'; }}
+          />
+          <button
+            type="submit"
+            disabled={!texto.trim() || enviando || conversa.status === 'RESOLVIDO'}
+            className="brk-gradient-bg"
+            style={{
+              border: 'none',
+              borderRadius: 10,
+              padding: '10px 20px',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              opacity: (!texto.trim() || enviando || conversa.status === 'RESOLVIDO') ? 0.45 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {enviando ? '…' : 'Enviar'}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
