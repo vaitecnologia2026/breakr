@@ -2,6 +2,7 @@
 // um `tipo` string; uma regra lista as acoes que executa. Extensivel: registrar
 // uma acao nova = adicionar uma entrada no catalogo (sem mexer no dispatcher).
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { FuncaoSquad } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { dataIsoSaoPaulo } from '../../common/data.util';
@@ -387,6 +388,30 @@ export class AcoesService {
         data: { whatsappGrupoId: grupo.waGroupId },
       });
       return { waGroupId: grupo.waGroupId, nome: grupo.nome };
+    });
+
+    // notificar_cs_onboarding: avisa o CS do squad do cliente para iniciar o
+    // onboarding com SLA de 3h (passo final da ativacao do cliente).
+    this.catalogo.set('notificar_cs_onboarding', async (_params, ctx) => {
+      const clienteId = String(ctx.payload.clienteId ?? '');
+      if (!clienteId) throw new Error('payload.clienteId ausente');
+      const cliente = await this.prisma.cliente.findUnique({
+        where: { id: clienteId },
+        select: { squadId: true, nomeFantasia: true },
+      });
+      if (!cliente?.squadId) return { notificado: false, motivo: 'cliente sem squad' };
+      const cs = await this.prisma.squadMembro.findFirst({
+        where: { squadId: cliente.squadId, funcao: FuncaoSquad.CS },
+        select: { usuarioId: true },
+      });
+      if (!cs) return { notificado: false, motivo: 'squad sem CS' };
+      await this.notificacoes.criar(cs.usuarioId, {
+        titulo: 'Novo cliente — inicie o onboarding (SLA 3h)',
+        mensagem: `${cliente.nomeFantasia} foi ativado. Inicie o onboarding em até 3 horas.`,
+        tipo: 'ALERTA',
+        link: '/onboarding',
+      });
+      return { notificado: true, csId: cs.usuarioId };
     });
 
     // registrar_rework_interno: registra rework INTERNO quando um designer/revisor

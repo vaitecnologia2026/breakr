@@ -107,6 +107,12 @@ export function Cobrancas() {
     new Map(faturas.map((f) => [f.clienteId, f.cliente?.nomeFantasia ?? f.clienteId])).entries(),
   ).sort((a, b) => a[1].localeCompare(b[1]));
 
+  // Cobranças pendentes vencendo nos próximos 7 dias (visão do financeiro).
+  const limite7d = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  const vencendo = faturas
+    .filter((f) => f.status === 'PENDENTE' && new Date(f.vencimento).getTime() <= limite7d)
+    .sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
+
   const q = busca.toLowerCase().trim();
   const filtradas = faturas.filter((f) => {
     if (filtroStatus && f.status !== filtroStatus) return false;
@@ -126,6 +132,32 @@ export function Cobrancas() {
       titulo="Cobranças"
       subtitulo="Faturas, nota fiscal e cobrança no WhatsApp"
     >
+      {!carregando && !erro && vencendo.length > 0 && (
+        <div
+          style={{
+            padding: '14px 16px',
+            borderRadius: 12,
+            background: 'var(--superficie-2)',
+            borderLeft: '3px solid var(--amarelo)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--amarelo)' }}>
+            {vencendo.length} cobrança(s) vencendo nos próximos 7 dias
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {vencendo.slice(0, 8).map((f) => (
+              <div key={f.id} style={{ fontSize: 12.5, color: 'var(--texto-suave)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <span>{f.cliente?.nomeFantasia ?? 'Cliente'} · {formatarBRL(f.valor)}</span>
+                <span style={{ color: 'var(--texto-fraco)' }}>vence {formatarData(f.vencimento)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="brk-filtros">
         <div className="brk-search">
           <span className="brk-search-icon" aria-hidden="true">

@@ -15,6 +15,24 @@ interface Resumo {
   acoes: Acao[];
 }
 
+interface PecaMinha {
+  id: string;
+  titulo: string;
+  status: string;
+  cliente: string | null;
+  dataAgendada: string | null;
+  atrasado: boolean;
+}
+interface MeuDia {
+  cargo: string;
+  pecas: PecaMinha[];
+  atrasadas: number;
+  financeiro: { faturasVencidas: number; faturasPendentes: number; contratosRevisao: number } | null;
+  trafego: { campanhasAtivas: number } | null;
+  cs: { atendimentosAbertos: number; onboardingsEmAndamento: number; onboardingsSlaEstourado: number } | null;
+  comercial: { leadsAtivos: number } | null;
+}
+
 type IcoCor = 'verde' | 'amarelo' | 'laranja' | 'neutro';
 
 // ── Ícones SVG ────────────────────────────────────────────────────────────────
@@ -147,14 +165,19 @@ export function Inicio() {
   const { usuario } = useAuth();
   const primeiroNome = usuario?.nome?.split(' ')[0] ?? 'usuário';
   const [resumo, setResumo] = useState<Resumo | null>(null);
+  const [meuDia, setMeuDia] = useState<MeuDia | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
 
   async function carregar() {
     setCarregando(true); setErro(false);
     try {
-      const { data } = await api.get<Resumo>('/painel/resumo');
-      setResumo(data);
+      const [r, m] = await Promise.all([
+        api.get<Resumo>('/painel/resumo'),
+        api.get<MeuDia>('/painel/meu-dia'),
+      ]);
+      setResumo(r.data);
+      setMeuDia(m.data);
     } catch { setErro(true); }
     finally { setCarregando(false); }
   }
@@ -178,6 +201,9 @@ export function Inicio() {
         <ErroEstado mensagem="Não foi possível carregar o painel." onTentar={carregar} />
       ) : (
         <>
+          {/* Meu dia — Hoje & Atrasados (personalizado por cargo) */}
+          {meuDia && <MeuDiaSecao meuDia={meuDia} />}
+
           {/* KPI Grid */}
           <div className="brk-stats-grid">
             {STATS_CONFIG.map((s) => {
@@ -313,5 +339,120 @@ export function Inicio() {
         </>
       )}
     </div>
+  );
+}
+
+// ── Meu dia (Hoje & Atrasados personalizado) ─────────────────────────────────
+
+const STATUS_CONTEUDO_ROTULO: Record<string, string> = {
+  IDEIA: 'Ideia',
+  ROTEIRO: 'Roteiro',
+  PRODUCAO: 'Em produção',
+  REVISAO: 'Em revisão',
+  APROVACAO_CLIENTE: 'Aprovação do cliente',
+  AGENDADO: 'Agendado',
+};
+
+function MiniStat({ rotulo, valor, link, alerta }: { rotulo: string; valor: number; link: string; alerta?: boolean }) {
+  return (
+    <Link
+      to={link}
+      className="brk-card brk-card-hover"
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 14px',
+        textDecoration: 'none', minWidth: 130, flex: '1 1 130px',
+        borderLeft: alerta && valor > 0 ? '3px solid var(--vermelho)' : undefined,
+      }}
+    >
+      <span style={{ fontSize: 22, fontWeight: 800, color: alerta && valor > 0 ? 'var(--vermelho)' : 'var(--texto)' }}>
+        {valor}
+      </span>
+      <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{rotulo}</span>
+    </Link>
+  );
+}
+
+function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
+  const { pecas, atrasadas, financeiro, trafego, cs, comercial } = meuDia;
+  const temBlocos = financeiro || trafego || cs || comercial;
+  const temConteudo = pecas.length > 0 || temBlocos;
+
+  if (!temConteudo) return null;
+
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="brk-secao-titulo">
+        Meu dia
+        {atrasadas > 0 && (
+          <span
+            style={{
+              fontSize: 10.5, fontWeight: 700,
+              background: 'rgba(239,68,68,0.12)', color: 'var(--vermelho)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 999, padding: '1px 7px', marginLeft: 2,
+            }}
+          >
+            {atrasadas} atrasada{atrasadas === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+
+      {/* Blocos por cargo */}
+      {temBlocos && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {financeiro && (
+            <>
+              <MiniStat rotulo="Faturas vencidas" valor={financeiro.faturasVencidas} link="/cobrancas" alerta />
+              <MiniStat rotulo="Cobranças pendentes" valor={financeiro.faturasPendentes} link="/cobrancas" />
+              <MiniStat rotulo="Contratos p/ revisar" valor={financeiro.contratosRevisao} link="/contratos" />
+            </>
+          )}
+          {trafego && (
+            <MiniStat rotulo="Campanhas ativas" valor={trafego.campanhasAtivas} link="/trafego" />
+          )}
+          {cs && (
+            <>
+              <MiniStat rotulo="Atendimentos abertos" valor={cs.atendimentosAbertos} link="/atendimento" />
+              <MiniStat rotulo="Onboardings em andamento" valor={cs.onboardingsEmAndamento} link="/onboarding" />
+              <MiniStat rotulo="Onboarding SLA 3h estourado" valor={cs.onboardingsSlaEstourado} link="/onboarding" alerta />
+            </>
+          )}
+          {comercial && (
+            <MiniStat rotulo="Leads no pipeline" valor={comercial.leadsAtivos} link="/comercial" />
+          )}
+        </div>
+      )}
+
+      {/* Minhas peças (conteúdo atribuído a mim) */}
+      {pecas.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-fraco)' }}>
+            Minhas peças ({pecas.length})
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+            {pecas.map((p) => (
+              <Link
+                key={p.id}
+                to="/conteudos"
+                className="brk-card brk-card-hover"
+                style={{
+                  display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 14px',
+                  textDecoration: 'none',
+                  borderLeft: p.atrasado ? '3px solid var(--vermelho)' : '3px solid var(--borda)',
+                }}
+              >
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{p.titulo}</span>
+                <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
+                  {p.cliente ?? 'Sem cliente'} · {STATUS_CONTEUDO_ROTULO[p.status] ?? p.status}
+                </span>
+                {p.atrasado && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--vermelho)' }}>Atrasada</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

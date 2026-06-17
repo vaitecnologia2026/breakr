@@ -106,6 +106,20 @@ model Usuario {
   comprasSolicitadas Compra[] @relation("CompraSolicitante")
   bugsResponsavel    Bug[]    @relation("BugResponsavel")
 
+  // Otimizacoes de campanha registradas pelo usuario (Fase 2 — tráfego)
+  otimizacoesCampanha OtimizacaoCampanha[] @relation("OtimizacaoAutor")
+
+  // Itens de inventario sob responsabilidade do usuario (Fase 4 — interno)
+  itensInventario ItemInventario[] @relation("ItemResponsavel")
+
+  // Manifestacoes na ouvidoria (Fase 4 — RH)
+  ouvidorias Ouvidoria[] @relation("OuvidoriaAutor")
+
+  // Documentos e avaliacoes de desempenho do colaborador (Fase 4 — RH)
+  documentos            DocumentoColaborador[] @relation("DocumentoColaborador")
+  desempenhosRecebidos  AvaliacaoDesempenho[]  @relation("DesempenhoColaborador")
+  desempenhosFeitos     AvaliacaoDesempenho[]  @relation("DesempenhoAvaliador")
+
   // Atendimento WhatsApp (M22)
   conversasAtendente Conversa[] @relation("ConversaAtendente")
 
@@ -496,6 +510,8 @@ model OnboardingEvento {
   descricao String?
   data      DateTime
   oQueLevar String?  @map("o_que_levar")
+  // Link do Google Meet (gerado opcionalmente ao criar a reuniao).
+  meetLink  String?  @map("meet_link")
   criadoEm  DateTime @default(now()) @map("criado_em")
 
   clienteId String  @map("cliente_id")
@@ -598,8 +614,10 @@ enum StatusConteudo {
   ROTEIRO
   PRODUCAO
   REVISAO
+  EM_ALTERACAO
   APROVACAO_CLIENTE
   AGENDADO
+  LABORATORIO
   PUBLICADO
   ARQUIVADO
 }
@@ -614,6 +632,8 @@ model Conteudo {
   status      StatusConteudo @default(IDEIA)
   codigoUnico String         @unique @map("codigo_unico")
   dataAgendada DateTime?     @map("data_agendada")
+  // Peca de trafego pago: ao ser aprovada vai p/ o laboratorio de criativos.
+  paraTrafego Boolean        @default(false) @map("para_trafego")
 
   // Qualidade / aprovacao do cliente (M18)
   estrelas          Int? // 1..5 (avaliacao do cliente)
@@ -720,7 +740,8 @@ model Candidato {
   email        String?
   telefone     String?
   status       StatusCandidato @default(INSCRITO)
-  perfilDisc   String?         @map("perfil_disc") // texto livre por enquanto
+  perfilDisc   String?         @map("perfil_disc") // resultado do teste DISC
+  curriculoUrl String?         @map("curriculo_url")
   observacao   String?
   criadoEm     DateTime        @default(now()) @map("criado_em")
   atualizadoEm DateTime        @updatedAt @map("atualizado_em")
@@ -731,6 +752,20 @@ model Candidato {
   @@index([vagaId])
   @@index([status])
   @@map("candidato")
+}
+
+/// Pergunta do teste DISC (editável pelo admin em Configurações). Cada pergunta
+/// tem opções; cada opção mapeia para uma dimensão (D, I, S ou C). opcoes é um
+/// JSON: [{ "texto": "...", "dimensao": "D|I|S|C" }, ...].
+model DiscPergunta {
+  id        String   @id @default(uuid())
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  enunciado String?
+  opcoes    Json
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@map("disc_pergunta")
 }
 
 /// Status de uma solicitacao de compra (M20).
@@ -829,9 +864,30 @@ model Campanha {
   clienteId String  @map("cliente_id")
   cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
+  otimizacoes OtimizacaoCampanha[]
+
   @@index([clienteId])
   @@index([status])
   @@map("campanha")
+}
+
+/// Registro de uma otimizacao feita numa campanha (historico). Cada ajuste vira
+/// um registro com o que foi feito e o resultado/observacao — o "historico de
+/// otimizacoes" do tráfego (ex.: "RAS medio era 14").
+model OtimizacaoCampanha {
+  id        String   @id @default(uuid())
+  descricao String
+  resultado String?
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  campanhaId String   @map("campanha_id")
+  campanha   Campanha @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+
+  autorId String?  @map("autor_id")
+  autor   Usuario? @relation("OtimizacaoAutor", fields: [autorId], references: [id])
+
+  @@index([campanhaId])
+  @@map("otimizacao_campanha")
 }
 
 // ============================================================
@@ -1001,4 +1057,125 @@ model ConfiguracaoIa {
   atualizadoEm    DateTime   @updatedAt @map("atualizado_em")
 
   @@map("configuracao_ia")
+}
+
+/// Reuniao interna do time (alinhamentos, dailies...). Independente de cliente.
+model ReuniaoInterna {
+  id        String   @id @default(uuid())
+  titulo    String
+  descricao String?
+  data      DateTime
+  meetLink  String?  @map("meet_link")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@map("reuniao_interna")
+}
+
+/// Item de inventario interno (equipamentos, materiais). Plaqueta = etiqueta de
+/// patrimonio; recebidoEm marca quando o funcionario confirmou o recebimento.
+model ItemInventario {
+  id            String    @id @default(uuid())
+  nome          String
+  categoria     String?
+  valor         Decimal?  @db.Decimal(12, 2)
+  notaFiscalUrl String?   @map("nota_fiscal_url")
+  plaqueta      String?
+  recebidoEm    DateTime? @map("recebido_em")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("ItemResponsavel", fields: [responsavelId], references: [id])
+
+  @@map("item_inventario")
+}
+
+/// Manifestação na central de ouvidoria (reclamações/denúncias do time → jurídico).
+/// status: ABERTA | EM_ANALISE | RESOLVIDA. anonima oculta o autor para o jurídico.
+model Ouvidoria {
+  id        String   @id @default(uuid())
+  assunto   String
+  mensagem  String
+  anonima   Boolean  @default(false)
+  status    String   @default("ABERTA")
+  resolucao String?
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  autorId String?  @map("autor_id")
+  autor   Usuario? @relation("OuvidoriaAutor", fields: [autorId], references: [id])
+
+  @@map("ouvidoria")
+}
+
+/// Meta trimestral (OKR) do time. periodo no formato "2026-Q3". status:
+/// EM_ANDAMENTO | CONCLUIDA | ATRASADA.
+model MetaTrimestre {
+  id        String   @id @default(uuid())
+  titulo    String
+  descricao String?
+  periodo   String
+  progresso Int      @default(0)
+  status    String   @default("EM_ANDAMENTO")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@map("meta_trimestre")
+}
+
+/// Resposta de eNPS (NPS interno do time). nota 0..10, anônima por natureza.
+model RespostaEnps {
+  id         String   @id @default(uuid())
+  nota       Int
+  comentario String?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@map("resposta_enps")
+}
+
+/// Documento do colaborador (holerite, folha, contrato, manual). Por link +
+/// assinatura: o colaborador assina dentro do sistema (assinadoEm). tipo:
+/// HOLERITE | FOLHA | CONTRATO | MANUAL | OUTRO. competencia ex.: "2026-06".
+model DocumentoColaborador {
+  id          String    @id @default(uuid())
+  tipo        String
+  titulo      String
+  url         String
+  competencia String?
+  assinadoEm  DateTime? @map("assinado_em")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+
+  colaboradorId String  @map("colaborador_id")
+  colaborador   Usuario @relation("DocumentoColaborador", fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  @@index([colaboradorId])
+  @@map("documento_colaborador")
+}
+
+/// Avaliação de desempenho de um colaborador num período (ex.: 2026-Q3).
+model AvaliacaoDesempenho {
+  id         String   @id @default(uuid())
+  periodo    String
+  nota       Int?
+  comentario String
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  colaboradorId String  @map("colaborador_id")
+  colaborador   Usuario @relation("DesempenhoColaborador", fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  avaliadorId String?  @map("avaliador_id")
+  avaliador   Usuario? @relation("DesempenhoAvaliador", fields: [avaliadorId], references: [id])
+
+  @@index([colaboradorId])
+  @@map("avaliacao_desempenho")
+}
+
+/// Curso/treinamento disponibilizado para o time (link externo — Hotmart etc.).
+model CursoEducacional {
+  id         String   @id @default(uuid())
+  titulo     String
+  descricao  String?
+  url        String
+  plataforma String?
+  ativo      Boolean  @default(true)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@map("curso_educacional")
 }

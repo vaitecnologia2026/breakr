@@ -31,6 +31,16 @@ import { QualidadeModule } from './qualidade/qualidade.module';
 import { AtendimentoModule } from './atendimento/atendimento.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { ChatModule } from './chat/chat.module';
+import { ReunioesModule } from './reunioes/reunioes.module';
+import { CaptacaoModule } from './captacao/captacao.module';
+import { InventarioModule } from './inventario/inventario.module';
+import { EducacionalModule } from './educacional/educacional.module';
+import { OuvidoriaModule } from './ouvidoria/ouvidoria.module';
+import { MetasModule } from './metas/metas.module';
+import { EnpsModule } from './enps/enps.module';
+import { DiscModule } from './disc/disc.module';
+import { DocumentosModule } from './documentos/documentos.module';
+import { DesempenhoModule } from './desempenho/desempenho.module';
 
 @Module({
   imports: [
@@ -80,6 +90,23 @@ import { ChatModule } from './chat/chat.module';
     ComunicadosModule,
     // Chat interno (canais + mensagens com polling).
     ChatModule,
+    // Reuniões internas do time.
+    ReunioesModule,
+    // Captação de dados (jurídico) — formulário público de entrada.
+    CaptacaoModule,
+    // Inventário interno (equipamentos/materiais).
+    InventarioModule,
+    // Educacional — catálogo de cursos/treinamentos.
+    EducacionalModule,
+    // RH — ouvidoria, metas trimestrais e eNPS.
+    OuvidoriaModule,
+    MetasModule,
+    EnpsModule,
+    // Recrutamento — teste DISC (configurável em Configurações).
+    DiscModule,
+    // RH — documentos do colaborador (holerite/folha) e desempenho.
+    DocumentosModule,
+    DesempenhoModule,
   ],
 })
 export class AppModule {}

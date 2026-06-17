@@ -337,9 +337,119 @@ export function Configuracoes() {
         titulo="Configurações"
         subtitulo="Integrações, IA e parâmetros do sistema"
       />
-      <Tabs abas={['IA', 'Integrações']} ativa={aba} aoMudar={setAba} />
+      <Tabs abas={['IA', 'Integrações', 'Teste DISC']} ativa={aba} aoMudar={setAba} />
       {aba === 'IA' && <AbaIA />}
       {aba === 'Integrações' && <AbaIntegracoes />}
+      {aba === 'Teste DISC' && <AbaDisc />}
     </>
+  );
+}
+
+/* ── Aba: Teste DISC (banco de perguntas configurável) ── */
+type Dim = 'D' | 'I' | 'S' | 'C';
+interface OpcaoDisc { texto: string; dimensao: Dim }
+interface PerguntaDisc { id: string; enunciado: string | null; ordem: number; ativo: boolean; opcoes: OpcaoDisc[] }
+
+const DIM_ROTULO: Record<Dim, string> = { D: 'D — Dominância', I: 'I — Influência', S: 'S — Estabilidade', C: 'C — Conformidade' };
+
+function AbaDisc() {
+  const [perguntas, setPerguntas] = useState<PerguntaDisc[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const [enunciado, setEnunciado] = useState('');
+  const [opcoes, setOpcoes] = useState<OpcaoDisc[]>([
+    { texto: '', dimensao: 'D' }, { texto: '', dimensao: 'I' },
+    { texto: '', dimensao: 'S' }, { texto: '', dimensao: 'C' },
+  ]);
+  const [salvando, setSalvando] = useState(false);
+
+  async function carregar() {
+    setCarregando(true); setErro(null);
+    try {
+      const { data } = await api.get<PerguntaDisc[]>('/config/disc/perguntas');
+      setPerguntas(data);
+    } catch { setErro('Não foi possível carregar as perguntas.'); }
+    finally { setCarregando(false); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  function setOpcao(i: number, patch: Partial<OpcaoDisc>) {
+    setOpcoes((prev) => prev.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
+  }
+
+  async function adicionar() {
+    const validas = opcoes.filter((o) => o.texto.trim());
+    if (validas.length < 2 || salvando) return;
+    setSalvando(true);
+    try {
+      await api.post('/config/disc/perguntas', {
+        enunciado: enunciado.trim() || undefined,
+        ordem: perguntas.length,
+        opcoes: validas.map((o) => ({ texto: o.texto.trim(), dimensao: o.dimensao })),
+      });
+      setEnunciado('');
+      setOpcoes([{ texto: '', dimensao: 'D' }, { texto: '', dimensao: 'I' }, { texto: '', dimensao: 'S' }, { texto: '', dimensao: 'C' }]);
+      carregar();
+    } finally { setSalvando(false); }
+  }
+
+  async function alternarAtivo(p: PerguntaDisc) {
+    await api.patch(`/config/disc/perguntas/${p.id}`, { ativo: !p.ativo, opcoes: p.opcoes });
+    carregar();
+  }
+  async function remover(id: string) {
+    await api.delete(`/config/disc/perguntas/${id}`);
+    carregar();
+  }
+
+  if (carregando) return <Carregando />;
+  if (erro) return <ErroEstado mensagem={erro} onTentar={carregar} />;
+
+  const ativas = perguntas.filter((p) => p.ativo).length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Banco de perguntas</h3>
+        <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 12 }}>
+          {perguntas.length} perguntas ({ativas} ativas). O teste do candidato usa as perguntas ativas. Quanto mais perguntas, mais preciso o perfil.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Campo rotulo="Enunciado (opcional)" value={enunciado} onChange={(e) => setEnunciado(e.target.value)} placeholder="Ex.: Escolha a frase com que mais se identifica" />
+          {opcoes.map((o, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <Campo rotulo={`Opção ${i + 1}`} value={o.texto} onChange={(e) => setOpcao(i, { texto: e.target.value })} placeholder="Texto da opção" />
+              </div>
+              <select className="brk-input" style={{ width: 150 }} value={o.dimensao} onChange={(e) => setOpcao(i, { dimensao: e.target.value as Dim })}>
+                {(['D', 'I', 'S', 'C'] as Dim[]).map((d) => <option key={d} value={d}>{DIM_ROTULO[d]}</option>)}
+              </select>
+            </div>
+          ))}
+          <div><Btn onClick={adicionar} disabled={salvando}>{salvando ? 'Salvando…' : 'Adicionar pergunta'}</Btn></div>
+        </div>
+      </Card>
+
+      {perguntas.map((p, idx) => (
+        <Card key={p.id}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{idx + 1}. {p.enunciado ?? '(sem enunciado)'} {!p.ativo && <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>· inativa</span>}</div>
+              <ul style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {p.opcoes.map((o, i) => (
+                  <li key={i} style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>
+                    <strong style={{ color: 'var(--cinza-vapor)' }}>{o.dimensao}</strong> · {o.texto}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Btn variante="secondary" tamanho="sm" onClick={() => alternarAtivo(p)}>{p.ativo ? 'Desativar' : 'Ativar'}</Btn>
+              <Btn variante="secondary" tamanho="sm" onClick={() => remover(p.id)}>Remover</Btn>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }

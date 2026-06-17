@@ -68,6 +68,7 @@ export class ClientesService {
         status: dto.status,
         squadId: dto.squadId,
         planoId: dto.planoId,
+        linkAreaMembros: dto.linkAreaMembros,
       },
     });
   }

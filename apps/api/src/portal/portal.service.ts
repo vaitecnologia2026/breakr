@@ -97,6 +97,7 @@ export class PortalService {
         descricao: ev.descricao,
         data: ev.data,
         oQueLevar: ev.oQueLevar,
+        meetLink: ev.meetLink,
       })),
       // Aulas do onboarding educativo, com a flag de concluida do cliente.
       aulas: aulasAtivas.map((a) => ({
@@ -135,7 +136,7 @@ export class PortalService {
     }
     const conteudo = await this.prisma.conteudo.findUnique({
       where: { id: conteudoId },
-      select: { id: true, clienteId: true, status: true, responsavelId: true },
+      select: { id: true, clienteId: true, status: true, responsavelId: true, paraTrafego: true },
     });
     if (!conteudo || conteudo.clienteId !== cliente.id) {
       throw new NotFoundException('Peca nao encontrada neste portal');
@@ -161,11 +162,17 @@ export class PortalService {
   ) {
     const conteudo = await this.conteudoDoCliente(codigo, conteudoId);
 
+    // Roteamento pos-aprovacao: peca de trafego pago vai para o laboratorio de
+    // criativos (o gestor sobe o anuncio); organica vai direto para agendamento.
+    const destino = conteudo.paraTrafego
+      ? StatusConteudo.LABORATORIO
+      : StatusConteudo.AGENDADO;
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.conteudo.update({
         where: { id: conteudoId },
         data: {
-          status: StatusConteudo.AGENDADO,
+          status: destino,
           estrelas: dados.estrelas,
           comentarioCliente: dados.comentario,
           aprovadoEm: new Date(),

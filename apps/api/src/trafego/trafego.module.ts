@@ -4,13 +4,15 @@ import { Module } from '@nestjs/common';
 import { IaModule } from '../ia/ia.module';
 import { IntegracoesModule } from '../integracoes/integracoes.module';
 import { AutomacaoModule } from '../automacao/automacao.module';
+import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 import { TrafegoService } from './trafego.service';
 import { TrafegoController, RelatoriosTrafegoController } from './trafego.controller';
+import { AlertasTrafegoSchedulerService } from './alertas-trafego-scheduler.service';
 
 @Module({
-  imports: [IaModule, IntegracoesModule, AutomacaoModule],
+  imports: [IaModule, IntegracoesModule, AutomacaoModule, NotificacoesModule],
   controllers: [TrafegoController, RelatoriosTrafegoController],
-  providers: [TrafegoService],
+  providers: [TrafegoService, AlertasTrafegoSchedulerService],
   exports: [TrafegoService],
 })
 export class TrafegoModule {}

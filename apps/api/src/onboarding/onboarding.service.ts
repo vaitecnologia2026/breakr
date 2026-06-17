@@ -1,10 +1,11 @@
 // Servico de onboarding gamificado (M14). Liberado apos o pagamento da 1a
 // fatura: cria o checklist do cliente e move o cliente para ONBOARD; quando
 // todas as etapas sao concluidas, o cliente vira ATIVO.
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Onboarding } from '@prisma/client';
 import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { GOOGLE_MEET_PORT, GoogleMeetPort } from '../integracoes';
 import { CriarAulaDto } from './dto/criar-aula.dto';
 import { AtualizarAulaDto } from './dto/atualizar-aula.dto';
 import { CriarEventoDto } from './dto/criar-evento.dto';
@@ -21,7 +22,10 @@ const ETAPAS_PADRAO: Array<{ ordem: number; titulo: string }> = [
 
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(GOOGLE_MEET_PORT) private readonly meet: GoogleMeetPort,
+  ) {}
 
   // Cria o onboarding do cliente (idempotente). Se ja existir, devolve o atual.
   // Tambem move o cliente para ONBOARD (entrou no fluxo de ativacao).
@@ -141,6 +145,18 @@ export class OnboardingService {
       select: { id: true },
     });
     if (!cliente) throw new NotFoundException('Cliente nao encontrado');
+
+    // Gera o link do Google Meet quando solicitado (stub até a credencial entrar).
+    let meetLink: string | undefined;
+    if (dto.gerarMeet) {
+      const r = await this.meet.criarMeet({
+        titulo: dto.titulo,
+        inicio: new Date(dto.data).toISOString(),
+        convidados: dto.convidados,
+      });
+      meetLink = r.meetLink;
+    }
+
     return this.prisma.onboardingEvento.create({
       data: {
         clienteId,
@@ -148,6 +164,7 @@ export class OnboardingService {
         descricao: dto.descricao,
         data: new Date(dto.data),
         oQueLevar: dto.oQueLevar,
+        meetLink,
       },
     });
   }

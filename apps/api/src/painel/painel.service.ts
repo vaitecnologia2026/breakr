@@ -5,14 +5,17 @@ import { Injectable } from '@nestjs/common';
 import {
   ClienteStatus,
   StatusBug,
+  StatusCampanha,
   StatusCandidato,
   StatusCompra,
   StatusConteudo,
   StatusContrato,
+  StatusConversa,
   StatusFatura,
   StatusLead,
   SeveridadeBug,
 } from '@prisma/client';
+import { Cargo, UsuarioPublico } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 type Tom = 'info' | 'alerta' | 'erro';
@@ -199,5 +202,123 @@ export class PainelService {
       ]);
 
     return { faturasVencidas, bugsCriticos, contratosRevisao, comprasSolicitadas, conteudosSla, conteudosAprovar };
+  }
+
+  // "Meu dia" — Hoje & Atrasados PERSONALIZADO para o usuario logado, modular por
+  // cargo (designer ve suas pecas; financeiro, boletos/contratos; gestor, campanhas;
+  // CS, atendimentos; comercial, leads). As pecas atribuidas a mim aparecem sempre.
+  async meuDia(usuario: UsuarioPublico) {
+    const agora = new Date();
+    const SLA_72H = new Date(agora.getTime() - 72 * 60 * 60 * 1000);
+    // SLA de onboarding do CS: 3h para iniciar (progresso ainda em 0).
+    const SLA_3H = new Date(agora.getTime() - 3 * 60 * 60 * 1000);
+
+    // Squads do usuario (para filtrar clientes "meus" em trafego/CS).
+    const membros = await this.prisma.squadMembro.findMany({
+      where: { usuarioId: usuario.id },
+      select: { squadId: true },
+    });
+    const squadIds = membros.map((m) => m.squadId);
+
+    // Minhas pecas — conteudos atribuidos a mim (qualquer cargo de producao).
+    const minhasPecasRaw = await this.prisma.conteudo.findMany({
+      where: {
+        responsavelId: usuario.id,
+        status: { notIn: [StatusConteudo.PUBLICADO, StatusConteudo.ARQUIVADO] },
+      },
+      orderBy: [{ dataAgendada: 'asc' }, { atualizadoEm: 'asc' }],
+      take: 50,
+      select: {
+        id: true,
+        titulo: true,
+        status: true,
+        dataAgendada: true,
+        atualizadoEm: true,
+        cliente: { select: { nomeFantasia: true } },
+      },
+    });
+    const pecas = minhasPecasRaw.map((p) => ({
+      id: p.id,
+      titulo: p.titulo,
+      status: p.status,
+      cliente: p.cliente?.nomeFantasia ?? null,
+      dataAgendada: p.dataAgendada,
+      // Atrasada se passou a data agendada ou ficou +72h sem atividade (SLA).
+      atrasado:
+        (p.dataAgendada !== null && p.dataAgendada < agora) || p.atualizadoEm < SLA_72H,
+    }));
+
+    const cargo = usuario.cargo;
+    const ehGestao = cargo === Cargo.SUPERADMIN || cargo === Cargo.ADMIN;
+
+    // Bloco financeiro (FINANCEIRO + gestao).
+    let financeiro: { faturasVencidas: number; faturasPendentes: number; contratosRevisao: number } | null = null;
+    if (cargo === Cargo.FINANCEIRO || ehGestao) {
+      const [faturasVencidas, faturasPendentes, contratosRevisao] = await Promise.all([
+        this.prisma.fatura.count({ where: { status: StatusFatura.PENDENTE, vencimento: { lt: agora } } }),
+        this.prisma.fatura.count({ where: { status: StatusFatura.PENDENTE, vencimento: { gte: agora } } }),
+        this.prisma.contrato.count({ where: { status: StatusContrato.EM_REVISAO } }),
+      ]);
+      financeiro = { faturasVencidas, faturasPendentes, contratosRevisao };
+    }
+
+    // Bloco trafego — campanhas ativas dos meus clientes (via squad).
+    let trafego: { campanhasAtivas: number } | null = null;
+    if (cargo === Cargo.GESTOR_TRAFEGO || ehGestao) {
+      const campanhasAtivas = await this.prisma.campanha.count({
+        where: {
+          status: StatusCampanha.ATIVA,
+          ...(ehGestao ? {} : { cliente: { squadId: { in: squadIds } } }),
+        },
+      });
+      trafego = { campanhasAtivas };
+    }
+
+    // Bloco CS — atendimentos abertos + onboardings (incl. SLA 3h estourado).
+    let cs: {
+      atendimentosAbertos: number;
+      onboardingsEmAndamento: number;
+      onboardingsSlaEstourado: number;
+    } | null = null;
+    if (cargo === Cargo.CS || ehGestao) {
+      const filtroSquad = ehGestao ? {} : { cliente: { squadId: { in: squadIds } } };
+      const [atendimentosAbertos, onboardingsEmAndamento, onboardingsSlaEstourado] =
+        await Promise.all([
+          this.prisma.conversa.count({
+            where: {
+              status: { in: [StatusConversa.PENDENTE, StatusConversa.ATENDENDO] },
+              ...filtroSquad,
+            },
+          }),
+          this.prisma.onboarding.count({ where: { concluido: false, ...filtroSquad } }),
+          // Não iniciado (progresso 0) e criado há mais de 3h → SLA estourado.
+          this.prisma.onboarding.count({
+            where: { concluido: false, progresso: 0, criadoEm: { lt: SLA_3H }, ...filtroSquad },
+          }),
+        ]);
+      cs = { atendimentosAbertos, onboardingsEmAndamento, onboardingsSlaEstourado };
+    }
+
+    // Bloco comercial — meus leads em aberto.
+    let comercial: { leadsAtivos: number } | null = null;
+    if (cargo === Cargo.COMERCIAL || ehGestao) {
+      const leadsAtivos = await this.prisma.lead.count({
+        where: {
+          status: { notIn: [StatusLead.GANHO, StatusLead.PERDIDO] },
+          ...(ehGestao ? {} : { responsavelId: usuario.id }),
+        },
+      });
+      comercial = { leadsAtivos };
+    }
+
+    return {
+      cargo,
+      pecas,
+      atrasadas: pecas.filter((p) => p.atrasado).length,
+      financeiro,
+      trafego,
+      cs,
+      comercial,
+    };
   }
 }

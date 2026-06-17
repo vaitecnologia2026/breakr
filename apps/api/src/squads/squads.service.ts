@@ -34,6 +34,32 @@ export class SquadsService {
     });
   }
 
+  // Squad de um cliente + membros por funcao — usado para auto-preencher a
+  // criacao de conteudo/tarefa (escolher o cliente ja resolve o squad e quem faz).
+  async obterDoCliente(clienteId: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: clienteId },
+      select: { squadId: true },
+    });
+    if (!cliente?.squadId) {
+      return { squad: null, membros: [] };
+    }
+    const squad = await this.prisma.squad.findUnique({
+      where: { id: cliente.squadId },
+      include: { membros: { include: { usuario: { select: { id: true, nome: true, cargo: true } } } } },
+    });
+    if (!squad) {
+      return { squad: null, membros: [] };
+    }
+    return {
+      squad: { id: squad.id, nome: squad.nome },
+      membros: squad.membros.map((m) => ({
+        funcao: m.funcao,
+        usuario: m.usuario,
+      })),
+    };
+  }
+
   /**
    * Auto-balanceamento: atribui o cliente ao squad ATIVO menos carregado
    * (menos clientes). Empate -> primeiro por nome (deterministico). Idempotente:

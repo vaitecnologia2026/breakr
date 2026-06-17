@@ -3,8 +3,11 @@
 // As métricas entram manualmente / por stub até a credencial Meta Ads chegar.
 // gerarRelatorio(): equivale ao n8n "[Reportei] Envio de Relatórios pelo WhatsApp" —
 //   agrega campanhas do cliente, gera resumo via IA, envia para o grupo WA do cliente.
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Campanha, Prisma, StatusCampanha } from '@prisma/client';
+
+// Estimativa mensal a partir do orcamento diario (Meta cobra por dia).
+const DIAS_MES = 30;
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { IaService } from '../ia/ia.service';
@@ -25,7 +28,51 @@ export class TrafegoService {
     private readonly engine: EngineService,
   ) {}
 
+  // Orcamento do cliente: teto mensal (definido no cadastro) vs. ja comprometido
+  // pelas campanhas ativas/rascunho (orcamento diario x 30). saldo = teto - comprometido.
+  async orcamento(clienteId: string): Promise<{
+    tetoMensal: number | null;
+    comprometido: number;
+    saldo: number | null;
+  }> {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: clienteId },
+      select: { orcamentoMensal: true },
+    });
+    if (!cliente) throw new NotFoundException('Cliente nao encontrado');
+    const tetoMensal = cliente.orcamentoMensal !== null ? Number(cliente.orcamentoMensal) : null;
+
+    const campanhas = await this.prisma.campanha.findMany({
+      where: { clienteId, status: { in: [StatusCampanha.ATIVA, StatusCampanha.RASCUNHO] } },
+      select: { orcamentoDiario: true },
+    });
+    const comprometido = campanhas.reduce(
+      (s, c) => s + (c.orcamentoDiario !== null ? Number(c.orcamentoDiario) * DIAS_MES : 0),
+      0,
+    );
+    const saldo = tetoMensal !== null ? tetoMensal - comprometido : null;
+    return { tetoMensal, comprometido, saldo };
+  }
+
   async criar(dto: CriarCampanhaDto): Promise<Campanha> {
+    // Orcamento inteligente: bloqueia criar campanha que estoure o teto mensal do
+    // cliente. So valida quando ha teto definido e orcamento diario informado.
+    if (dto.orcamentoDiario !== undefined) {
+      const { tetoMensal, comprometido } = await this.orcamento(dto.clienteId);
+      if (tetoMensal !== null) {
+        const novoMensal = Number(dto.orcamentoDiario) * DIAS_MES;
+        if (comprometido + novoMensal > tetoMensal) {
+          const saldoMensal = Math.max(0, tetoMensal - comprometido);
+          const maxDiario = saldoMensal / DIAS_MES;
+          throw new BadRequestException(
+            `Orçamento estoura o teto mensal do cliente (R$ ${tetoMensal.toFixed(2)}). ` +
+              `Já comprometido: R$ ${comprometido.toFixed(2)}/mês. ` +
+              `Máximo diário possível nesta campanha: R$ ${maxDiario.toFixed(2)}.`,
+          );
+        }
+      }
+    }
+
     const campanha = await this.prisma.campanha.create({
       data: {
         clienteId: dto.clienteId,
@@ -45,6 +92,77 @@ export class TrafegoService {
       objetivo: dto.objetivo ?? '',
     });
     return campanha;
+  }
+
+  // Histórico de otimizações de uma campanha (mais recentes primeiro).
+  async listarOtimizacoes(campanhaId: string) {
+    await this.obter(campanhaId);
+    return this.prisma.otimizacaoCampanha.findMany({
+      where: { campanhaId },
+      orderBy: { criadoEm: 'desc' },
+      include: { autor: { select: { nome: true } } },
+    });
+  }
+
+  // Registra uma otimização feita na campanha (descrição + resultado/observação).
+  async registrarOtimizacao(
+    campanhaId: string,
+    dto: { descricao: string; resultado?: string },
+    autorId?: string,
+  ) {
+    await this.obter(campanhaId);
+    return this.prisma.otimizacaoCampanha.create({
+      data: {
+        campanhaId,
+        descricao: dto.descricao,
+        resultado: dto.resultado,
+        autorId,
+      },
+      include: { autor: { select: { nome: true } } },
+    });
+  }
+
+  // Alertas de tráfego (IA assistiva, sem depender da Meta API): varre as
+  // campanhas ATIVAS e sinaliza as que estão fora do esperado pelas métricas já
+  // cadastradas. CTR < 1% (com volume) e gasto sem conversão são os gatilhos.
+  async alertas(clienteId?: string): Promise<
+    { campanhaId: string; nome: string; cliente: string; motivo: string; severidade: 'alerta' | 'erro' }[]
+  > {
+    const campanhas = await this.prisma.campanha.findMany({
+      where: { status: StatusCampanha.ATIVA, ...(clienteId ? { clienteId } : {}) },
+      include: INCLUDE,
+    });
+    const alertas: {
+      campanhaId: string;
+      nome: string;
+      cliente: string;
+      motivo: string;
+      severidade: 'alerta' | 'erro';
+    }[] = [];
+    for (const c of campanhas) {
+      const cliente = c.cliente.nomeFantasia;
+      const ctr = c.impressoes > 0 ? (c.cliques / c.impressoes) * 100 : null;
+      const gasto = Number(c.gasto ?? 0);
+      if (c.impressoes >= 500 && ctr !== null && ctr < 1) {
+        alertas.push({
+          campanhaId: c.id,
+          nome: c.nome,
+          cliente,
+          motivo: `CTR baixo (${ctr.toFixed(2)}%) com ${c.impressoes} impressões`,
+          severidade: 'alerta',
+        });
+      }
+      if (gasto > 0 && c.conversoes === 0) {
+        alertas.push({
+          campanhaId: c.id,
+          nome: c.nome,
+          cliente,
+          motivo: `Gasto de R$ ${gasto.toFixed(2)} sem conversões`,
+          severidade: 'erro',
+        });
+      }
+    }
+    return alertas;
   }
 
   listar(filtro?: { clienteId?: string; status?: StatusCampanha }): Promise<Campanha[]> {

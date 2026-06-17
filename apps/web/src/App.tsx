@@ -2,9 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Portal } from './pages/Portal';
+import { Captacao } from './pages/Captacao';
+import { AvaliacaoDisc } from './pages/AvaliacaoDisc';
 import { Dashboard } from './pages/Dashboard';
 import { Inicio } from './pages/Inicio';
 import { Clientes } from './pages/Clientes';
+import { Onboarding } from './pages/Onboarding';
 import { Contratos } from './pages/Contratos';
 import { Cobrancas } from './pages/Cobrancas';
 import { Conteudos } from './pages/Conteudos';
@@ -23,12 +26,22 @@ import { Atendimento } from './pages/Atendimento';
 import { Inbox } from './pages/Inbox';
 import { Comunicados } from './pages/Comunicados';
 import { Chat } from './pages/Chat';
+import { Reunioes } from './pages/Reunioes';
+import { Inventario } from './pages/Inventario';
+import { Educacional } from './pages/Educacional';
+import { Ouvidoria } from './pages/Ouvidoria';
+import { Metas } from './pages/Metas';
+import { Enps } from './pages/Enps';
+import { Documentos } from './pages/Documentos';
+import { Desempenho } from './pages/Desempenho';
 
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/portal/:codigo" element={<Portal />} />
+      <Route path="/captacao" element={<Captacao />} />
+      <Route path="/avaliacao-disc" element={<AvaliacaoDisc />} />
 
       <Route
         path="/"
@@ -41,6 +54,7 @@ export function App() {
         <Route index element={<Inicio />} />
         <Route path="comercial" element={<Comercial />} />
         <Route path="clientes" element={<Clientes />} />
+        <Route path="onboarding" element={<Onboarding />} />
         <Route path="contratos" element={<Contratos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="projetos" element={<Projetos />} />
@@ -56,6 +70,14 @@ export function App() {
         <Route path="inbox" element={<Inbox />} />
         <Route path="comunicados" element={<Comunicados />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="reunioes" element={<Reunioes />} />
+        <Route path="inventario" element={<Inventario />} />
+        <Route path="educacional" element={<Educacional />} />
+        <Route path="ouvidoria" element={<Ouvidoria />} />
+        <Route path="metas" element={<Metas />} />
+        <Route path="enps" element={<Enps />} />
+        <Route path="documentos" element={<Documentos />} />
+        <Route path="desempenho" element={<Desempenho />} />
         <Route path="equipe" element={<Equipe />} />
         <Route path="configuracoes" element={<Configuracoes />} />
       </Route>

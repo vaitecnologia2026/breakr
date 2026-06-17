@@ -1305,24 +1305,29 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
 .brk-favbar-item.active .brk-favbar-item-ico { color: var(--laranja-brasa); }
 .brk-favbar-item-nome { font-size: 12px; }
 
-/* ── Tema claro ── */
+/* ── Tema grafite (claro) ── */
 [data-tema="light"] {
   color-scheme: light;
-  --bg: #f5f5f8;
-  --superficie: #ffffff;
-  --superficie-2: #f0f0f5;
-  --superficie-3: #e8e8f0;
-  --superficie-4: #e0e0eb;
-  --borda: rgba(0, 0, 0, 0.07);
-  --borda-forte: rgba(0, 0, 0, 0.13);
-  --borda-hover: rgba(0, 0, 0, 0.24);
+  /* Logo usa --cinza-vapor para o texto "Breakr" — precisa ser escuro no tema claro */
+  --cinza-vapor: #1a1a2e;
+  /* --preto-fumaca é usado em telas como Login como fundo principal */
+  --preto-fumaca: #ecedf2;
+  /* Paleta grafite: fundo médio-escuro, superfícies mais claras flutuam acima */
+  --bg: #ecedf2;
+  --superficie: #f4f4f9;
+  --superficie-2: #eaebf0;
+  --superficie-3: #e2e2ea;
+  --superficie-4: #dadae2;
+  --borda: rgba(0, 0, 0, 0.08);
+  --borda-forte: rgba(0, 0, 0, 0.14);
+  --borda-hover: rgba(0, 0, 0, 0.26);
   --texto: #1a1a2e;
-  --texto-suave: rgba(26, 26, 46, 0.68);
-  --texto-fraco: rgba(26, 26, 46, 0.38);
+  --texto-suave: rgba(26, 26, 46, 0.70);
+  --texto-fraco: rgba(26, 26, 46, 0.42);
   --sombra-card: 0 1px 3px rgba(0,0,0,0.07), 0 8px 24px -8px rgba(0,0,0,0.1);
   --sombra-modal: 0 24px 80px -16px rgba(0,0,0,0.2);
-  --sombra-dropdown: 0 8px 30px -4px rgba(0,0,0,0.15);
-  --sidebar-bg: #ffffff;
+  --sombra-dropdown: 0 8px 30px -4px rgba(0,0,0,0.14);
+  --sidebar-bg: #e4e4ee;
   --foco: rgba(208, 80, 40, 0.2);
   --verde-fundo: rgba(34, 197, 94, 0.1);
   --vermelho-fundo: rgba(239, 68, 68, 0.1);
@@ -1337,7 +1342,7 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
     radial-gradient(60% 50% at 15% 0%, rgba(208, 80, 40, 0.05), transparent 70%),
     radial-gradient(55% 45% at 95% 25%, rgba(245, 154, 0, 0.03), transparent 65%);
 }
-[data-tema="light"] .brk-sidebar-item.active { background: rgba(0,0,0,0.05); }
+[data-tema="light"] .brk-sidebar-item.active { background: rgba(208,80,40,0.08); }
 [data-tema="light"] .brk-alerta-erro { color: #b91c1c; }
 [data-tema="light"] .brk-alerta-sucesso { color: #166534; }
 [data-tema="light"] .brk-alerta-info { color: #1d4ed8; }
@@ -1347,12 +1352,20 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
   background-size: 28px 28px;
 }
 [data-tema="light"] .brk-topbar {
-  background: rgba(255,255,255,0.88);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  background: rgba(236,237,242,0.92);
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.05);
 }
 [data-tema="light"] .brk-card {
-  background: linear-gradient(180deg, #ffffff 0%, #fafafd 100%);
+  background: linear-gradient(180deg, var(--superficie-2) 0%, var(--superficie) 100%);
+}
+[data-tema="light"] .brk-card-hover:hover {
+  border-color: rgba(0,0,0,0.18) !important;
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.07),
+    0 20px 56px -10px rgba(0,0,0,0.14),
+    0 0 0 1px rgba(208,80,40,0.12) !important;
+  transform: translateY(-2px);
 }
 [data-tema="light"] .brk-card-stat-valor {
   background: linear-gradient(to bottom, #1a1a2e 10%, rgba(26,26,46,0.6) 100%);
@@ -1365,6 +1378,30 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
 [data-tema="light"] .brk-kpi-valor {
   background: linear-gradient(to bottom, #1a1a2e 10%, rgba(26,26,46,0.6) 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+[data-tema="light"] .brk-modal {
+  background: linear-gradient(180deg, var(--superficie-2) 0%, var(--superficie) 40%);
+}
+[data-tema="light"] .brk-gs-modal {
+  background: var(--superficie);
+}
+[data-tema="light"] .brk-ai-panel {
+  background: var(--superficie);
+}
+[data-tema="light"] .brk-user-dropdown {
+  background: var(--superficie);
+}
+[data-tema="light"] .brk-th {
+  background: linear-gradient(180deg, var(--superficie-3) 0%, var(--superficie-2) 100%) !important;
+}
+[data-tema="light"] .brk-chat-canais {
+  background: var(--sidebar-bg);
+}
+[data-tema="light"] .brk-chat-area-header {
+  background: var(--superficie);
+}
+[data-tema="light"] .brk-chat-input-bar {
+  background: var(--superficie);
 }
 
 /* ── KPI Cards Premium ── */

@@ -57,6 +57,22 @@ interface ClienteOpt {
   nomeFantasia: string;
 }
 
+// Orçamento do cliente (teto mensal vs. comprometido pelas campanhas).
+interface OrcamentoCliente {
+  tetoMensal: number | null;
+  comprometido: number;
+  saldo: number | null;
+}
+
+// Alerta de tráfego (campanha fora do threshold).
+interface AlertaTrafego {
+  campanhaId: string;
+  nome: string;
+  cliente: string;
+  motivo: string;
+  severidade: 'alerta' | 'erro';
+}
+
 // Resposta do endpoint de IA: ou vem o texto, ou vem um aviso de configuração.
 interface RespostaSugestoes {
   sugestoes: string | null;
@@ -132,9 +148,11 @@ function calcularCpa(gasto: string | null, conversoes: number): string {
 
 export function Trafego() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  const [alertas, setAlertas] = useState<AlertaTrafego[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalSolicitar, setModalSolicitar] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
 
@@ -142,8 +160,12 @@ export function Trafego() {
     setCarregando(true);
     setErro(null);
     try {
-      const { data } = await api.get<Campanha[]>('/trafego/campanhas');
-      setCampanhas(data);
+      const [c, a] = await Promise.all([
+        api.get<Campanha[]>('/trafego/campanhas'),
+        api.get<AlertaTrafego[]>('/trafego/campanhas/alertas'),
+      ]);
+      setCampanhas(c.data);
+      setAlertas(a.data);
     } catch {
       setErro('Não foi possível carregar as campanhas. Tente novamente.');
     } finally {
@@ -168,7 +190,12 @@ export function Trafego() {
     <PaginaShell
       titulo="Tráfego"
       subtitulo="Campanhas e otimização com IA assistiva"
-      acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova campanha</BotaoPrimario>}
+      acao={
+        <div style={{ display: 'flex', gap: 8 }}>
+          <BotaoSecundario onClick={() => setModalSolicitar(true)}>Solicitar criativo</BotaoSecundario>
+          <BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova campanha</BotaoPrimario>
+        </div>
+      }
     >
       <div className="brk-filtros">
         <div className="brk-search">
@@ -187,6 +214,28 @@ export function Trafego() {
           />
         </div>
       </div>
+
+      {!carregando && !erro && alertas.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--vermelho)' }}>
+            ⚠ {alertas.length} campanha(s) precisam de atenção
+          </span>
+          {alertas.map((a, i) => (
+            <div
+              key={`${a.campanhaId}-${i}`}
+              style={{
+                display: 'flex', flexDirection: 'column', gap: 2,
+                padding: '10px 12px', borderRadius: 10,
+                background: 'var(--superficie-2)',
+                borderLeft: `3px solid ${a.severidade === 'erro' ? 'var(--vermelho)' : 'var(--amarelo)'}`,
+              }}
+            >
+              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{a.cliente} — {a.nome}</span>
+              <span style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>{a.motivo}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {carregando ? (
         <EstadoCarregando />
@@ -222,6 +271,10 @@ export function Trafego() {
             carregar();
           }}
         />
+      )}
+
+      {modalSolicitar && (
+        <ModalSolicitarCriativo onFechar={() => setModalSolicitar(false)} />
       )}
     </PaginaShell>
   );
@@ -274,6 +327,8 @@ function CardCampanha({
   const [mudandoStatus, setMudandoStatus] = useState(false);
   // Modal de edição de métricas desta campanha.
   const [editando, setEditando] = useState(false);
+  // Modal de histórico de otimizações.
+  const [verOtim, setVerOtim] = useState(false);
   // Estado da análise de IA: ocioso → carregando → resultado.
   const [analisando, setAnalisando] = useState(false);
   const [resultadoIa, setResultadoIa] = useState<RespostaSugestoes | null>(null);
@@ -380,6 +435,7 @@ function CardCampanha({
         <BotaoSecundario onClick={pedirSugestoes} disabled={analisando}>
           {analisando ? 'Analisando…' : 'Sugestões da IA'}
         </BotaoSecundario>
+        <BotaoSecundario onClick={() => setVerOtim(true)}>Otimizações</BotaoSecundario>
       </div>
 
       {/* Resultado da análise recém-pedida */}
@@ -422,6 +478,10 @@ function CardCampanha({
             aoAtualizar();
           }}
         />
+      )}
+
+      {verOtim && (
+        <ModalOtimizacoes campanha={campanha} onFechar={() => setVerOtim(false)} />
       )}
     </div>
   );
@@ -702,6 +762,7 @@ function ModalNovaCampanha({
   const [nome, setNome] = useState('');
   const [objetivo, setObjetivo] = useState(OBJETIVOS[0]);
   const [orcamentoDiario, setOrcamentoDiario] = useState('');
+  const [orcamento, setOrcamento] = useState<OrcamentoCliente | null>(null);
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -727,6 +788,26 @@ function ModalNovaCampanha({
     };
   }, []);
 
+  // Carrega o orçamento (teto/comprometido/saldo) do cliente selecionado.
+  useEffect(() => {
+    if (!clienteId) {
+      setOrcamento(null);
+      return;
+    }
+    let ativo = true;
+    (async () => {
+      try {
+        const { data } = await api.get<OrcamentoCliente>(`/trafego/campanhas/orcamento/${clienteId}`);
+        if (ativo) setOrcamento(data);
+      } catch {
+        if (ativo) setOrcamento(null);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [clienteId]);
+
   const valido = clienteId !== '' && nome.trim().length >= 2;
 
   async function enviar(e: FormEvent) {
@@ -742,8 +823,11 @@ function ModalNovaCampanha({
         orcamentoDiario: orcamentoDiario.trim() || undefined,
       });
       onCriada();
-    } catch {
-      setErro('Falha ao criar a campanha. Verifique os dados e tente de novo.');
+    } catch (err) {
+      // Mostra a mensagem do servidor (ex.: orçamento estoura o teto do cliente).
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setErro(msg ?? 'Falha ao criar a campanha. Verifique os dados e tente de novo.');
       setSalvando(false);
     }
   }
@@ -811,6 +895,13 @@ function ModalNovaCampanha({
           placeholder="Ex.: 50 (opcional)"
         />
 
+        {orcamento && orcamento.tetoMensal !== null && (
+          <p style={{ fontSize: 12, color: (orcamento.saldo ?? 0) <= 0 ? 'var(--vermelho)' : 'var(--texto-fraco)' }}>
+            Teto mensal: R$ {orcamento.tetoMensal.toFixed(2)} · comprometido: R$ {orcamento.comprometido.toFixed(2)} ·{' '}
+            saldo: R$ {(orcamento.saldo ?? 0).toFixed(2)} (≈ R$ {(Math.max(0, orcamento.saldo ?? 0) / 30).toFixed(2)}/dia)
+          </p>
+        )}
+
         {erro && <MensagemErro texto={erro} />}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
@@ -822,6 +913,235 @@ function ModalNovaCampanha({
           </BotaoPrimario>
         </div>
       </form>
+    </Overlay>
+  );
+}
+
+/* ----------------------- Modal solicitar criativo --------------------- */
+
+function ModalSolicitarCriativo({ onFechar }: { onFechar: () => void }) {
+  const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [clienteId, setClienteId] = useState('');
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      try {
+        const { data } = await api.get<ClienteOpt[]>('/clientes');
+        if (!ativo) return;
+        setClientes(data);
+        if (data.length > 0) setClienteId(data[0].id);
+      } catch {
+        if (ativo) setErro('Não foi possível carregar os clientes.');
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  async function enviar(e: FormEvent) {
+    e.preventDefault();
+    if (!clienteId || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.post('/conteudos/solicitar', {
+        clienteId,
+        titulo: titulo.trim() || undefined,
+        descricao: descricao.trim() || undefined,
+      });
+      setOk(true);
+    } catch {
+      setErro('Falha ao solicitar o criativo. Tente novamente.');
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Overlay onFechar={onFechar}>
+      <form
+        onSubmit={enviar}
+        className="brk-gradient-border"
+        style={{
+          width: 'min(460px, 92vw)',
+          background: 'var(--superficie)',
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: 'var(--sombra-card)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Solicitar criativo</h2>
+          <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 2 }}>
+            A demanda vai para a estrategista do squad com SLA de 72h e aparece no "Meu dia" dela.
+          </p>
+        </div>
+
+        {ok ? (
+          <>
+            <p style={{ fontSize: 14, color: '#67e0a3', fontWeight: 600 }}>
+              Solicitação enviada! A estrategista foi notificada.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <BotaoPrimario onClick={onFechar}>Fechar</BotaoPrimario>
+            </div>
+          </>
+        ) : (
+          <>
+            <CampoSelect rotulo="Cliente" obrigatorio valor={clienteId} aoMudar={setClienteId}>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nomeFantasia}
+                </option>
+              ))}
+            </CampoSelect>
+
+            <Campo
+              rotulo="Título (opcional)"
+              valor={titulo}
+              aoMudar={setTitulo}
+              placeholder="Ex.: Criativo para campanha de vendas"
+            />
+            <Campo
+              rotulo="Briefing / o que precisa"
+              valor={descricao}
+              aoMudar={setDescricao}
+              placeholder="Descreva o que o gestor precisa"
+            />
+
+            {erro && <MensagemErro texto={erro} />}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+              <BotaoSecundario onClick={onFechar} disabled={salvando}>
+                Cancelar
+              </BotaoSecundario>
+              <BotaoPrimario type="submit" disabled={!clienteId || salvando}>
+                {salvando ? 'Enviando…' : 'Solicitar'}
+              </BotaoPrimario>
+            </div>
+          </>
+        )}
+      </form>
+    </Overlay>
+  );
+}
+
+/* ------------------------- Modal otimizações -------------------------- */
+
+interface OtimizacaoItem {
+  id: string;
+  descricao: string;
+  resultado: string | null;
+  criadoEm: string;
+  autor?: { nome: string } | null;
+}
+
+function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar: () => void }) {
+  const [itens, setItens] = useState<OtimizacaoItem[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [descricao, setDescricao] = useState('');
+  const [resultado, setResultado] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  async function carregar() {
+    setCarregando(true);
+    try {
+      const { data } = await api.get<OtimizacaoItem[]>(`/trafego/campanhas/${campanha.id}/otimizacoes`);
+      setItens(data);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campanha.id]);
+
+  async function adicionar() {
+    if (descricao.trim().length < 2 || salvando) return;
+    setSalvando(true);
+    try {
+      await api.post(`/trafego/campanhas/${campanha.id}/otimizacoes`, {
+        descricao: descricao.trim(),
+        resultado: resultado.trim() || undefined,
+      });
+      setDescricao('');
+      setResultado('');
+      carregar();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Overlay onFechar={onFechar}>
+      <div
+        className="brk-gradient-border"
+        style={{
+          width: 'min(520px, 92vw)',
+          background: 'var(--superficie)',
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: 'var(--sombra-card)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          maxHeight: '85vh',
+          overflowY: 'auto',
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Otimizações — {campanha.nome}</h2>
+          <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 2 }}>
+            Histórico de ajustes feitos na campanha.
+          </p>
+        </div>
+
+        {carregando ? (
+          <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Carregando…</p>
+        ) : itens.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Nenhuma otimização registrada ainda.</p>
+        ) : (
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {itens.map((o) => (
+              <li
+                key={o.id}
+                style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--superficie-2)' }}
+              >
+                <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
+                  {new Date(o.criadoEm).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {o.autor?.nome ? ` · ${o.autor.nome}` : ''}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{o.descricao}</div>
+                {o.resultado && (
+                  <div style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>Resultado: {o.resultado}</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
+          <Campo rotulo="O que foi feito" valor={descricao} aoMudar={setDescricao} placeholder="Ex.: pausei o criativo X, subi 2 novos" />
+          <Campo rotulo="Resultado / observação (opcional)" valor={resultado} aoMudar={setResultado} placeholder="Ex.: RAS subiu de 2,1 para 3,4" />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
+            <BotaoPrimario onClick={adicionar} disabled={descricao.trim().length < 2 || salvando}>
+              {salvando ? 'Salvando…' : 'Registrar otimização'}
+            </BotaoPrimario>
+          </div>
+        </div>
+      </div>
     </Overlay>
   );
 }
