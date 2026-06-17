@@ -53,7 +53,7 @@ function agruparPorData(msgs: Mensagem[]) {
 }
 
 export function Chat() {
-  const { usuario } = useAuth();
+  useAuth();
   const [canais, setCanais] = useState<Canal[]>([]);
   const [canalAtivo, setCanalAtivo] = useState<Canal | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
