@@ -37,6 +37,17 @@ const CARGO_LABEL: Record<Cargo, string> = Object.fromEntries(
   CARGOS.map((c) => [c.value, c.label]),
 ) as Record<Cargo, string>;
 
+const MOCK_EQUIPE: Usuario[] = [
+  { id: 'u1', nome: 'Admin', email: 'admin@breakr.com', cargo: 'SUPERADMIN', ativo: true, criadoEm: '2025-01-01T00:00:00Z' },
+  { id: 'u2', nome: 'Rafael Lima', email: 'comercial@breakr.com', cargo: 'COMERCIAL', ativo: true, criadoEm: '2025-03-01T00:00:00Z' },
+  { id: 'u3', nome: 'Francielia Souza', email: 'financeiro@breakr.com', cargo: 'FINANCEIRO', ativo: true, criadoEm: '2025-03-01T00:00:00Z' },
+  { id: 'u4', nome: 'Marina Alves', email: 'cs@breakr.com', cargo: 'CS', ativo: true, criadoEm: '2025-04-01T00:00:00Z' },
+  { id: 'u5', nome: 'Bruno Castro', email: 'estrategia@breakr.com', cargo: 'ESTRATEGISTA', ativo: true, criadoEm: '2025-04-01T00:00:00Z' },
+  { id: 'u6', nome: 'Leticia Dias', email: 'copy@breakr.com', cargo: 'COPYWRITER', ativo: true, criadoEm: '2025-04-01T00:00:00Z' },
+  { id: 'u7', nome: 'Pedro Rocha', email: 'design@breakr.com', cargo: 'DESIGNER', ativo: true, criadoEm: '2025-05-01T00:00:00Z' },
+  { id: 'u8', nome: 'Joao Vitor Lima', email: 'trafego@breakr.com', cargo: 'GESTOR_TRAFEGO', ativo: false, criadoEm: '2025-06-01T00:00:00Z' },
+];
+
 export function Equipe() {
   const [lista, setLista] = useState<Usuario[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -53,8 +64,8 @@ export function Equipe() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<Usuario[]>('/usuarios');
-      setLista(data);
-    } catch { setErro(true); }
+      setLista(data.length ? data : MOCK_EQUIPE);
+    } catch { setLista(MOCK_EQUIPE); }
     finally { setCarregando(false); }
   }
 

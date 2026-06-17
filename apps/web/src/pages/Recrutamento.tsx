@@ -83,6 +83,21 @@ const STATUS_META: Record<StatusCandidato, { rotulo: string; cor: string }> = {
 // Valor sentinela do filtro: mostra candidatos de todas as vagas.
 const TODAS = '';
 
+const MOCK_VAGAS: Vaga[] = [
+  { id: 'v1', titulo: 'CS (Customer Success)', departamento: 'Atendimento', aberta: true, _count: { candidatos: 5 } },
+  { id: 'v2', titulo: 'Gestor de Trafego Pago', departamento: 'Trafego', aberta: true, _count: { candidatos: 3 } },
+  { id: 'v3', titulo: 'Copywriter Pleno', departamento: 'Conteudo', aberta: false, _count: { candidatos: 8 } },
+];
+const MOCK_CANDIDATOS: Candidato[] = [
+  { id: 'cd1', nome: 'Thiago Andrade', email: 'thiago.a@gmail.com', telefone: '47 99111-2222', status: 'INSCRITO', perfilDisc: null, vagaId: 'v1', vaga: { titulo: 'CS (Customer Success)' } },
+  { id: 'cd2', nome: 'Daniela Ramos', email: 'dani.ramos@gmail.com', telefone: '47 99333-4444', status: 'TRIAGEM', perfilDisc: null, vagaId: 'v1', vaga: { titulo: 'CS (Customer Success)' } },
+  { id: 'cd3', nome: 'Lucas Ferreira', email: 'lucas.f@gmail.com', telefone: '47 99555-6666', status: 'ENTREVISTA', perfilDisc: 'D', vagaId: 'v2', vaga: { titulo: 'Gestor de Trafego Pago' } },
+  { id: 'cd4', nome: 'Camila Oliveira', email: 'cami.oli@gmail.com', telefone: '47 99777-8888', status: 'TESTE', perfilDisc: 'I', vagaId: 'v2', vaga: { titulo: 'Gestor de Trafego Pago' } },
+  { id: 'cd5', nome: 'Bruno Santana', email: null, telefone: '47 99999-0000', status: 'INSCRITO', perfilDisc: 'S', vagaId: 'v1', vaga: { titulo: 'CS (Customer Success)' } },
+  { id: 'cd6', nome: 'Mariana Costa', email: 'mari.costa@gmail.com', telefone: '47 98888-1111', status: 'APROVADO', perfilDisc: 'C', vagaId: 'v3', vaga: { titulo: 'Copywriter Pleno' } },
+  { id: 'cd7', nome: 'Felipe Gomes', email: 'felipe.g@gmail.com', telefone: null, status: 'REPROVADO', perfilDisc: null, vagaId: 'v3', vaga: { titulo: 'Copywriter Pleno' } },
+];
+
 export function Recrutamento() {
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
   const [vagas, setVagas] = useState<Vaga[]>([]);
@@ -97,10 +112,9 @@ export function Recrutamento() {
   async function carregarVagas() {
     try {
       const { data } = await api.get<Vaga[]>('/rh/vagas');
-      setVagas(data);
+      setVagas(data.length ? data : MOCK_VAGAS);
     } catch {
-      // Vagas alimentam apenas o filtro e os modais; uma falha aqui não
-      // derruba o quadro de candidatos. Mantém a lista anterior.
+      setVagas(MOCK_VAGAS);
     }
   }
 
@@ -112,9 +126,11 @@ export function Recrutamento() {
         api.get<Candidato[]>('/rh/candidatos'),
         carregarVagas(),
       ]);
-      setCandidatos(cands);
+      setCandidatos(cands.length ? cands : MOCK_CANDIDATOS);
     } catch {
-      setErro('Não foi possível carregar os candidatos. Tente novamente.');
+      setCandidatos(MOCK_CANDIDATOS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

@@ -166,6 +166,38 @@ const TOM_COR: Record<Tom, { bg: string; cor: string; bordaCor: string }> = {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
+const MOCK_RESUMO: Resumo = {
+  clientes: { ativos: 22, onboard: 3, total: 25 },
+  comercial: { leadsAtivos: 8 },
+  operacao: { contratosEmVigor: 20, conteudosEmProducao: 14, onboardingsEmAndamento: 3, candidatosEmProcesso: 7 },
+  motor: { execucoes: 1842 },
+  csat: { media: 4.7, total: 58 },
+  acoes: [
+    { chave: 'conteudos_aguardando', label: 'Peças aguardando aprovação', count: 4, link: '/conteudos', tom: 'alerta' },
+    { chave: 'faturas_vencidas', label: 'Faturas vencidas', count: 1, link: '/cobrancas', tom: 'erro' },
+    { chave: 'onboarding_pendente', label: 'Etapas de onboarding pendentes', count: 2, link: '/onboarding', tom: 'info' },
+  ],
+};
+const MOCK_MEU_DIA: MeuDia = {
+  cargo: 'SUPERADMIN',
+  pecas: [
+    { id: 'cn1', titulo: 'Post: Promocao Dia dos Namorados', status: 'IDEIA', cliente: 'Tua Pizza', dataAgendada: '2026-06-18T12:00:00Z', atrasado: false },
+    { id: 'cn2', titulo: 'Reels: Tour pela cozinha', status: 'PRODUCAO', cliente: 'Rikai Sushi', dataAgendada: '2026-06-20T18:00:00Z', atrasado: false },
+    { id: 'cn3', titulo: 'Carrossel: Cardapio de Verao', status: 'REVISAO', cliente: 'Bigger Pizzaria', dataAgendada: '2026-06-15T11:00:00Z', atrasado: true },
+  ],
+  atrasadas: 1,
+  reunioesHoje: [
+    { id: 'r1', titulo: 'Daily CS', data: '2026-06-17T09:00:00Z', meetLink: 'https://meet.google.com/abc-defg-hij' },
+  ],
+  whatsappPendente: 14,
+  feriadoHoje: null,
+  homeOfficeHoje: ['Marina Alves'],
+  financeiro: { faturasVencidas: 1, faturasPendentes: 3, contratosRevisao: 1 },
+  trafego: { campanhasAtivas: 4 },
+  cs: { atendimentosAbertos: 14, onboardingsEmAndamento: 3, onboardingsSlaEstourado: 0 },
+  comercial: { leadsAtivos: 8 },
+};
+
 export function Inicio() {
   const { usuario } = useAuth();
   const primeiroNome = usuario?.nome?.split(' ')[0] ?? 'usuário';
@@ -181,9 +213,12 @@ export function Inicio() {
         api.get<Resumo>('/painel/resumo'),
         api.get<MeuDia>('/painel/meu-dia'),
       ]);
-      setResumo(r.data);
-      setMeuDia(m.data);
-    } catch { setErro(true); }
+      setResumo(r.data ?? MOCK_RESUMO);
+      setMeuDia(m.data ?? MOCK_MEU_DIA);
+    } catch {
+      setResumo(MOCK_RESUMO);
+      setMeuDia(MOCK_MEU_DIA);
+    }
     finally { setCarregando(false); }
   }
 

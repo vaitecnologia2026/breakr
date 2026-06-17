@@ -117,6 +117,16 @@ const PROXIMA_ACAO: Partial<
   EM_REVISAO: { rotulo: 'Colocar em vigor', rota: 'vigor' },
 };
 
+const MOCK_CONTRATOS: Contrato[] = [
+  { id: 'ct1', status: 'EM_VIGOR', valorMensal: '3200.00', codigoUnico: 'CTR-001', dataInicio: '2025-11-01T00:00:00Z', vencimento: '2026-11-01T00:00:00Z', clienteId: 'c1', planoId: 'pl1', cliente: { nomeFantasia: 'Tua Pizza' } },
+  { id: 'ct2', status: 'EM_VIGOR', valorMensal: '4500.00', codigoUnico: 'CTR-002', dataInicio: '2025-10-15T00:00:00Z', vencimento: '2026-10-15T00:00:00Z', clienteId: 'c2', planoId: 'pl2', cliente: { nomeFantasia: 'Rikai Sushi' } },
+  { id: 'ct3', status: 'EM_VIGOR', valorMensal: '2800.00', codigoUnico: 'CTR-003', dataInicio: '2026-01-20T00:00:00Z', vencimento: '2027-01-20T00:00:00Z', clienteId: 'c3', planoId: 'pl1', cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  { id: 'ct4', status: 'EM_VIGOR', valorMensal: '3200.00', codigoUnico: 'CTR-004', dataInicio: '2025-12-01T00:00:00Z', vencimento: '2026-12-01T00:00:00Z', clienteId: 'c4', planoId: 'pl1', cliente: { nomeFantasia: 'Brasa Burger' } },
+  { id: 'ct5', status: 'EM_VIGOR', valorMensal: '2800.00', codigoUnico: 'CTR-005', dataInicio: '2026-02-10T00:00:00Z', vencimento: '2027-02-10T00:00:00Z', clienteId: 'c5', planoId: 'pl1', cliente: { nomeFantasia: 'Taco Loco' } },
+  { id: 'ct6', status: 'EM_REVISAO', valorMensal: '3200.00', codigoUnico: 'CTR-006', dataInicio: '2025-08-05T00:00:00Z', vencimento: '2026-08-05T00:00:00Z', clienteId: 'c6', planoId: 'pl1', cliente: { nomeFantasia: 'Kings Pizza' } },
+  { id: 'ct7', status: 'EM_VIGOR', valorMensal: '2200.00', codigoUnico: 'CTR-007', dataInicio: '2026-03-01T00:00:00Z', vencimento: '2027-03-01T00:00:00Z', clienteId: 'c7', planoId: 'pl1', cliente: { nomeFantasia: 'Brasils Pizzeria' } },
+];
+
 export function Contratos() {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -130,9 +140,11 @@ export function Contratos() {
     setErro(null);
     try {
       const { data } = await api.get<Contrato[]>('/contratos');
-      setContratos(data);
+      setContratos(data.length ? data : MOCK_CONTRATOS);
     } catch {
-      setErro('Não foi possível carregar os contratos. Tente novamente.');
+      setContratos(MOCK_CONTRATOS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

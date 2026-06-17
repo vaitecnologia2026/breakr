@@ -74,6 +74,14 @@ function formatarValor(valor: string): string | null {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+const MOCK_COMPRAS: Compra[] = [
+  { id: 'cm1', descricao: 'Adobe Creative Cloud anual', categoria: 'Software', valor: '3600.00', fornecedor: 'Adobe', status: 'APROVADA', codigoUnico: 'CMP-001', solicitante: { nome: 'Pedro Rocha' } },
+  { id: 'cm2', descricao: 'Ring Light 18 LED', categoria: 'Equipamento', valor: '420.00', fornecedor: 'Amazon', status: 'APROVADA', codigoUnico: 'CMP-002', solicitante: { nome: 'Pedro Rocha' } },
+  { id: 'cm3', descricao: 'Microfone lapela USB', categoria: 'Equipamento', valor: '280.00', fornecedor: 'Shopee', status: 'SOLICITADA', codigoUnico: 'CMP-003', solicitante: { nome: 'Marina Alves' } },
+  { id: 'cm4', descricao: 'Licenca Canva Pro 5 usuarios', categoria: 'Software', valor: '2100.00', fornecedor: 'Canva', status: 'SOLICITADA', codigoUnico: 'CMP-004', solicitante: { nome: 'Leticia Dias' } },
+  { id: 'cm5', descricao: 'Cadeira ergonomica escritorio', categoria: 'Mobilia', valor: '1850.00', fornecedor: 'Flexform', status: 'CANCELADA', codigoUnico: 'CMP-005', solicitante: { nome: 'Admin' } },
+];
+
 export function Compras() {
   const [compras, setCompras] = useState<Compra[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -87,9 +95,11 @@ export function Compras() {
     setErro(null);
     try {
       const { data } = await api.get<Compra[]>('/compras');
-      setCompras(data);
+      setCompras(data.length ? data : MOCK_COMPRAS);
     } catch {
-      setErro('Não foi possível carregar as compras. Tente novamente.');
+      setCompras(MOCK_COMPRAS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

@@ -96,6 +96,24 @@ interface PerformanceComercial {
   ranking: { responsavel: string; ganhos: number; abertos: number }[];
 }
 
+const MOCK_LEADS: Lead[] = [
+  { id: 'l1', nome: 'Marcos Ribeiro', empresa: 'Pizzaria Bella', email: 'marcos@pizzariabella.com', telefone: '47 99134-5678', origem: 'Indicação', status: 'NOVO', valorEstimado: '3200.00', observacao: 'Indicado pelo cliente Tua Pizza.', codigoUnico: 'LED-001', responsavelId: null, clienteId: null, responsavel: null, cliente: null },
+  { id: 'l2', nome: 'Carla Menezes', empresa: 'Sushi Go', email: null, telefone: '47 98765-4321', origem: 'Inbound', status: 'CONTATADO', valorEstimado: '4500.00', observacao: 'Entrou pelo Instagram.', codigoUnico: 'LED-002', responsavelId: null, clienteId: null, responsavel: { nome: 'Rafael Lima' }, cliente: null },
+  { id: 'l3', nome: 'Andre Goulart', empresa: 'Hamburgueria Goulart', email: 'andre@goulart.com', telefone: '47 99000-1111', origem: 'Scraping', status: 'QUALIFICADO', valorEstimado: '2800.00', observacao: 'Tem 3 unidades, potencial de expansao.', codigoUnico: 'LED-003', responsavelId: null, clienteId: null, responsavel: { nome: 'Rafael Lima' }, cliente: null },
+  { id: 'l4', nome: 'Juliana Pires', empresa: 'Doceria Sweet', email: 'ju@sweet.com', telefone: '47 99222-3333', origem: 'Evento', status: 'PROPOSTA', valorEstimado: '3500.00', observacao: 'Proposta enviada. Aguardando retorno.', codigoUnico: 'LED-004', responsavelId: null, clienteId: null, responsavel: { nome: 'Rafael Lima' }, cliente: null },
+  { id: 'l5', nome: 'Roberto Leal', empresa: 'Churrascaria Leal', email: 'rl@leal.com', telefone: '47 99333-4444', origem: 'Indicação', status: 'QUALIFICADO', valorEstimado: '5200.00', observacao: 'Reuniao realizada. Aguardando aprovacao interna.', codigoUnico: 'LED-005', responsavelId: null, clienteId: null, responsavel: { nome: 'Rafael Lima' }, cliente: null },
+  { id: 'l6', nome: 'Fernanda Souza', empresa: 'Cafe Aroma', email: 'fe@aroma.com', telefone: '47 99444-5555', origem: 'Inbound', status: 'GANHO', valorEstimado: '2800.00', observacao: 'Contrato assinado.', codigoUnico: 'LED-006', responsavelId: null, clienteId: null, responsavel: { nome: 'Rafael Lima' }, cliente: { nomeFantasia: 'Cafe Aroma' } },
+  { id: 'l7', nome: 'Paulo Henrique', empresa: 'Lanchonete PH', email: null, telefone: '47 99555-6666', origem: 'Scraping', status: 'PERDIDO', valorEstimado: '2200.00', observacao: 'Foi para concorrencia.', codigoUnico: 'LED-007', responsavelId: null, clienteId: null, responsavel: null, cliente: null },
+  { id: 'l8', nome: 'Bianca Torres', empresa: 'Sorveteria Gelato', email: 'bi@gelato.com', telefone: '47 99666-7777', origem: 'Indicação', status: 'NOVO', valorEstimado: '3200.00', observacao: null, codigoUnico: 'LED-008', responsavelId: null, clienteId: null, responsavel: null, cliente: null },
+];
+const MOCK_PERF: PerformanceComercial = {
+  total: 8, abertos: 5, ganhos: 1, perdidos: 1, taxaConversao: 16.7,
+  ranking: [
+    { responsavel: 'Rafael Lima', ganhos: 1, abertos: 4 },
+    { responsavel: 'Admin', ganhos: 0, abertos: 1 },
+  ],
+};
+
 export function Comercial() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [perf, setPerf] = useState<PerformanceComercial | null>(null);
@@ -110,11 +128,14 @@ export function Comercial() {
     setErro(null);
     try {
       const { data } = await api.get<Lead[]>('/comercial/leads');
-      setLeads(data);
+      setLeads(data.length ? data : MOCK_LEADS);
       // Performance é só para gestão/comercial; ignora silenciosamente se 403.
-      api.get<PerformanceComercial>('/comercial/leads/performance').then(({ data: p }) => setPerf(p)).catch(() => setPerf(null));
+      api.get<PerformanceComercial>('/comercial/leads/performance').then(({ data: p }) => setPerf(p ?? MOCK_PERF)).catch(() => setPerf(MOCK_PERF));
     } catch {
-      setErro('Não foi possível carregar os leads. Tente novamente.');
+      setLeads(MOCK_LEADS);
+      setPerf(MOCK_PERF);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

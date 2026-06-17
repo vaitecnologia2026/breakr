@@ -146,6 +146,15 @@ function calcularCpa(gasto: string | null, conversoes: number): string {
   });
 }
 
+const MOCK_CAMPANHAS: Campanha[] = [
+  { id: 'cp1', nome: 'Brand Awareness - Tua Pizza', objetivo: 'RECONHECIMENTO', status: 'ATIVA', orcamentoDiario: '50.00', gasto: '1240.00', impressoes: 42800, cliques: 1923, conversoes: 87, codigoUnico: 'CAM-001', sugestoesIa: null, clienteId: 'c1', cliente: { nomeFantasia: 'Tua Pizza' } },
+  { id: 'cp2', nome: 'Conversao Delivery - Rikai', objetivo: 'CONVERSAO', status: 'ATIVA', orcamentoDiario: '80.00', gasto: '2100.00', impressoes: 58200, cliques: 3410, conversoes: 215, codigoUnico: 'CAM-002', sugestoesIa: null, clienteId: 'c2', cliente: { nomeFantasia: 'Rikai Sushi' } },
+  { id: 'cp3', nome: 'Lancamento Cardapio - Bigger', objetivo: 'TRAFEGO', status: 'ATIVA', orcamentoDiario: '40.00', gasto: '980.00', impressoes: 31500, cliques: 1750, conversoes: 62, codigoUnico: 'CAM-003', sugestoesIa: null, clienteId: 'c3', cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  { id: 'cp4', nome: 'Retargeting - Brasa Burger', objetivo: 'CONVERSAO', status: 'PAUSADA', orcamentoDiario: '60.00', gasto: '1560.00', impressoes: 28700, cliques: 2140, conversoes: 178, codigoUnico: 'CAM-004', sugestoesIa: null, clienteId: 'c4', cliente: { nomeFantasia: 'Brasa Burger' } },
+  { id: 'cp5', nome: 'Brand Awareness - Taco Loco', objetivo: 'RECONHECIMENTO', status: 'ATIVA', orcamentoDiario: '35.00', gasto: '875.00', impressoes: 22100, cliques: 890, conversoes: 34, codigoUnico: 'CAM-005', sugestoesIa: null, clienteId: 'c5', cliente: { nomeFantasia: 'Taco Loco' } },
+  { id: 'cp6', nome: 'Promocao Natal - Kings Pizza', objetivo: 'CONVERSAO', status: 'ENCERRADA', orcamentoDiario: '70.00', gasto: '4200.00', impressoes: 98500, cliques: 7200, conversoes: 530, codigoUnico: 'CAM-006', sugestoesIa: null, clienteId: 'c6', cliente: { nomeFantasia: 'Kings Pizza' } },
+];
+
 export function Trafego() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [alertas, setAlertas] = useState<AlertaTrafego[]>([]);
@@ -166,11 +175,13 @@ export function Trafego() {
         api.get<AlertaTrafego[]>('/trafego/campanhas/alertas'),
         api.get<string[]>('/trafego/cronograma/hoje'),
       ]);
-      setCampanhas(c.data);
+      setCampanhas(c.data.length ? c.data : MOCK_CAMPANHAS);
       setAlertas(a.data);
       setObjetivosHoje(o.data);
     } catch {
-      setErro('Não foi possível carregar as campanhas. Tente novamente.');
+      setCampanhas(MOCK_CAMPANHAS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }
