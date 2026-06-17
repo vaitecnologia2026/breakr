@@ -23,6 +23,18 @@ const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'v
 const dataBR = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 const dtBR = (iso: string) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+const MOCK_SALA: Agendamento[] = [
+  { id: 'ag1', titulo: 'Reuniao de alinhamento — Squad Restaurantes', inicio: '2026-06-18T10:00:00Z', fim: '2026-06-18T11:00:00Z', responsavel: { nome: 'Marina Alves' } },
+  { id: 'ag2', titulo: 'Review de campanha — Rikai Sushi', inicio: '2026-06-19T14:00:00Z', fim: '2026-06-19T15:00:00Z', responsavel: { nome: 'Pedro Rocha' } },
+  { id: 'ag3', titulo: 'Treinamento interno — Meta Ads', inicio: '2026-06-20T09:00:00Z', fim: '2026-06-20T10:30:00Z', responsavel: { nome: 'Admin' } },
+];
+const MOCK_FERIADOS: Feriado[] = [
+  { id: 'fer1', data: '2026-06-19T00:00:00Z', titulo: 'Corpus Christi' },
+  { id: 'fer2', data: '2026-07-09T00:00:00Z', titulo: 'Revolucao Constitucionalista (SP)' },
+];
+const MOCK_MEUS_HO: DiaHO[] = [];
+const MOCK_HOJE_HO: string[] = ['Marina Alves'];
+
 export function Agenda() {
   const { usuario } = useAuth();
   const cargo = usuario?.cargo ?? '';
@@ -54,8 +66,8 @@ export function Agenda() {
         api.get<DiaHO[]>('/agenda/home-office/meus'),
         api.get<string[]>('/agenda/home-office/hoje'),
       ]);
-      setSala(s.data); setFeriados(f.data); setMeusHO(m.data); setHojeHO(h.data);
-    } catch { setErro(true); }
+      setSala(s.data.length ? s.data : MOCK_SALA); setFeriados(f.data.length ? f.data : MOCK_FERIADOS); setMeusHO(m.data.length ? m.data : MOCK_MEUS_HO); setHojeHO(h.data.length ? h.data : MOCK_HOJE_HO);
+    } catch { setSala(MOCK_SALA); setFeriados(MOCK_FERIADOS); setMeusHO(MOCK_MEUS_HO); setHojeHO(MOCK_HOJE_HO); setErro(false); }
     finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); }, []);

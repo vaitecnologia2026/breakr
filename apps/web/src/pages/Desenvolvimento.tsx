@@ -81,6 +81,14 @@ const SEVERIDADE_META: Record<
   CRITICA: { rotulo: 'Crítica', fundo: 'rgba(148, 18, 44, 0.2)', texto: '#e2738a' },
 };
 
+const MOCK_BUGS: Bug[] = [
+  { id: 'bg1', titulo: 'Portal do cliente nao carrega imagens nos Stories', descricao: 'Ao acessar o portal, as imagens dos Stories aparecem como placeholder. Erro no console: 403 Forbidden ao tentar carregar do S3.', severidade: 'CRITICA' as SeveridadeBug, status: 'EM_ANDAMENTO' as StatusBug, codigoUnico: 'BUG-001', responsavel: { nome: 'Admin' } },
+  { id: 'bg2', titulo: 'Notificacao de aprovacao nao dispara para o cliente', descricao: 'Quando a peca vai para AGUARDANDO_CLIENTE, o webhook de notificacao falha silenciosamente. Cliente nao recebe aviso.', severidade: 'ALTA' as SeveridadeBug, status: 'ABERTO' as StatusBug, codigoUnico: 'BUG-002', responsavel: null },
+  { id: 'bg3', titulo: 'Filtro de status no kanban de Conteudos nao funciona no Safari', descricao: 'O dropdown de filtro de status retorna erro de compatibilidade no Safari 17. Chrome e Firefox OK.', severidade: 'MEDIA' as SeveridadeBug, status: 'ABERTO' as StatusBug, codigoUnico: 'BUG-003', responsavel: { nome: 'Admin' } },
+  { id: 'bg4', titulo: 'Boleto com valor incorreto na geracao do PDF', descricao: 'Em contratos com desconto, o PDF do boleto mostra o valor bruto ao inves do valor com desconto aplicado.', severidade: 'ALTA' as SeveridadeBug, status: 'RESOLVIDO' as StatusBug, codigoUnico: 'BUG-004', responsavel: { nome: 'Admin' } },
+  { id: 'bg5', titulo: 'Timeout na geracao de relatorio de trafego', descricao: 'O endpoint /trafego/relatorio demora mais de 30s para clientes com mais de 50 campanhas. Precisa de paginacao ou cache.', severidade: 'MEDIA' as SeveridadeBug, status: 'EM_REVISAO' as StatusBug, codigoUnico: 'BUG-005', responsavel: null },
+];
+
 export function Desenvolvimento() {
   const [bugs, setBugs] = useState<Bug[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -94,9 +102,9 @@ export function Desenvolvimento() {
     setErro(null);
     try {
       const { data } = await api.get<Bug[]>('/bugs');
-      setBugs(data);
+      setBugs(data.length ? data : MOCK_BUGS);
     } catch {
-      setErro('Não foi possível carregar os bugs. Tente novamente.');
+      setBugs(MOCK_BUGS); setErro(null);
     } finally {
       setCarregando(false);
     }

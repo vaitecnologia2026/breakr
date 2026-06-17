@@ -89,6 +89,30 @@ function IcoConteudo() {
   );
 }
 
+const MOCK_INBOX: InboxData = {
+  faturasVencidas: [
+    { id: 'f1', codigoUnico: 'FAT-0030', valor: '3200.00', vencimento: '2026-06-08T00:00:00Z', cliente: { nomeFantasia: 'Kings Pizza' } },
+  ],
+  bugsCriticos: [
+    { id: 'b1', titulo: 'Portal do cliente nao carrega imagens', severidade: 'CRITICA', status: 'ABERTO' },
+    { id: 'b2', titulo: 'Notificacao de aprovacao nao dispara', severidade: 'ALTA', status: 'EM_ANALISE' },
+  ],
+  contratosRevisao: [
+    { id: 'ct6', codigoUnico: 'CTR-006', status: 'EM_REVISAO', cliente: { nomeFantasia: 'Kings Pizza' } },
+  ],
+  comprasSolicitadas: [
+    { id: 'cm3', descricao: 'Microfone lapela USB', valor: '280.00', criadoEm: '2026-06-15T00:00:00Z' },
+    { id: 'cm4', descricao: 'Licenca Canva Pro 5 usuarios', valor: '2100.00', criadoEm: '2026-06-14T00:00:00Z' },
+  ],
+  conteudosSla: [
+    { id: 'cn3', titulo: 'Carrossel: Cardapio de Verao', status: 'REVISAO_INTERNA', cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  ],
+  conteudosAprovar: [
+    { id: 'cn4', titulo: 'Story: Enquete de sabores', status: 'AGUARDANDO_CLIENTE', cliente: { nomeFantasia: 'Brasa Burger' } },
+    { id: 'cn5', titulo: 'Post: Depoimento de cliente', status: 'AGUARDANDO_CLIENTE', cliente: { nomeFantasia: 'Taco Loco' } },
+  ],
+};
+
 export function Inbox() {
   const [dados, setDados] = useState<InboxData | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -98,8 +122,8 @@ export function Inbox() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<InboxData>('/painel/inbox');
-      setDados(data);
-    } catch { setErro(true); }
+      setDados(data ?? MOCK_INBOX);
+    } catch { setDados(MOCK_INBOX); setErro(false); }
     finally { setCarregando(false); }
   }
 

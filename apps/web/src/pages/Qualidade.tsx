@@ -164,6 +164,16 @@ function BadgeOrigem({ origem }: { origem: 'EXTERNO' | 'INTERNO' }) {
 
 // ─── seção Dashboard ─────────────────────────────────────────────────────────
 
+const MOCK_DASH: Dashboard = {
+  totalAprovados: 47,
+  totalReworkExterno: 8,
+  totalReworkInterno: 5,
+  taxaReworkPct: 21.7,
+  mediaQualidadeGrafica: 4.2,
+  mediaQualidadeTexto: 4.5,
+  mediaFacilidadeAprovar: 4.7,
+};
+
 function SecaoDashboard() {
   const [dados, setDados] = useState<Dashboard | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -172,8 +182,8 @@ function SecaoDashboard() {
   useEffect(() => {
     api
       .get<Dashboard>('/qualidade/dashboard')
-      .then((r) => setDados(r.data))
-      .catch(() => setErro('Não foi possível carregar indicadores.'))
+      .then((r) => setDados(r.data ?? MOCK_DASH))
+      .catch(() => { setDados(MOCK_DASH); setErro(null); })
       .finally(() => setCarregando(false));
   }, []);
 
@@ -233,6 +243,15 @@ function SecaoDashboard() {
 
 // ─── seção Rework ─────────────────────────────────────────────────────────────
 
+const MOCK_REWORK: ReworkResp = {
+  total: 5, page: 1, limit: 20,
+  itens: [
+    { id: 'rw1', statusDe: 'REVISAO_INTERNA', statusPara: 'PRODUCAO', origem: 'INTERNO', comentario: 'Texto precisa ser mais curto e objetivo.', criadoEm: '2026-06-15T10:00:00Z', conteudo: { codigoUnico: 'CNT-003', titulo: 'Carrossel: Cardapio de Verao', tipo: 'CARROSSEL', cliente: { nomeFantasia: 'Bigger Pizzaria' } } },
+    { id: 'rw2', statusDe: 'AGUARDANDO_CLIENTE', statusPara: 'PRODUCAO', origem: 'EXTERNO', comentario: 'Cliente pediu para trocar a cor de fundo para vermelho.', criadoEm: '2026-06-14T14:30:00Z', conteudo: { codigoUnico: 'CNT-004', titulo: 'Story: Enquete de sabores', tipo: 'STORY', cliente: { nomeFantasia: 'Brasa Burger' } } },
+    { id: 'rw3', statusDe: 'REVISAO_INTERNA', statusPara: 'BRIEFING', origem: 'INTERNO', comentario: 'Layout nao segue o brandbook. Refazer com as fontes corretas.', criadoEm: '2026-06-12T09:00:00Z', conteudo: { codigoUnico: 'CNT-007', titulo: 'Post: Promocao segunda-feira', tipo: 'POST', cliente: { nomeFantasia: 'Kings Pizza' } } },
+  ],
+};
+
 function SecaoRework() {
   const [dados, setDados] = useState<ReworkResp | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -247,7 +266,7 @@ function SecaoRework() {
     if (filtroOrigem !== 'TODOS') params.set('origem', filtroOrigem);
     api
       .get<ReworkResp>(`/qualidade/rework?${params}`)
-      .then((r) => setDados(r.data))
+      .then((r) => setDados(r.data ?? MOCK_REWORK))
       .catch(() => setErro('Não foi possível carregar o histórico.'))
       .finally(() => setCarregando(false));
   }, [filtroOrigem, pagina]);

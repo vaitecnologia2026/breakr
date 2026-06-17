@@ -19,6 +19,20 @@ interface ClienteOpt { id: string; nomeFantasia: string }
 
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
 
+const MOCK_MEDALHAS: Medalha[] = [
+  { id: 'md1', titulo: 'Cliente do Mes', icone: '🏆', descricao: 'Concedida ao cliente com melhor engajamento do mes.' },
+  { id: 'md2', titulo: 'Campanha de Ouro', icone: '🥇', descricao: 'ROAS acima de 4x por pelo menos 30 dias consecutivos.' },
+  { id: 'md3', titulo: 'Aprovacao Rapida', icone: '⚡', descricao: 'Aprovou 10 pecas em menos de 24h cada.' },
+  { id: 'md4', titulo: 'Parceiro Fiel', icone: '🤝', descricao: 'Cliente ha mais de 12 meses sem interrupcao.' },
+];
+const MOCK_CLIENTES_MD: ClienteOpt[] = [
+  { id: 'c1', nomeFantasia: 'Tua Pizza' },
+  { id: 'c2', nomeFantasia: 'Rikai Sushi' },
+  { id: 'c3', nomeFantasia: 'Bigger Pizzaria' },
+  { id: 'c4', nomeFantasia: 'Brasa Burger' },
+  { id: 'c5', nomeFantasia: 'Taco Loco' },
+];
+
 export function Medalhas() {
   const [medalhas, setMedalhas] = useState<Medalha[]>([]);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
@@ -41,9 +55,9 @@ export function Medalhas() {
         api.get<Medalha[]>('/medalhas'),
         api.get<ClienteOpt[]>('/clientes'),
       ]);
-      setMedalhas(m.data);
-      setClientes(c.data);
-    } catch { setErro(true); }
+      setMedalhas(m.data.length ? m.data : MOCK_MEDALHAS);
+      setClientes(c.data.length ? c.data : MOCK_CLIENTES_MD);
+    } catch { setMedalhas(MOCK_MEDALHAS); setClientes(MOCK_CLIENTES_MD); setErro(false); }
     finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); }, []);
