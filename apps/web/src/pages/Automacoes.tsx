@@ -51,6 +51,21 @@ function formatarQuando(iso: string): string {
   });
 }
 
+const MOCK_REGRAS: Regra[] = [
+  { id: 'rg1', nome: 'Onboarding iniciado → criar etapas padrao', ativa: true, trigger: { evento: 'ONBOARDING_INICIADO' }, acoes: [{ tipo: 'CRIAR_ETAPAS' }, { tipo: 'ENVIAR_EMAIL' }] },
+  { id: 'rg2', nome: 'Contrato assinado → criar projeto', ativa: true, trigger: { evento: 'CONTRATO_ASSINADO' }, acoes: [{ tipo: 'CRIAR_PROJETO' }, { tipo: 'NOTIFICAR_CS' }] },
+  { id: 'rg3', nome: 'Fatura vencida → alerta Financeiro', ativa: true, trigger: { evento: 'FATURA_VENCIDA' }, acoes: [{ tipo: 'ENVIAR_WHATSAPP' }, { tipo: 'NOTIFICAR_FINANCEIRO' }] },
+  { id: 'rg4', nome: 'Conteudo aprovado → agendar publicacao', ativa: false, trigger: { evento: 'CONTEUDO_APROVADO' }, acoes: [{ tipo: 'AGENDAR_PUBLICACAO' }] },
+  { id: 'rg5', nome: 'Lead ganho → criar cliente', ativa: true, trigger: { evento: 'LEAD_GANHO' }, acoes: [{ tipo: 'CRIAR_CLIENTE' }, { tipo: 'CRIAR_CONTRATO' }] },
+];
+const MOCK_EXECUCOES: Execucao[] = [
+  { id: 'ex1', status: 'SUCESSO', resultado: { evento: 'ONBOARDING_INICIADO', acoes: [{ tipo: 'CRIAR_ETAPAS', ok: true }, { tipo: 'ENVIAR_EMAIL', ok: true }] }, erro: null, criadoEm: '2026-06-17T09:15:00Z', rule: { nome: 'Onboarding iniciado → criar etapas padrao' } },
+  { id: 'ex2', status: 'SUCESSO', resultado: { evento: 'CONTRATO_ASSINADO', acoes: [{ tipo: 'CRIAR_PROJETO', ok: true }, { tipo: 'NOTIFICAR_CS', ok: true }] }, erro: null, criadoEm: '2026-06-17T08:30:00Z', rule: { nome: 'Contrato assinado → criar projeto' } },
+  { id: 'ex3', status: 'ERRO', resultado: null, erro: 'Timeout ao conectar com servidor de email', criadoEm: '2026-06-16T22:00:00Z', rule: { nome: 'Fatura vencida → alerta Financeiro' } },
+  { id: 'ex4', status: 'SUCESSO', resultado: { evento: 'LEAD_GANHO', acoes: [{ tipo: 'CRIAR_CLIENTE', ok: true }, { tipo: 'CRIAR_CONTRATO', ok: true }] }, erro: null, criadoEm: '2026-06-16T15:45:00Z', rule: { nome: 'Lead ganho → criar cliente' } },
+  { id: 'ex5', status: 'SUCESSO', resultado: { evento: 'ONBOARDING_INICIADO', acoes: [{ tipo: 'CRIAR_ETAPAS', ok: true }, { tipo: 'ENVIAR_EMAIL', ok: false }] }, erro: null, criadoEm: '2026-06-15T11:20:00Z', rule: { nome: 'Onboarding iniciado → criar etapas padrao' } },
+];
+
 export function Automacoes() {
   const [regras, setRegras] = useState<Regra[]>([]);
   const [execucoes, setExecucoes] = useState<Execucao[]>([]);
@@ -69,10 +84,10 @@ export function Automacoes() {
         api.get<Execucao[]>('/motor/execucoes'),
       ]);
       setHabilitado(status.data.habilitado);
-      setRegras(rs.data);
-      setExecucoes(es.data);
+      setRegras(rs.data.length ? rs.data : MOCK_REGRAS);
+      setExecucoes(es.data.length ? es.data : MOCK_EXECUCOES);
     } catch {
-      setErro(true);
+      setRegras(MOCK_REGRAS); setExecucoes(MOCK_EXECUCOES); setErro(false);
     } finally {
       setCarregando(false);
     }

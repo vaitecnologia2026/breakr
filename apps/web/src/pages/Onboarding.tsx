@@ -361,7 +361,7 @@ function AgendaCliente({ clienteId }: { clienteId: string }) {
               }}
             >
               <div>
-                <div style={{ fontSize: 12.5, color: '#f0814f', fontWeight: 700 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--cinza-vapor)', fontWeight: 700 }}>
                   {new Date(ev.data).toLocaleString('pt-BR', {
                     day: '2-digit',
                     month: 'short',
@@ -376,7 +376,7 @@ function AgendaCliente({ clienteId }: { clienteId: string }) {
                   </div>
                 )}
                 {ev.meetLink && (
-                  <a href={ev.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: '#f0814f', textDecoration: 'none' }}>
+                  <a href={ev.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: 'var(--cinza-vapor)', textDecoration: 'none' }}>
                     Link do Meet →
                   </a>
                 )}
@@ -498,7 +498,7 @@ function CatalogoAulas() {
                     href={a.videoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: 12.5, color: '#f0814f', textDecoration: 'none' }}
+                    style={{ fontSize: 12.5, color: 'var(--cinza-vapor)', textDecoration: 'none' }}
                   >
                     {a.videoUrl}
                   </a>

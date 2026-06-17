@@ -94,7 +94,7 @@ export function Documentos() {
             {d.titulo} <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>· {d.tipo}{d.competencia ? ` · ${d.competencia}` : ''}</span>
           </div>
           {!mine && d.colaborador && <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{d.colaborador.nome}</div>}
-          <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: '#f0814f', textDecoration: 'none' }}>Abrir documento →</a>
+          <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: 'var(--cinza-vapor)', textDecoration: 'none' }}>Abrir documento →</a>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {d.assinadoEm ? (

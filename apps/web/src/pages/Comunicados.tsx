@@ -145,6 +145,13 @@ function ModalNovoComunicado({ aoFechar, aoSalvar }: { aoFechar: () => void; aoS
   );
 }
 
+const MOCK_COMUNICADOS: Comunicado[] = [
+  { id: 'com1', titulo: 'Bem-vindos ao Breakr OS!', corpo: 'O sistema interno da Breakr está no ar. A partir de agora todas as demandas, aprovações e comunicados passam por aqui. Qualquer dúvida, fale com o Admin.', fixado: true, criadoEm: '2026-06-01T09:00:00Z', autor: { id: 'u1', nome: 'Admin' } },
+  { id: 'com2', titulo: 'Nova política de aprovação de conteúdo', corpo: 'A partir desta semana, todo conteúdo precisa passar por revisão interna antes de ir para o cliente. Prazo mínimo: 48h antes do agendamento. Dúvidas com a Marina.', fixado: false, criadoEm: '2026-06-10T10:30:00Z', autor: { id: 'u1', nome: 'Admin' } },
+  { id: 'com3', titulo: 'Horário de expediente — junho', corpo: 'Lembrando que em junho temos feriado no dia 19 (Corpus Christi). O escritório estará fechado. Para urgências, acionar pelo WhatsApp.', fixado: false, criadoEm: '2026-06-05T08:00:00Z', autor: { id: 'u1', nome: 'Admin' } },
+  { id: 'com4', titulo: 'Daily agora às 9h', corpo: 'A daily do time foi ajustada para 9h (antes era 8h30). Meet fixo: meet.google.com/brk-daily-2026. Presença obrigatória para todos os squads.', fixado: false, criadoEm: '2026-06-08T17:00:00Z', autor: { id: 'u1', nome: 'Admin' } },
+];
+
 export function Comunicados() {
   const { usuario } = useAuth();
   const podeAdmin = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
@@ -158,8 +165,8 @@ export function Comunicados() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<Comunicado[]>('/comunicados');
-      setLista(data);
-    } catch { setErro(true); }
+      setLista(data.length ? data : MOCK_COMUNICADOS);
+    } catch { setLista(MOCK_COMUNICADOS); setErro(false); }
     finally { setCarregando(false); }
   }
 

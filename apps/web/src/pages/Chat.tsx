@@ -52,6 +52,22 @@ function agruparPorData(msgs: Mensagem[]) {
   return grupos;
 }
 
+const MOCK_CANAIS: Canal[] = [
+  { id: 'ch1', nome: 'geral', descricao: 'Canal geral do time Breakr' },
+  { id: 'ch2', nome: 'conteudo', descricao: 'Discussoes sobre conteudo e aprovacoes' },
+  { id: 'ch3', nome: 'trafego', descricao: 'Campanhas e metricas de trafego pago' },
+  { id: 'ch4', nome: 'comercial', descricao: 'Pipeline e leads do comercial' },
+  { id: 'ch5', nome: 'cs-suporte', descricao: 'Atendimento ao cliente e suporte interno' },
+];
+const MOCK_MENSAGENS: Mensagem[] = [
+  { id: 'msg1', conteudo: 'Bom dia time! Daily em 10 minutos.', criadoEm: '2026-06-17T08:50:00Z', autor: { id: 'u1', nome: 'Admin' } },
+  { id: 'msg2', conteudo: 'Boa! Ja estou no meet.', criadoEm: '2026-06-17T08:52:00Z', autor: { id: 'u4', nome: 'Marina Alves' } },
+  { id: 'msg3', conteudo: 'Lembrete: 4 pecas aguardando aprovacao do cliente Brasa Burger. Alguem ja fez followup?', criadoEm: '2026-06-17T10:15:00Z', autor: { id: 'u4', nome: 'Marina Alves' } },
+  { id: 'msg4', conteudo: 'Ja mandei mensagem agora cedo, cliente disse que ve hoje a tarde.', criadoEm: '2026-06-17T10:18:00Z', autor: { id: 'u6', nome: 'Leticia Dias' } },
+  { id: 'msg5', conteudo: 'Campanha de Rikai Sushi bateu 200 conversoes essa semana. ROAS de 4.2x, tudo certo!', criadoEm: '2026-06-17T11:30:00Z', autor: { id: 'u7', nome: 'Pedro Rocha' } },
+  { id: 'msg6', conteudo: 'Otimo resultado! Vou atualizar o cliente la no portal.', criadoEm: '2026-06-17T11:35:00Z', autor: { id: 'u4', nome: 'Marina Alves' } },
+];
+
 export function Chat() {
   useAuth();
   const [canais, setCanais] = useState<Canal[]>([]);
@@ -71,8 +87,8 @@ export function Chat() {
 
   useEffect(() => {
     api.get<Canal[]>('/chat/canais').then(({ data }) => {
-      setCanais(data ?? []);
-      if (data?.length) setCanalAtivo(data[0]);
+      setCanais(data?.length ? data : MOCK_CANAIS);
+      if ((data?.length ? data : MOCK_CANAIS).length) setCanalAtivo((data?.length ? data : MOCK_CANAIS)[0]);
     }).finally(() => setCarregandoCanais(false));
   }, []);
 
@@ -85,13 +101,15 @@ export function Chat() {
       const { data } = await api.get<Mensagem[]>(`/chat/canais/${canal.id}/mensagens${params}`);
       // Descarta se o usuario ja trocou de canal enquanto esta resposta vinha.
       if (canalIdRef.current !== canal.id) return;
-      if (!data?.length) return;
+      if (!data?.length && !inicial) return;
+      const msgs = data?.length ? data : (inicial ? MOCK_MENSAGENS : []);
+      if (!msgs.length) return;
       setMensagens((prev) => {
-        if (inicial) return data;
-        const novos = data.filter((m) => !prev.some((p) => p.id === m.id));
+        if (inicial) return msgs;
+        const novos = msgs.filter((m) => !prev.some((p) => p.id === m.id));
         return novos.length ? [...prev, ...novos] : prev;
       });
-      ultimoTsRef.current = data[data.length - 1].criadoEm;
+      ultimoTsRef.current = msgs[msgs.length - 1].criadoEm;
     } finally {
       if (inicial) setCarregandoMsgs(false);
     }

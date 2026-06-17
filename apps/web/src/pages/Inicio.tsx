@@ -487,10 +487,10 @@ function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
             {reunioesHoje.map((r) => (
               <div key={r.id} className="brk-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px' }}>
                 <span style={{ fontSize: 13.5, color: 'var(--texto)' }}>
-                  <strong style={{ color: '#f0814f' }}>{horaBR(r.data)}</strong> · {r.titulo}
+                  <strong style={{ color: 'var(--cinza-vapor)' }}>{horaBR(r.data)}</strong> · {r.titulo}
                 </span>
                 {r.meetLink && (
-                  <a href={r.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}>
+                  <a href={r.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--cinza-vapor)', textDecoration: 'none' }}>
                     Entrar →
                   </a>
                 )}

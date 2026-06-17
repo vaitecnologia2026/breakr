@@ -84,7 +84,7 @@ const CORES_STATUS: Record<
   EM_REVISAO: {
     rotulo: 'Em revisão',
     fundo: 'rgba(202, 63, 23, 0.16)',
-    texto: '#f0814f',
+    texto: 'var(--cinza-vapor)',
     ponto: '#ca3f17',
   },
   EM_VIGOR: {

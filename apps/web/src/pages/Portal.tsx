@@ -89,7 +89,7 @@ function corStatusCliente(status: string): { fundo: string; texto: string; ponto
     case 'ATIVO':
       return { fundo: 'rgba(46, 204, 113, 0.14)', texto: '#67e0a3', ponto: '#2ecc71' };
     case 'ONBOARD':
-      return { fundo: 'rgba(202, 63, 23, 0.16)', texto: '#f0814f', ponto: '#ca3f17' };
+      return { fundo: 'rgba(202, 63, 23, 0.16)', texto: 'var(--cinza-vapor)', ponto: '#ca3f17' };
     case 'NOVO':
       return { fundo: 'rgba(255, 148, 6, 0.14)', texto: '#ffb44d', ponto: '#ff9406' };
     case 'INATIVO':
@@ -415,7 +415,7 @@ function CardOnboarding({ onboarding }: { onboarding: NonNullable<PortalData['on
                   href={etapa.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 12.5, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}
+                  style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--cinza-vapor)', textDecoration: 'none' }}
                 >
                   Abrir material →
                 </a>
@@ -459,7 +459,7 @@ function CardAgenda({ eventos }: { eventos: PortalData['eventos'] }) {
               border: '1px solid var(--borda)',
             }}
           >
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#f0814f' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
               {formatarDataHora(ev.data)}
             </span>
             <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
@@ -469,7 +469,7 @@ function CardAgenda({ eventos }: { eventos: PortalData['eventos'] }) {
               <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{ev.descricao}</span>
             )}
             {ev.meetLink && (
-              <a href={ev.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}>
+              <a href={ev.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: 'var(--cinza-vapor)', textDecoration: 'none' }}>
                 Entrar na reunião (Meet) →
               </a>
             )}
@@ -591,7 +591,7 @@ function ItemAula({
           href={aula.videoUrl}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 13, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}
+          style={{ fontSize: 13, fontWeight: 600, color: 'var(--cinza-vapor)', textDecoration: 'none' }}
         >
           Assistir aula →
         </a>
@@ -1003,7 +1003,7 @@ function BadgeTipo({ tipo }: { tipo: string }) {
         letterSpacing: '0.04em',
         padding: '2px 8px',
         borderRadius: 999,
-        color: '#f0814f',
+        color: 'var(--cinza-vapor)',
         background: 'rgba(202, 63, 23, 0.16)',
       }}
     >
