@@ -5,7 +5,7 @@ export class CriarDocumentoDto {
   @IsUUID()
   colaboradorId!: string;
 
-  @IsIn(['HOLERITE', 'FOLHA', 'CONTRATO', 'MANUAL', 'OUTRO'])
+  @IsIn(['HOLERITE', 'FOLHA', 'FOLHA_SALARIAL', 'CARTAO_PONTO', 'FOLHA_PONTO', 'CONTRATO', 'MANUAL', 'OUTRO'])
   tipo!: string;
 
   @IsString()

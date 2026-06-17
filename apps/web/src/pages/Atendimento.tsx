@@ -411,17 +411,17 @@ export function Atendimento() {
         {/* Header */}
         <div
           style={{
-            padding: '16px 16px 12px',
+            padding: '10px 12px 8px',
             borderBottom: '1px solid var(--borda)',
             flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--texto)' }}>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--texto)' }}>
                 Atendimento
               </h2>
-              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--texto-fraco)' }}>
+              <p style={{ margin: '1px 0 0', fontSize: 10, color: 'var(--texto-fraco)' }}>
                 {inbox.pendente.length} pendente{inbox.pendente.length !== 1 ? 's' : ''} · {inbox.atendendo.length} ativo{inbox.atendendo.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -452,7 +452,7 @@ export function Atendimento() {
           </div>
 
           {/* Barra de busca */}
-          <div style={{ position: 'relative', marginBottom: 10 }}>
+          <div style={{ position: 'relative', marginBottom: 6 }}>
             <span
               style={{
                 position: 'absolute',
@@ -477,9 +477,9 @@ export function Atendimento() {
                 background: 'var(--superficie-2)',
                 border: '1px solid var(--borda)',
                 borderRadius: 9,
-                padding: '8px 36px 8px 34px',
+                padding: '6px 36px 6px 34px',
                 color: 'var(--texto)',
-                fontSize: 13,
+                fontSize: 12,
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -527,10 +527,10 @@ export function Atendimento() {
                     background: ativa ? 'rgba(208,80,40,0.14)' : 'transparent',
                     border: ativa ? '1px solid rgba(208,80,40,0.35)' : '1px solid var(--borda)',
                     borderRadius: 8,
-                    padding: '6px 4px',
+                    padding: '4px 4px',
                     cursor: 'pointer',
                     color: ativa ? 'var(--laranja-brasa)' : 'var(--texto-suave)',
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
@@ -808,13 +808,13 @@ function ItemConversa({
         background: ativa ? 'rgba(208,80,40,0.1)' : 'transparent',
         border: 'none',
         borderLeft: `3px solid ${ativa ? 'var(--laranja-brasa)' : 'transparent'}`,
-        padding: '10px 14px 10px 13px',
+        padding: '7px 12px 7px 11px',
         textAlign: 'left',
         cursor: 'pointer',
         transition: 'background 0.12s',
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 10,
+        gap: 8,
       }}
       onMouseEnter={(e) => { if (!ativa) e.currentTarget.style.background = 'var(--superficie-3)'; }}
       onMouseLeave={(e) => { if (!ativa) e.currentTarget.style.background = 'transparent'; }}
@@ -823,13 +823,13 @@ function ItemConversa({
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <div
           style={{
-            width: 42,
-            height: 42,
+            width: 34,
+            height: 34,
             borderRadius: '50%',
             background: cor,
             display: 'grid',
             placeItems: 'center',
-            fontSize: ini.length > 2 ? 10 : 14,
+            fontSize: ini.length > 2 ? 9 : 12,
             fontWeight: 800,
             color: '#fff',
             letterSpacing: '-0.5px',
@@ -843,8 +843,8 @@ function ItemConversa({
             position: 'absolute',
             bottom: -1,
             right: -1,
-            width: 16,
-            height: 16,
+            width: 13,
+            height: 13,
             borderRadius: '50%',
             background: '#25d366',
             border: '2px solid var(--superficie)',
@@ -859,11 +859,11 @@ function ItemConversa({
       {/* Conteúdo */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Linha 1: nome + hora + dot */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
           <span
             style={{
               flex: 1,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
               color: 'var(--texto)',
               overflow: 'hidden',
@@ -882,17 +882,17 @@ function ItemConversa({
               flexShrink: 0,
             }} />
           )}
-          <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: 'var(--texto-fraco)', flexShrink: 0 }}>
             {hora}
           </span>
         </div>
 
         {/* Linha 2: última mensagem + badge de não lidas */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           <span
             style={{
               flex: 1,
-              fontSize: 12,
+              fontSize: 11,
               color: 'var(--texto-suave)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',

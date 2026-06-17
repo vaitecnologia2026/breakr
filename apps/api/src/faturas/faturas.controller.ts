@@ -31,6 +31,14 @@ export class FaturasController {
     return this.faturasService.vencendo(dias ? Number(dias) : 7);
   }
 
+  // GET /faturas/indicadores — indicadores do painel financeiro.
+  @Get('indicadores')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.FINANCEIRO)
+  indicadores() {
+    return this.faturasService.indicadores();
+  }
+
   // GET /faturas/cliente/:id — faturas de um cliente.
   @Get('cliente/:id')
   listarPorCliente(@Param('id', ParseUUIDPipe) id: string) {

@@ -1130,6 +1130,22 @@ model RespostaEnps {
   @@map("resposta_enps")
 }
 
+/// Conta a pagar (financeiro interno). categoria é texto livre por enquanto;
+/// a estrutura de centro de custo será definida com a gestora financeira.
+model ContaPagar {
+  id         String    @id @default(uuid())
+  descricao  String
+  categoria  String?
+  valor      Decimal   @db.Decimal(12, 2)
+  vencimento DateTime
+  pago       Boolean   @default(false)
+  pagoEm     DateTime? @map("pago_em")
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+
+  @@index([pago])
+  @@map("conta_pagar")
+}
+
 /// Documento do colaborador (holerite, folha, contrato, manual). Por link +
 /// assinatura: o colaborador assina dentro do sistema (assinadoEm). tipo:
 /// HOLERITE | FOLHA | CONTRATO | MANUAL | OUTRO. competencia ex.: "2026-06".
