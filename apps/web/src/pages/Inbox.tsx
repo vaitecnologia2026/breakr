@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { PaginaShell, EstadoCarregando, EstadoErro } from './Clientes';
+import { PaginaShell, EstadoCarregando, EstadoErro } from '../components/primitivos';
 
 interface FaturaItem { id: string; codigoUnico: string; valor: string; vencimento: string; cliente?: { nomeFantasia: string } }
 interface BugItem { id: string; titulo: string; severidade: string; status: string }

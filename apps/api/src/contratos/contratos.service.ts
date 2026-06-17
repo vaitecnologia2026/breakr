@@ -184,16 +184,44 @@ export class ContratosService {
       existente.vencimento ??
       new Date(dataInicio.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const contrato = await this.prisma.contrato.update({
-      where: { id },
+    // Reivindica o contrato atomicamente: so a chamada que troca o status
+    // (count === 1) segue para gerar a cobranca, evitando 2a cobranca em
+    // chamadas concorrentes.
+    const claim = await this.prisma.contrato.updateMany({
+      where: { id, status: { not: 'EM_VIGOR' } },
       data: { status: 'EM_VIGOR', dataInicio, vencimento },
     });
+    if (claim.count === 0) {
+      return existente;
+    }
 
-    // Contrato vigente dispara a primeira cobranca do cliente.
-    await this.faturas.gerarCobranca(id);
-    await this.engine.dispatch('contrato.em_vigor', { contratoId: id });
+    try {
+      // Gera a 1a cobranca apenas se ainda nao houver fatura para o contrato
+      // (idempotente: um retry apos falha nao duplica a cobranca).
+      const jaTemFatura = await this.prisma.fatura.findFirst({
+        where: { contratoId: id },
+        select: { id: true },
+      });
+      if (!jaTemFatura) {
+        await this.faturas.gerarCobranca(id);
+      }
+      await this.engine.dispatch('contrato.em_vigor', { contratoId: id });
+    } catch (erro) {
+      // Falhou ao gerar a cobranca: reverte o status para permitir reprocessar.
+      // Sem isso o contrato ficaria EM_VIGOR sem fatura e o guard de idempotencia
+      // bloquearia o retry, deixando a 1a cobranca nunca gerada.
+      await this.prisma.contrato.update({
+        where: { id },
+        data: {
+          status: existente.status,
+          dataInicio: existente.dataInicio,
+          vencimento: existente.vencimento,
+        },
+      });
+      throw erro;
+    }
 
-    return contrato;
+    return this.prisma.contrato.findUniqueOrThrow({ where: { id } });
   }
 
   // Lista todos os contratos (mais recentes primeiro).

@@ -7,7 +7,7 @@ import {
   PainelVazio,
   Th,
   Td,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela de Projetos (M15).

@@ -8,6 +8,7 @@ import { IaService } from './ia.service';
 import { IaAssistenteService } from './ia-assistente.service';
 import { IntegracoesConfigService } from './integracoes-config.service';
 import { AtualizarIaDto } from './dto/atualizar-ia.dto';
+import { AssistenteChatDto } from './dto/assistente-chat.dto';
 
 @Controller('config')
 @UseGuards(JwtAuthGuard)
@@ -41,10 +42,8 @@ export class IaController {
   }
 
   @Post('ia/assistente')
-  async assistenteChat(
-    @Body() body: { mensagem: string; historico?: { role: 'user' | 'assistant'; conteudo: string }[] },
-  ) {
-    const resposta = await this.assistente.chat(body.mensagem, body.historico ?? []);
+  async assistenteChat(@Body() dto: AssistenteChatDto) {
+    const resposta = await this.assistente.chat(dto.mensagem, dto.historico ?? []);
     return { resposta };
   }
 

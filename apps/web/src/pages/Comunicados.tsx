@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { PaginaShell, BotaoPrimario, BotaoSecundario, EstadoCarregando, EstadoErro, PainelVazio } from './Clientes';
+import { PaginaShell, BotaoPrimario, BotaoSecundario, EstadoCarregando, EstadoErro, PainelVazio } from '../components/primitivos';
 
 interface Autor { id: string; nome: string }
 interface Comunicado {

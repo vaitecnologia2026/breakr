@@ -11,7 +11,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela de Squads (Fase 0 — leitura + criação).

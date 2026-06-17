@@ -153,6 +153,8 @@ export function NotificationBell() {
     try {
       await api.patch(`/notificacoes/${id}/lida`);
     } catch {
+      // Falhou: desfaz o estado otimista recarregando lista e contador.
+      carregarLista();
       carregarContador();
     }
   }
@@ -164,6 +166,8 @@ export function NotificationBell() {
     try {
       await api.patch('/notificacoes/lidas');
     } catch {
+      // Falhou: desfaz o estado otimista recarregando lista e contador.
+      carregarLista();
       carregarContador();
     }
   }

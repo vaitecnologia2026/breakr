@@ -16,7 +16,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela Desenvolvimento (M21 — board de bugs e tarefas).

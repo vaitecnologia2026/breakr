@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { LoginResponse, UsuarioPublico } from '@breakr/shared';
-import { api, TOKEN_KEY } from './api';
+import { api, TOKEN_KEY, EVENTO_SESSAO_EXPIRADA } from './api';
 
 /**
  * Contexto de autenticação do Breakr OS.
@@ -64,6 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       ativo = false;
     };
+  }, []);
+
+  // Encerra a sessao quando o interceptor de API detecta 401 (token expirado).
+  useEffect(() => {
+    function aoExpirar() {
+      setToken(null);
+      setUsuario(null);
+    }
+    window.addEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar);
+    return () => window.removeEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar);
   }, []);
 
   async function login(email: string, senha: string): Promise<void> {

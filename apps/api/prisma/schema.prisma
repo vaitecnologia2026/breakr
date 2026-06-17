@@ -214,6 +214,8 @@ model Cliente {
   codigoUnico     String        @unique @map("codigo_unico")
   ticketMedio     Decimal?      @map("ticket_medio") @db.Decimal(12, 2)
   orcamentoMensal Decimal?      @map("orcamento_mensal") @db.Decimal(12, 2)
+  // Link para a area de membros do cliente (exibido na tela de onboarding).
+  linkAreaMembros String?       @map("link_area_membros")
   criadoEm        DateTime      @default(now()) @map("criado_em")
   atualizadoEm    DateTime      @updatedAt @map("atualizado_em")
 
@@ -233,6 +235,10 @@ model Cliente {
   faturas    Fatura[]
   projetos   Projeto[]
   onboarding Onboarding?
+
+  // Onboarding do cliente — agenda de eventos e aulas concluidas (gamificacao).
+  eventosOnboarding OnboardingEvento[]
+  aulasConcluidas   AulaConclusao[]
 
   // Operacao de marketing (Fase 2)
   conteudos Conteudo[]
@@ -469,6 +475,8 @@ model OnboardingStep {
   id        String   @id @default(uuid())
   titulo    String
   descricao String?
+  // Link/material da etapa (ex.: formulario, pasta de referencias).
+  link      String?
   ordem     Int      @default(0)
   concluido Boolean  @default(false)
   criadoEm  DateTime @default(now()) @map("criado_em")
@@ -478,6 +486,55 @@ model OnboardingStep {
 
   @@index([onboardingId])
   @@map("onboarding_step")
+}
+
+/// Evento da agenda do cliente no onboarding (coleta de dados, reuniao de
+/// onboarding, alinhamento...). `oQueLevar` = checklist do que ter em maos.
+model OnboardingEvento {
+  id        String   @id @default(uuid())
+  titulo    String
+  descricao String?
+  data      DateTime
+  oQueLevar String?  @map("o_que_levar")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId])
+  @@map("onboarding_evento")
+}
+
+/// Aula do onboarding educativo (player embutido apontando p/ video unlisted).
+/// Catalogo global; o progresso por cliente vive em AulaConclusao.
+model Aula {
+  id        String   @id @default(uuid())
+  titulo    String
+  descricao String?
+  videoUrl  String   @map("video_url")
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  conclusoes AulaConclusao[]
+
+  @@map("aula")
+}
+
+/// Marca que um cliente assistiu uma aula (entra no progresso/gamificacao).
+model AulaConclusao {
+  id          String   @id @default(uuid())
+  concluidaEm DateTime @default(now()) @map("concluida_em")
+
+  aulaId String @map("aula_id")
+  aula   Aula   @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@unique([aulaId, clienteId])
+  @@index([clienteId])
+  @@map("aula_conclusao")
 }
 
 // ============================================================

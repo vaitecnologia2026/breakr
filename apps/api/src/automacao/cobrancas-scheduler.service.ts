@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { StatusFatura } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { dataIsoSaoPaulo } from '../common/data.util';
 import { EngineService } from './engine.service';
 
 const DIAS_ALERTA = [7, 3, 1];
@@ -42,7 +43,7 @@ export class CobrancasSchedulerService {
           faturaId: fatura.id,
           codigoUnico: fatura.codigoUnico,
           valor: Number(fatura.valor).toFixed(2),
-          vencimento: fatura.vencimento.toISOString().slice(0, 10),
+          vencimento: dataIsoSaoPaulo(fatura.vencimento),
           diasRestantes: dias,
           clienteId: fatura.clienteId,
           clienteNome: fatura.cliente.nomeFantasia,

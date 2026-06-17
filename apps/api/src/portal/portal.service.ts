@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { StatusConteudo, TipoConteudo } from '@prisma/client';
+import { FuncaoSquad, StatusConteudo, TipoConteudo } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
@@ -22,11 +22,26 @@ export class PortalService {
     const cliente = await this.prisma.cliente.findUnique({
       where: { codigoUnico: codigo },
       include: {
-        squad: { select: { nome: true } },
+        squad: {
+          select: {
+            nome: true,
+            // CS responsavel — nome + foto exibidos na tela de onboarding do cliente
+            // (o "seu CS" da visao gamificada). Um CS por squad (funcao unica).
+            membros: {
+              where: { funcao: FuncaoSquad.CS },
+              select: { usuario: { select: { nome: true, fotoUrl: true } } },
+              take: 1,
+            },
+          },
+        },
         plano: { select: { nome: true } },
         onboarding: { include: { etapas: { orderBy: { ordem: 'asc' } } } },
         contratos: { orderBy: { criadoEm: 'desc' }, take: 1 },
         faturas: { orderBy: { criadoEm: 'desc' } },
+        // Agenda do onboarding do cliente (coleta de dados, reunioes...).
+        eventosOnboarding: { orderBy: { data: 'asc' } },
+        // Aulas ja concluidas pelo cliente (para marcar o progresso).
+        aulasConcluidas: { select: { aulaId: true } },
         // Pecas aguardando o aval do cliente (M18 — aprovacao no portal).
         conteudos: {
           where: { status: StatusConteudo.APROVACAO_CLIENTE },
@@ -39,6 +54,14 @@ export class PortalService {
     }
 
     const contrato = cliente.contratos[0] ?? null;
+    const csUsuario = cliente.squad?.membros?.[0]?.usuario ?? null;
+
+    // Catalogo de aulas ativas + flag de concluida para este cliente.
+    const aulasAtivas = await this.prisma.aula.findMany({
+      where: { ativo: true },
+      orderBy: { ordem: 'asc' },
+    });
+    const concluidas = new Set(cliente.aulasConcluidas.map((a) => a.aulaId));
 
     return {
       cliente: {
@@ -47,6 +70,9 @@ export class PortalService {
         codigoUnico: cliente.codigoUnico,
       },
       squad: cliente.squad ? { nome: cliente.squad.nome } : null,
+      // CS responsavel pelo cliente (para a saudacao "seu CS" no onboarding).
+      cs: csUsuario ? { nome: csUsuario.nome, fotoUrl: csUsuario.fotoUrl } : null,
+      linkAreaMembros: cliente.linkAreaMembros,
       plano: cliente.plano ? { nome: cliente.plano.nome } : null,
       contrato: contrato
         ? { status: contrato.status, vencimento: contrato.vencimento }
@@ -57,11 +83,30 @@ export class PortalService {
             concluido: cliente.onboarding.concluido,
             etapas: cliente.onboarding.etapas.map((e) => ({
               titulo: e.titulo,
+              descricao: e.descricao,
+              link: e.link,
               concluido: e.concluido,
               ordem: e.ordem,
             })),
           }
         : null,
+      // Agenda do onboarding (datas + o que levar a cada reuniao).
+      eventos: cliente.eventosOnboarding.map((ev) => ({
+        id: ev.id,
+        titulo: ev.titulo,
+        descricao: ev.descricao,
+        data: ev.data,
+        oQueLevar: ev.oQueLevar,
+      })),
+      // Aulas do onboarding educativo, com a flag de concluida do cliente.
+      aulas: aulasAtivas.map((a) => ({
+        id: a.id,
+        titulo: a.titulo,
+        descricao: a.descricao,
+        videoUrl: a.videoUrl,
+        ordem: a.ordem,
+        concluida: concluidas.has(a.id),
+      })),
       faturas: cliente.faturas.map((f) => ({
         codigoUnico: f.codigoUnico,
         valor: f.valor.toString(),
@@ -204,5 +249,27 @@ export class PortalService {
       },
       select: { id: true, codigoUnico: true, titulo: true, status: true },
     });
+  }
+
+  // Cliente marca uma aula do onboarding como assistida (idempotente).
+  async marcarAulaConcluida(codigo: string, aulaId: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { codigoUnico: codigo },
+      select: { id: true },
+    });
+    if (!cliente) throw new NotFoundException('Portal nao encontrado');
+
+    const aula = await this.prisma.aula.findUnique({
+      where: { id: aulaId },
+      select: { id: true },
+    });
+    if (!aula) throw new NotFoundException('Aula nao encontrada');
+
+    await this.prisma.aulaConclusao.upsert({
+      where: { aulaId_clienteId: { aulaId, clienteId: cliente.id } },
+      create: { aulaId, clienteId: cliente.id },
+      update: {},
+    });
+    return { ok: true };
   }
 }

@@ -90,9 +90,13 @@ export class AutentiqueService implements AutentiquePort {
       headers: { Authorization: `Bearer ${this.token}` },
       body: form,
     });
+    if (!resp.ok) {
+      throw new Error(`Autentique upload ${resp.status}`);
+    }
     const json = (await resp.json()) as { data?: { createDocument: AutentiqueDocRaw }; errors?: unknown[] };
     if (json.errors?.length) throw new Error(`Autentique: ${JSON.stringify(json.errors)}`);
-    return this.mapDoc(json.data!.createDocument);
+    if (!json.data?.createDocument) throw new Error('Autentique: resposta sem data');
+    return this.mapDoc(json.data.createDocument);
   }
 
   private mapDoc(raw: AutentiqueDocRaw): AutentiqueDocumento {

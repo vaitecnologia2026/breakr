@@ -16,7 +16,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela de Recrutamento (M19 — vagas e candidatos / RH).

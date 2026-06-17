@@ -16,7 +16,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela de Conteúdo (M16 — funil de produção das peças).

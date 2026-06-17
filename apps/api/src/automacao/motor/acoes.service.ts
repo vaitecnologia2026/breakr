@@ -4,6 +4,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { dataIsoSaoPaulo } from '../../common/data.util';
 import { NotificacoesService } from '../../notificacoes/notificacoes.service';
 import { SquadsService } from '../../squads/squads.service';
 import {
@@ -89,10 +90,22 @@ export class AcoesService {
       const contratoId = String(ctx.payload.contratoId ?? '');
       if (!contratoId) throw new Error('payload.contratoId ausente');
       const data = (params.data ?? {}) as Record<string, unknown>;
-      // data e dinamico (vem da regra em JSON) — cast intencional.
+      // Whitelist: a regra (JSON) so pode alterar campos seguros. Sem isso, quem
+      // edita regras poderia escrever colunas arbitrarias (valorMensal, clienteId).
+      const CAMPOS_PERMITIDOS = ['status'];
+      const dados: Record<string, unknown> = {};
+      for (const campo of CAMPOS_PERMITIDOS) {
+        if (data[campo] !== undefined) dados[campo] = data[campo];
+      }
+      const ignorados = Object.keys(data).filter((k) => !CAMPOS_PERMITIDOS.includes(k));
+      if (ignorados.length) {
+        this.logger.warn(
+          `atualizar_contrato: campos nao permitidos ignorados: ${ignorados.join(', ')}`,
+        );
+      }
       const atualizado = await this.prisma.contrato.update({
         where: { id: contratoId },
-        data: data as never,
+        data: dados as never,
       });
       return { contratoId, status: atualizado.status };
     });
@@ -241,7 +254,7 @@ export class AcoesService {
       const cobranca = await this.asaas.criarCobranca({
         clienteId: asaasClienteId,
         valor: Number(fatura.valor),
-        vencimento: vencimento.toISOString().slice(0, 10),
+        vencimento: dataIsoSaoPaulo(vencimento),
         descricao: `Fatura Breakr ${fatura.codigoUnico}`,
         formaPagamento: forma,
       });

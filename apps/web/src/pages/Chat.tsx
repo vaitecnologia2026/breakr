@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { EstadoCarregando } from './Clientes';
+import { EstadoCarregando } from '../components/primitivos';
 
 interface Canal { id: string; nome: string; descricao?: string | null }
 interface Mensagem {
@@ -62,7 +62,11 @@ export function Chat() {
   const [carregandoCanais, setCarregandoCanais] = useState(true);
   const [carregandoMsgs, setCarregandoMsgs] = useState(false);
   const msgsEndRef = useRef<HTMLDivElement>(null);
-  const ultimoIdRef = useRef<string | null>(null);
+  // Guarda o `criadoEm` da ultima mensagem recebida (usado como cursor ?depois=).
+  const ultimoTsRef = useRef<string | null>(null);
+  // Id do canal atualmente ativo — usado para descartar respostas em voo de um
+  // canal anterior quando o usuario troca de canal (race).
+  const canalIdRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -75,17 +79,19 @@ export function Chat() {
   const carregarMensagens = useCallback(async (canal: Canal, inicial = false) => {
     if (inicial) setCarregandoMsgs(true);
     try {
-      const params = !inicial && ultimoIdRef.current
-        ? `?depois=${encodeURIComponent(ultimoIdRef.current)}`
+      const params = !inicial && ultimoTsRef.current
+        ? `?depois=${encodeURIComponent(ultimoTsRef.current)}`
         : '';
       const { data } = await api.get<Mensagem[]>(`/chat/canais/${canal.id}/mensagens${params}`);
+      // Descarta se o usuario ja trocou de canal enquanto esta resposta vinha.
+      if (canalIdRef.current !== canal.id) return;
       if (!data?.length) return;
       setMensagens((prev) => {
         if (inicial) return data;
         const novos = data.filter((m) => !prev.some((p) => p.id === m.id));
         return novos.length ? [...prev, ...novos] : prev;
       });
-      ultimoIdRef.current = data[data.length - 1].criadoEm;
+      ultimoTsRef.current = data[data.length - 1].criadoEm;
     } finally {
       if (inicial) setCarregandoMsgs(false);
     }
@@ -93,7 +99,8 @@ export function Chat() {
 
   useEffect(() => {
     if (!canalAtivo) return;
-    ultimoIdRef.current = null;
+    canalIdRef.current = canalAtivo.id;
+    ultimoTsRef.current = null;
     setMensagens([]);
     carregarMensagens(canalAtivo, true);
     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -113,7 +120,7 @@ export function Chat() {
     try {
       const { data } = await api.post<Mensagem>(`/chat/canais/${canalAtivo.id}/mensagens`, { conteudo });
       setMensagens((prev) => [...prev, data]);
-      ultimoIdRef.current = data.criadoEm;
+      ultimoTsRef.current = data.criadoEm;
     } finally {
       setEnviando(false);
     }

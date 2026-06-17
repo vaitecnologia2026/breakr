@@ -53,4 +53,13 @@ export class PortalController {
   ) {
     return this.portal.submeterDemanda(codigo, dto);
   }
+
+  // POST /portal/:codigo/aula/:id/concluir — cliente marca uma aula como assistida.
+  @Post(':codigo/aula/:id/concluir')
+  concluirAula(
+    @Param('codigo') codigo: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.portal.marcarAulaConcluida(codigo, id);
+  }
 }

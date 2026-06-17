@@ -9,7 +9,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Automações — o painel do motor próprio (substitui a tela do n8n).

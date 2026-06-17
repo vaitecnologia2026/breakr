@@ -16,7 +16,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela Compras (M20 — solicitações de compra).

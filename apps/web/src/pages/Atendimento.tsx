@@ -111,6 +111,7 @@ export function Atendimento() {
   const [salvandoConfig, setSalvandoConfig] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const ultimaContagemRef = useRef(0);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Carrega inbox
@@ -147,19 +148,48 @@ export function Atendimento() {
     };
   }, []);
 
-  // Reload detalhe quando inbox atualiza e há conversa selecionada
+  // Carrega o detalhe da conversa selecionada e o mantem atualizado com um poll
+  // proprio (5s), sem reagir ao poll do inbox. O guard `ativo` descarta respostas
+  // de uma conversa anterior quando o usuario troca de selecao (race).
   useEffect(() => {
-    if (selecionada) carregarDetalhe(selecionada);
-  }, [inbox]);
+    if (!selecionada) {
+      setDetalhe(null);
+      return;
+    }
+    const id = selecionada;
+    let ativo = true;
+    async function carregar(comLoading: boolean) {
+      if (comLoading) setCarregandoDetalhe(true);
+      try {
+        const res = await api.get<ConversaDetalhe>(`/atendimento/${id}`);
+        if (ativo) setDetalhe(res.data);
+      } catch {
+        /* silencia */
+      } finally {
+        if (ativo && comLoading) setCarregandoDetalhe(false);
+      }
+    }
+    carregar(true);
+    const t = setInterval(() => carregar(false), 5000);
+    return () => {
+      ativo = false;
+      clearInterval(t);
+    };
+  }, [selecionada]);
 
-  // Scroll para última mensagem
+  // Scroll para a última mensagem apenas quando chega mensagem nova (evita
+  // forçar scroll a cada refresh do poll).
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const total = detalhe?.mensagens?.length ?? 0;
+    if (total > ultimaContagemRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    ultimaContagemRef.current = total;
   }, [detalhe?.mensagens]);
 
   function abrirConversa(id: string) {
+    // O efeito de [selecionada] cuida de carregar o detalhe e iniciar o poll.
     setSelecionada(id);
-    carregarDetalhe(id);
   }
 
   async function aceitar() {

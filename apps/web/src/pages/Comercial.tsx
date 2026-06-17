@@ -16,7 +16,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela Comercial (M11 — pipeline de vendas / CRM).

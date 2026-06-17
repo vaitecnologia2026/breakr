@@ -145,24 +145,44 @@ export class ComercialService {
     if (lead.clienteId) {
       return lead;
     }
-    const novoCliente = await this.prisma.cliente.create({
-      data: {
-        nomeFantasia: lead.empresa || lead.nome,
-        status: ClienteStatus.NOVO as never,
-        codigoUnico: this.codigoUnico.gerar('CLI'),
-      },
+    // Cria o cliente e vincula o lead atomicamente. O re-check do clienteId
+    // dentro da transacao evita criar um segundo cliente em chamadas concorrentes
+    // (ex.: dois GANHO simultaneos) ou em retries apos falha parcial.
+    const novoCliente = await this.prisma.$transaction(async (tx) => {
+      const atual = await tx.lead.findUnique({
+        where: { id },
+        select: { clienteId: true },
+      });
+      if (!atual) {
+        throw new NotFoundException('Lead nao encontrado');
+      }
+      if (atual.clienteId) {
+        return null; // ja convertido por outra chamada
+      }
+      const cliente = await tx.cliente.create({
+        data: {
+          nomeFantasia: lead.empresa || lead.nome,
+          status: ClienteStatus.NOVO as never,
+          codigoUnico: this.codigoUnico.gerar('CLI'),
+        },
+      });
+      await tx.lead.update({
+        where: { id },
+        data: {
+          status: StatusLead.GANHO,
+          clienteId: cliente.id,
+        },
+      });
+      return cliente;
     });
-    await this.prisma.lead.update({
-      where: { id },
-      data: {
-        status: StatusLead.GANHO,
+
+    // Dispara o evento somente apos o commit, e apenas se esta chamada converteu.
+    if (novoCliente) {
+      await this.engine.dispatch('lead.ganho', {
+        leadId: id,
         clienteId: novoCliente.id,
-      },
-    });
-    await this.engine.dispatch('lead.ganho', {
-      leadId: id,
-      clienteId: novoCliente.id,
-    });
+      });
+    }
     return this.obter(id);
   }
 }

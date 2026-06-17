@@ -11,12 +11,17 @@ export class GeminiProvider implements IaProvider {
   readonly nome = 'Gemini';
 
   async completar(prompt: string, opts: { apiKey: string; modelo: string }): Promise<string> {
+    // Chave no header (x-goog-api-key), nao na query string — evita vazar a
+    // credencial em logs de URL / historico de requisicoes.
     const url =
       `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `${encodeURIComponent(opts.modelo)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
+      `${encodeURIComponent(opts.modelo)}:generateContent`;
     const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': opts.apiKey,
+      },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
     });
     if (!resp.ok) {

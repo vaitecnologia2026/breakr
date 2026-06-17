@@ -5,7 +5,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Dashboard de Qualidade & Rework (M18).

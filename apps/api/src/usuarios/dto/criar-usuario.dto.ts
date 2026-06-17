@@ -1,0 +1,22 @@
+// DTO de criacao de usuario (validado em runtime pelo ValidationPipe global).
+import { IsEmail, IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
+import { Cargo } from '@prisma/client';
+
+export class CriarUsuarioDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  nome!: string;
+
+  @IsEmail()
+  @MaxLength(180)
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72) // limite de bytes do bcrypt
+  senha!: string;
+
+  @IsEnum(Cargo)
+  cargo!: Cargo;
+}

@@ -192,13 +192,14 @@ export class AtendimentoService {
       where: { id: 'singleton' },
     });
     if (!cfg) {
-      return { ativo: false, phoneNumberId: null, waBaId: null, webhookVerifyToken: null, accessToken: null };
+      return { ativo: false, phoneNumberId: null, waBaId: null, temWebhookVerifyToken: false, accessToken: null };
     }
     return {
       ativo: cfg.ativo,
       phoneNumberId: cfg.phoneNumberId,
       waBaId: cfg.waBaId,
-      webhookVerifyToken: cfg.webhookVerifyToken,
+      // Segredo que autentica os webhooks inbound: nunca devolver em claro.
+      temWebhookVerifyToken: !!cfg.webhookVerifyToken,
       accessToken: cfg.accessToken ? `***${cfg.accessToken.slice(-4)}` : null,
     };
   }

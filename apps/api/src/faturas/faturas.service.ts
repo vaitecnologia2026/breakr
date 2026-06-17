@@ -3,10 +3,11 @@
 // liberacao do cliente: gera a cobranca (ASAAS) -> ao ser paga emite a NF
 // (Speed), libera o onboarding e cria os projetos do plano, e dispara o motor.
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Fatura, Prisma } from '@prisma/client';
+import { Fatura, Prisma, StatusFatura } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
+import { dataIsoSaoPaulo } from '../common/data.util';
 import {
   ASAAS_PORT,
   AsaasPort,
@@ -34,9 +35,10 @@ export class FaturasService {
     private readonly notificacoes: NotificacoesService,
   ) {}
 
-  // Formata uma data como YYYY-MM-DD (formato esperado pelo ASAAS).
+  // Formata uma data como YYYY-MM-DD (formato esperado pelo ASAAS), no fuso de
+  // Sao Paulo para nao adiantar o vencimento em 1 dia (ver data.util).
   private dataIso(d: Date): string {
-    return d.toISOString().slice(0, 10);
+    return dataIsoSaoPaulo(d);
   }
 
   // Gera a 1a cobranca (PIX) de um contrato no ASAAS e persiste a Fatura.
@@ -102,32 +104,55 @@ export class FaturasService {
       throw new NotFoundException('Fatura nao encontrada');
     }
 
-    // Idempotencia: ja paga -> nao reprocessa (NF/onboarding/projetos).
-    if (fatura.status === 'PAGA') {
+    // Idempotencia rapida: ja paga -> nada a reprocessar.
+    if (fatura.status === StatusFatura.PAGA) {
       return fatura;
     }
 
-    await this.prisma.fatura.update({
-      where: { id },
-      data: { status: 'PAGA', pagaEm: new Date() },
+    // Reivindica a fatura atomicamente: so a chamada que de fato troca o status
+    // (count === 1) segue para o provisionamento. Isso evita que webhook ASAAS +
+    // clique manual (ou retries concorrentes) emitam NF e criem onboarding/projetos
+    // em duplicidade.
+    const claim = await this.prisma.fatura.updateMany({
+      where: { id, status: { not: StatusFatura.PAGA } },
+      data: { status: StatusFatura.PAGA, pagaEm: new Date() },
     });
+    if (claim.count === 0) {
+      // Outra chamada concorrente ja reivindicou — devolve o estado atual.
+      return this.obter(id);
+    }
 
-    // 1) Emite a NF (Speed) e guarda id/link no nosso banco.
-    const nota = await this.speed.emitirNota({
-      clienteId: fatura.cliente.id,
-      valor: Number(fatura.valor),
-      descricaoServico: `Serviços de marketing — ${fatura.cliente.plano?.nome ?? 'plano'}`,
-    });
-    await this.prisma.fatura.update({
-      where: { id },
-      data: { notaFiscalId: nota.id, notaFiscalUrl: nota.linkPdf },
-    });
+    try {
+      // 1) Emite a NF (Speed) — idempotente: so emite se ainda nao houver nota.
+      if (!fatura.notaFiscalId) {
+        const nota = await this.speed.emitirNota({
+          clienteId: fatura.cliente.id,
+          valor: Number(fatura.valor),
+          descricaoServico: `Serviços de marketing — ${fatura.cliente.plano?.nome ?? 'plano'}`,
+        });
+        await this.prisma.fatura.update({
+          where: { id },
+          data: { notaFiscalId: nota.id, notaFiscalUrl: nota.linkPdf },
+        });
+      }
 
-    // 2) Libera o onboarding gamificado e cria os projetos do plano.
-    await this.onboarding.criar(fatura.cliente.id);
-    await this.projetos.criarProjetosDoPlano(fatura.cliente.id);
+      // 2) Libera o onboarding gamificado e cria os projetos do plano
+      //    (onboarding.criar e criarProjetosDoPlano sao idempotentes).
+      await this.onboarding.criar(fatura.cliente.id);
+      await this.projetos.criarProjetosDoPlano(fatura.cliente.id);
+    } catch (erro) {
+      // Provisionamento falhou: devolve a fatura para reprocessamento futuro.
+      // Sem isso, ela ficaria PAGA porem com o cliente nunca provisionado, e o
+      // retry retornaria cedo na checagem de idempotencia. A NF eventualmente
+      // ja emitida fica registrada e nao sera reemitida no proximo retry.
+      await this.prisma.fatura.update({
+        where: { id },
+        data: { status: StatusFatura.PENDENTE, pagaEm: null },
+      });
+      throw erro;
+    }
 
-    // 3) Avisa o motor e o time financeiro.
+    // 3) Avisa o motor e o time financeiro — apenas apos provisionamento concluido.
     await this.engine.dispatch('fatura.paga', {
       faturaId: id,
       clienteId: fatura.cliente.id,

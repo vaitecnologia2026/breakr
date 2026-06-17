@@ -55,8 +55,29 @@ export class NotificacoesService {
       where: { cargo: cargo as never, ativo: true },
       select: { id: true },
     });
+    if (usuarios.length === 0) {
+      return { enviadas: 0 };
+    }
+    // Um unico INSERT em lote (evita N+1) e depois entrega em tempo real.
+    await this.prisma.notificacao.createMany({
+      data: usuarios.map((u) => ({
+        usuarioId: u.id,
+        titulo: dados.titulo,
+        mensagem: dados.mensagem,
+        tipo: dados.tipo ?? 'INFO',
+        link: dados.link,
+      })),
+    });
+    // createMany nao retorna os registros, entao emitimos os dados informados
+    // (mesmo padrao do broadcast).
+    const payload = {
+      titulo: dados.titulo,
+      mensagem: dados.mensagem,
+      tipo: dados.tipo ?? 'INFO',
+      link: dados.link ?? null,
+    };
     for (const u of usuarios) {
-      await this.criar(u.id, dados);
+      this.gateway.emitirParaUsuario(u.id, payload);
     }
     return { enviadas: usuarios.length };
   }

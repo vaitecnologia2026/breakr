@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Logo } from '../components/Logo';
-import { EstadoCarregando } from './Clientes';
+import { EstadoCarregando } from '../components/primitivos';
 
 /**
  * Portal público do cliente (estilo eCite).
@@ -19,13 +19,36 @@ import { EstadoCarregando } from './Clientes';
 interface PortalData {
   cliente: { nomeFantasia: string; status: string; codigoUnico: string };
   squad: { nome: string } | null;
+  cs: { nome: string; fotoUrl: string | null } | null;
+  linkAreaMembros: string | null;
   plano: { nome: string } | null;
   contrato: { status: string; vencimento: string | null } | null;
   onboarding: {
     progresso: number;
     concluido: boolean;
-    etapas: { titulo: string; concluido: boolean; ordem: number }[];
+    etapas: {
+      titulo: string;
+      descricao: string | null;
+      link: string | null;
+      concluido: boolean;
+      ordem: number;
+    }[];
   } | null;
+  eventos: {
+    id: string;
+    titulo: string;
+    descricao: string | null;
+    data: string;
+    oQueLevar: string | null;
+  }[];
+  aulas: {
+    id: string;
+    titulo: string;
+    descricao: string | null;
+    videoUrl: string;
+    ordem: number;
+    concluida: boolean;
+  }[];
   faturas: {
     codigoUnico: string;
     valor: string;
@@ -164,6 +187,14 @@ export function Portal() {
               />
             )}
             {dados.onboarding && <CardOnboarding onboarding={dados.onboarding} />}
+            {dados.eventos.length > 0 && <CardAgenda eventos={dados.eventos} />}
+            {dados.aulas.length > 0 && (
+              <CardAulas
+                aulas={dados.aulas}
+                codigo={codigo ?? ''}
+                aoMudar={() => setVersao((v) => v + 1)}
+              />
+            )}
             {dados.contrato && <CardContrato contrato={dados.contrato} />}
             <CardFaturas faturas={dados.faturas} />
             <Rodape />
@@ -177,7 +208,7 @@ export function Portal() {
 /* ------------------------------ Cabeçalho ----------------------------- */
 
 function Cabecalho({ dados }: { dados: PortalData }) {
-  const { cliente, squad, plano } = dados;
+  const { cliente, squad, plano, cs, linkAreaMembros } = dados;
   const cor = corStatusCliente(cliente.status);
 
   const linhaPlanoSquad = [plano && `Plano ${plano.nome}`, squad && `Squad ${squad.nome}`]
@@ -202,7 +233,91 @@ function Cabecalho({ dados }: { dados: PortalData }) {
           <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>{linhaPlanoSquad}</p>
         )}
       </div>
+
+      {/* "Seu CS" — quem acompanha o cliente, com foto + nome. */}
+      {cs && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 14px',
+            borderRadius: 14,
+            background: 'var(--superficie-2)',
+            border: '1px solid var(--borda)',
+          }}
+        >
+          <AvatarCs nome={cs.nome} fotoUrl={cs.fotoUrl} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>Seu CS</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--cinza-vapor)' }}>{cs.nome}</span>
+          </div>
+        </div>
+      )}
+
+      {linkAreaMembros && (
+        <a
+          href={linkAreaMembros}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="brk-gradient-bg"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '11px 16px',
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 700,
+            color: '#fff',
+            textDecoration: 'none',
+            alignSelf: 'flex-start',
+          }}
+        >
+          Acessar área de membros →
+        </a>
+      )}
     </header>
+  );
+}
+
+// Avatar do CS: foto quando houver, senão as iniciais do nome.
+function AvatarCs({ nome, fotoUrl }: { nome: string; fotoUrl: string | null }) {
+  const iniciais = nome
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('');
+  const tamanho = 44;
+  if (fotoUrl) {
+    return (
+      <img
+        src={fotoUrl}
+        alt={nome}
+        style={{ width: tamanho, height: tamanho, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className="brk-gradient-bg"
+      style={{
+        width: tamanho,
+        height: tamanho,
+        flexShrink: 0,
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        color: '#fff',
+        fontWeight: 800,
+        fontSize: 15,
+      }}
+    >
+      {iniciais || '?'}
+    </span>
   );
 }
 
@@ -256,22 +371,224 @@ function CardOnboarding({ onboarding }: { onboarding: NonNullable<PortalData['on
         {etapas.map((etapa, i) => (
           <li
             key={`${etapa.ordem}-${i}`}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '8px 0' }}
           >
-            <IconeCheck concluido={etapa.concluido} />
-            <span
-              style={{
-                fontSize: 14,
-                color: etapa.concluido ? 'var(--texto-fraco)' : 'var(--cinza-vapor)',
-                textDecoration: etapa.concluido ? 'line-through' : 'none',
-              }}
-            >
-              {etapa.titulo}
-            </span>
+            <div style={{ marginTop: 2 }}>
+              <IconeCheck concluido={etapa.concluido} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: etapa.concluido ? 'var(--texto-fraco)' : 'var(--cinza-vapor)',
+                  textDecoration: etapa.concluido ? 'line-through' : 'none',
+                }}
+              >
+                {etapa.titulo}
+              </span>
+              {etapa.descricao && (
+                <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>{etapa.descricao}</span>
+              )}
+              {etapa.link && (
+                <a
+                  href={etapa.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 12.5, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}
+                >
+                  Abrir material →
+                </a>
+              )}
+            </div>
           </li>
         ))}
       </ul>
     </Card>
+  );
+}
+
+/* ------------------------------ Card agenda --------------------------- */
+
+function formatarDataHora(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function CardAgenda({ eventos }: { eventos: PortalData['eventos'] }) {
+  return (
+    <Card>
+      <TituloCard>Sua agenda</TituloCard>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+        {eventos.map((ev) => (
+          <li
+            key={ev.id}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              padding: '12px 14px',
+              borderRadius: 12,
+              background: 'var(--superficie-2)',
+              border: '1px solid var(--borda)',
+            }}
+          >
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#f0814f' }}>
+              {formatarDataHora(ev.data)}
+            </span>
+            <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
+              {ev.titulo}
+            </span>
+            {ev.descricao && (
+              <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{ev.descricao}</span>
+            )}
+            {ev.oQueLevar && (
+              <div style={{ marginTop: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--texto-fraco)' }}>
+                  O que ter em mãos:
+                </span>
+                <p style={{ fontSize: 13, color: 'var(--texto-suave)', whiteSpace: 'pre-line', marginTop: 2 }}>
+                  {ev.oQueLevar}
+                </p>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/* ------------------------------ Card aulas ---------------------------- */
+
+// Converte uma URL de YouTube/Vimeo em URL embutível; null se não reconhecer.
+function urlEmbed(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace('www.', '');
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const id = u.searchParams.get('v');
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host === 'youtu.be') {
+      const id = u.pathname.slice(1);
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host === 'vimeo.com') {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      return id ? `https://player.vimeo.com/video/${id}` : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function CardAulas({
+  aulas,
+  codigo,
+  aoMudar,
+}: {
+  aulas: PortalData['aulas'];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const ordenadas = [...aulas].sort((a, b) => a.ordem - b.ordem);
+  const concluidas = aulas.filter((a) => a.concluida).length;
+
+  return (
+    <Card>
+      <TituloCard>Aulas de onboarding</TituloCard>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 4 }}>
+        {concluidas} de {aulas.length} assistidas
+      </p>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 14 }}>
+        {ordenadas.map((aula) => (
+          <ItemAula key={aula.id} aula={aula} codigo={codigo} aoMudar={aoMudar} />
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function ItemAula({
+  aula,
+  codigo,
+  aoMudar,
+}: {
+  aula: PortalData['aulas'][number];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const embed = urlEmbed(aula.videoUrl);
+
+  async function marcarAssistida() {
+    if (aula.concluida || enviando) return;
+    setEnviando(true);
+    try {
+      await api.post(`/portal/${codigo}/aula/${aula.id}/concluir`);
+      aoMudar();
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <li style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <IconeCheck concluido={aula.concluida} />
+        <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
+          {aula.titulo}
+        </span>
+      </div>
+      {aula.descricao && (
+        <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{aula.descricao}</span>
+      )}
+      {embed ? (
+        <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+          <iframe
+            src={embed}
+            title={aula.titulo}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+          />
+        </div>
+      ) : (
+        <a
+          href={aula.videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 13, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}
+        >
+          Assistir aula →
+        </a>
+      )}
+      <button
+        type="button"
+        onClick={marcarAssistida}
+        disabled={aula.concluida || enviando}
+        style={{
+          alignSelf: 'flex-start',
+          padding: '8px 14px',
+          borderRadius: 10,
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: aula.concluida ? 'default' : 'pointer',
+          border: '1px solid var(--borda)',
+          background: aula.concluida ? 'transparent' : 'var(--superficie-3)',
+          color: aula.concluida ? '#67e0a3' : 'var(--cinza-vapor)',
+        }}
+      >
+        {aula.concluida ? 'Assistida ✓' : enviando ? 'Salvando…' : 'Marcar como assistida'}
+      </button>
+    </li>
   );
 }
 

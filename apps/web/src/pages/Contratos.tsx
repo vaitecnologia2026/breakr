@@ -13,7 +13,7 @@ import {
   EstadoCarregando,
   EstadoErro,
   PainelVazio,
-} from './Clientes';
+} from '../components/primitivos';
 
 /**
  * Tela de Contratos (Fase 1 — pipeline de entrada).
