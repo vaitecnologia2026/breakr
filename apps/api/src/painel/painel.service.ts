@@ -248,6 +248,20 @@ export class PainelService {
         (p.dataAgendada !== null && p.dataAgendada < agora) || p.atualizadoEm < SLA_72H,
     }));
 
+    // Reuniões de hoje (calendário do dia) + WhatsApp pendente — painel do colaborador.
+    const inicioDia = new Date(agora);
+    inicioDia.setHours(0, 0, 0, 0);
+    const fimDia = new Date(agora);
+    fimDia.setHours(23, 59, 59, 999);
+    const [reunioesHoje, whatsappPendente] = await Promise.all([
+      this.prisma.reuniaoInterna.findMany({
+        where: { data: { gte: inicioDia, lte: fimDia } },
+        orderBy: { data: 'asc' },
+        select: { id: true, titulo: true, data: true, meetLink: true },
+      }),
+      this.prisma.conversa.count({ where: { status: StatusConversa.PENDENTE } }),
+    ]);
+
     const cargo = usuario.cargo;
     const ehGestao = cargo === Cargo.SUPERADMIN || cargo === Cargo.ADMIN;
 
@@ -315,6 +329,8 @@ export class PainelService {
       cargo,
       pecas,
       atrasadas: pecas.filter((p) => p.atrasado).length,
+      reunioesHoje,
+      whatsappPendente,
       financeiro,
       trafego,
       cs,

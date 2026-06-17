@@ -41,6 +41,7 @@ import { EnpsModule } from './enps/enps.module';
 import { DiscModule } from './disc/disc.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { DesempenhoModule } from './desempenho/desempenho.module';
+import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
 
 @Module({
   imports: [
@@ -107,6 +108,8 @@ import { DesempenhoModule } from './desempenho/desempenho.module';
     // RH — documentos do colaborador (holerite/folha) e desempenho.
     DocumentosModule,
     DesempenhoModule,
+    // Financeiro interno — contas a pagar.
+    ContasPagarModule,
   ],
 })
 export class AppModule {}

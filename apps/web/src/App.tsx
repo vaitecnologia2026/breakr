@@ -34,6 +34,7 @@ import { Metas } from './pages/Metas';
 import { Enps } from './pages/Enps';
 import { Documentos } from './pages/Documentos';
 import { Desempenho } from './pages/Desempenho';
+import { Financeiro } from './pages/Financeiro';
 
 export function App() {
   return (
@@ -57,6 +58,7 @@ export function App() {
         <Route path="onboarding" element={<Onboarding />} />
         <Route path="contratos" element={<Contratos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
+        <Route path="financeiro" element={<Financeiro />} />
         <Route path="projetos" element={<Projetos />} />
         <Route path="conteudos" element={<Conteudos />} />
         <Route path="qualidade" element={<Qualidade />} />

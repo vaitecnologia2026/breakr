@@ -222,6 +222,41 @@ export class FaturasService {
     });
   }
 
+  // Painel financeiro (Franci): indicadores consolidados a partir das faturas.
+  async indicadores(): Promise<{
+    recebidoMes: number;
+    aReceberSemana: number;
+    aReceberTotal: number;
+    pendentesTotal: number;
+    pendentesEnviados: number;
+  }> {
+    const agora = new Date();
+    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const limite7d = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [pagasMes, pendentes] = await Promise.all([
+      this.prisma.fatura.findMany({
+        where: { status: 'PAGA', pagaEm: { gte: inicioMes } },
+        select: { valor: true },
+      }),
+      this.prisma.fatura.findMany({
+        where: { status: 'PENDENTE' },
+        select: { valor: true, vencimento: true, enviadaWhatsapp: true },
+      }),
+    ]);
+
+    const soma = (arr: { valor: Prisma.Decimal }[]) =>
+      arr.reduce((s, f) => s + Number(f.valor), 0);
+
+    return {
+      recebidoMes: soma(pagasMes),
+      aReceberSemana: soma(pendentes.filter((f) => f.vencimento <= limite7d)),
+      aReceberTotal: soma(pendentes),
+      pendentesTotal: pendentes.length,
+      pendentesEnviados: pendentes.filter((f) => f.enviadaWhatsapp).length,
+    };
+  }
+
   // Lista as faturas de um cliente (mais recentes primeiro).
   listarPorCliente(clienteId: string): Promise<Fatura[]> {
     return this.prisma.fatura.findMany({

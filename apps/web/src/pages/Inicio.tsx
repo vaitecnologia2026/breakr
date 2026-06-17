@@ -23,10 +23,13 @@ interface PecaMinha {
   dataAgendada: string | null;
   atrasado: boolean;
 }
+interface ReuniaoHoje { id: string; titulo: string; data: string; meetLink: string | null }
 interface MeuDia {
   cargo: string;
   pecas: PecaMinha[];
   atrasadas: number;
+  reunioesHoje: ReuniaoHoje[];
+  whatsappPendente: number;
   financeiro: { faturasVencidas: number; faturasPendentes: number; contratosRevisao: number } | null;
   trafego: { campanhasAtivas: number } | null;
   cs: { atendimentosAbertos: number; onboardingsEmAndamento: number; onboardingsSlaEstourado: number } | null;
@@ -373,11 +376,13 @@ function MiniStat({ rotulo, valor, link, alerta }: { rotulo: string; valor: numb
 }
 
 function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
-  const { pecas, atrasadas, financeiro, trafego, cs, comercial } = meuDia;
+  const { pecas, atrasadas, financeiro, trafego, cs, comercial, reunioesHoje, whatsappPendente } = meuDia;
   const temBlocos = financeiro || trafego || cs || comercial;
-  const temConteudo = pecas.length > 0 || temBlocos;
+  const temConteudo = pecas.length > 0 || temBlocos || reunioesHoje.length > 0 || whatsappPendente > 0;
 
   if (!temConteudo) return null;
+
+  const horaBR = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -398,7 +403,7 @@ function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
       </div>
 
       {/* Blocos por cargo */}
-      {temBlocos && (
+      {(temBlocos || whatsappPendente > 0) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
           {financeiro && (
             <>
@@ -420,6 +425,30 @@ function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
           {comercial && (
             <MiniStat rotulo="Leads no pipeline" valor={comercial.leadsAtivos} link="/comercial" />
           )}
+          {whatsappPendente > 0 && (
+            <MiniStat rotulo="WhatsApp pendente" valor={whatsappPendente} link="/atendimento" alerta />
+          )}
+        </div>
+      )}
+
+      {/* Reuniões de hoje */}
+      {reunioesHoje.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-fraco)' }}>Reuniões de hoje</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {reunioesHoje.map((r) => (
+              <div key={r.id} className="brk-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px' }}>
+                <span style={{ fontSize: 13.5, color: 'var(--texto)' }}>
+                  <strong style={{ color: '#f0814f' }}>{horaBR(r.data)}</strong> · {r.titulo}
+                </span>
+                {r.meetLink && (
+                  <a href={r.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}>
+                    Entrar →
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -247,6 +247,25 @@ export class RegrasService implements OnModuleInit {
       ],
     });
 
+    // Novo contrato criado → financeiro/jurídico prioriza (notificação em tempo real).
+    await this.garantirRegra({
+      nome: 'Novo contrato para revisar',
+      trigger: { evento: 'contrato.criado' },
+      condicoes: [],
+      acoes: [
+        {
+          tipo: 'notificar_cargo',
+          params: {
+            cargo: 'FINANCEIRO',
+            titulo: 'Novo contrato para fazer',
+            mensagem: 'Novo contrato criado — priorize a revisão e liberação para assinatura.',
+            tipo: 'ALERTA',
+            link: '/contratos',
+          },
+        },
+      ],
+    });
+
     // Contrato assinado → financeiro deve ativar cobrança no Asaas.
     await this.garantirRegra({
       nome: 'Ativar cobranca apos assinatura',
