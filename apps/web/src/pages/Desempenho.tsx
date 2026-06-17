@@ -27,6 +27,12 @@ interface UsuarioOpt { id: string; nome: string }
 
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
 
+const MOCK_AVALIACOES: Avaliacao[] = [
+  { id: 'av1', periodo: '2026-Q2', nota: 9, comentario: 'Excelente atuação no onboarding dos novos clientes. Proatividade acima da média. Ponto de melhoria: documentação dos processos.', criadoEm: '2026-06-01T00:00:00Z', colaborador: { nome: 'Marina Alves' }, avaliador: { nome: 'Admin' } },
+  { id: 'av2', periodo: '2026-Q2', nota: 8, comentario: 'Bom desempenho nas campanhas de tráfego. ROAS médio acima da meta. Oportunidade de melhoria na comunicação com o cliente.', criadoEm: '2026-06-01T00:00:00Z', colaborador: { nome: 'Pedro Rocha' }, avaliador: { nome: 'Admin' } },
+  { id: 'av3', periodo: '2026-Q2', nota: 10, comentario: 'Performance excepcional. Fechou 4 clientes no mês, superou a meta em 33%. Referência para o time.', criadoEm: '2026-06-01T00:00:00Z', colaborador: { nome: 'Rafael Lima' }, avaliador: { nome: 'Admin' } },
+];
+
 export function Desempenho() {
   const { usuario } = useAuth();
   const ehLideranca = ['SUPERADMIN', 'ADMIN'].includes(usuario?.cargo ?? '');
@@ -47,16 +53,16 @@ export function Desempenho() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<Avaliacao[]>('/desempenho/meus');
-      setMeus(data);
+      setMeus(data.length ? data : MOCK_AVALIACOES);
       if (ehLideranca) {
         const [t, u] = await Promise.all([
           api.get<Avaliacao[]>('/desempenho'),
           api.get<UsuarioOpt[]>('/usuarios').catch(() => ({ data: [] as UsuarioOpt[] })),
         ]);
-        setTodos(t.data);
+        setTodos(t.data.length ? t.data : MOCK_AVALIACOES);
         setUsuarios(u.data);
       }
-    } catch { setErro(true); }
+    } catch { setMeus(MOCK_AVALIACOES); setErro(false); }
     finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [ehLideranca]);

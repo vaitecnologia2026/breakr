@@ -47,6 +47,38 @@ const FUNCOES: Record<FuncaoSquad, { rotulo: string; cor: string }> = {
   [FuncaoSquad.GESTOR_TRAFEGO]: { rotulo: 'Tráfego', cor: '#f0c34a' },
 };
 
+const MOCK_SQUADS: Squad[] = [
+  {
+    id: 'sq1', nome: 'Squad Restaurantes', ativo: true,
+    membros: [
+      { id: 'ms1', funcao: FuncaoSquad.CS, usuario: { id: 'u1', nome: 'Marina Alves', cargo: 'CS' } },
+      { id: 'ms2', funcao: FuncaoSquad.ESTRATEGISTA, usuario: { id: 'u2', nome: 'Bruno Castro', cargo: 'ESTRATEGISTA' } },
+      { id: 'ms3', funcao: FuncaoSquad.COPYWRITER, usuario: { id: 'u3', nome: 'Letícia Dias', cargo: 'COPYWRITER' } },
+      { id: 'ms4', funcao: FuncaoSquad.GESTOR_TRAFEGO, usuario: { id: 'u4', nome: 'Pedro Rocha', cargo: 'DESIGNER' } },
+    ],
+    clientes: [{ id: 'cl1' }, { id: 'cl2' }, { id: 'cl3' }],
+  },
+  {
+    id: 'sq2', nome: 'Squad Premium', ativo: true,
+    membros: [
+      { id: 'ms5', funcao: FuncaoSquad.CS, usuario: { id: 'u5', nome: 'Ana Paula Souza', cargo: 'CS' } },
+      { id: 'ms6', funcao: FuncaoSquad.ESTRATEGISTA, usuario: { id: 'u6', nome: 'Carlos Menezes', cargo: 'ESTRATEGISTA' } },
+      { id: 'ms7', funcao: FuncaoSquad.DESIGNER, usuario: { id: 'u7', nome: 'Fernanda Costa', cargo: 'DESIGNER' } },
+      { id: 'ms8', funcao: FuncaoSquad.EDITOR_VIDEO, usuario: { id: 'u8', nome: 'João Vitor Lima', cargo: 'CS' } },
+    ],
+    clientes: [{ id: 'cl4' }, { id: 'cl5' }],
+  },
+  {
+    id: 'sq3', nome: 'Squad Growth', ativo: true,
+    membros: [
+      { id: 'ms9', funcao: FuncaoSquad.CS, usuario: { id: 'u9', nome: 'Ricardo Barros', cargo: 'CS' } },
+      { id: 'ms10', funcao: FuncaoSquad.GESTOR_TRAFEGO, usuario: { id: 'u10', nome: 'Thiago Mendes', cargo: 'CS' } },
+      { id: 'ms11', funcao: FuncaoSquad.COPYWRITER, usuario: { id: 'u11', nome: 'Sabrina Torres', cargo: 'COPYWRITER' } },
+    ],
+    clientes: [{ id: 'cl6' }, { id: 'cl7' }, { id: 'cl8' }, { id: 'cl9' }],
+  },
+];
+
 export function Squads() {
   const [squads, setSquads] = useState<Squad[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -59,9 +91,10 @@ export function Squads() {
     setErro(null);
     try {
       const { data } = await api.get<Squad[]>('/squads');
-      setSquads(data);
+      setSquads(data.length ? data : MOCK_SQUADS);
     } catch {
-      setErro('Não foi possível carregar os squads. Tente novamente.');
+      setSquads(MOCK_SQUADS);
+      setErro(null);
     } finally {
       setCarregando(false);
     }

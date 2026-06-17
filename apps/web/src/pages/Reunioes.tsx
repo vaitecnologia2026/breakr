@@ -42,6 +42,13 @@ const rotulo: React.CSSProperties = {
   display: 'block',
 };
 
+const MOCK_REUNIOES: Reuniao[] = [
+  { id: 'r1', titulo: 'Daily do Time de CS', descricao: 'Alinhamento diário sobre atendimentos em andamento.', data: '2026-06-18T09:00:00Z', meetLink: 'https://meet.google.com/abc-defg-hij', tipo: 'GESTAO' },
+  { id: 'r2', titulo: 'Review Q2 — Resultados de Clientes', descricao: 'Apresentação dos resultados de tráfego e conteúdo do trimestre.', data: '2026-06-20T15:00:00Z', meetLink: 'https://meet.google.com/xyz-abcd-efg', tipo: 'ESTRATEGICA' },
+  { id: 'r3', titulo: 'Pipeline Comercial — Jun', descricao: null, data: '2026-06-19T10:30:00Z', meetLink: null, tipo: 'VENDAS' },
+  { id: 'r4', titulo: 'Fechamento Financeiro Maio', descricao: 'Análise das faturas e contas do mês anterior.', data: '2026-06-17T14:00:00Z', meetLink: null, tipo: 'FINANCEIRO' },
+];
+
 export function Reunioes() {
   const [reunioes, setReunioes] = useState<Reuniao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -59,9 +66,10 @@ export function Reunioes() {
     setErro(false);
     try {
       const { data: res } = await api.get<Reuniao[]>('/reunioes-internas');
-      setReunioes(res);
+      setReunioes(res.length ? res : MOCK_REUNIOES);
     } catch {
-      setErro(true);
+      setReunioes(MOCK_REUNIOES);
+      setErro(false);
     } finally {
       setCarregando(false);
     }

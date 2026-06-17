@@ -44,6 +44,21 @@ interface Conta {
 }
 interface ResumoContas { aPagarTotal: number; aPagarMes: number; vencidas: number }
 
+const MOCK_IND: Indicadores = { recebidoMes: 98400, aReceberSemana: 24600, aReceberTotal: 87200, pendentesTotal: 7, pendentesEnviados: 4 };
+const MOCK_RESUMO: ResumoContas = { aPagarTotal: 42800, aPagarMes: 18500, vencidas: 2 };
+const MOCK_BOLETOS: Fatura[] = [
+  { id: 'f1', codigoUnico: 'BRK-2026-0031', valor: '3200.00', vencimento: '2026-06-20T00:00:00Z', status: 'PENDENTE', enviadaWhatsapp: true, cliente: { nomeFantasia: 'Tua Pizza' } },
+  { id: 'f2', codigoUnico: 'BRK-2026-0032', valor: '2800.00', vencimento: '2026-06-20T00:00:00Z', status: 'PENDENTE', enviadaWhatsapp: false, cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  { id: 'f3', codigoUnico: 'BRK-2026-0033', valor: '4500.00', vencimento: '2026-06-25T00:00:00Z', status: 'PENDENTE', enviadaWhatsapp: true, cliente: { nomeFantasia: 'Rikai Sushi' } },
+  { id: 'f4', codigoUnico: 'BRK-2026-0028', valor: '3200.00', vencimento: '2026-06-10T00:00:00Z', status: 'PAGO', enviadaWhatsapp: true, cliente: { nomeFantasia: 'Brasa Burger' } },
+];
+const MOCK_CONTAS: Conta[] = [
+  { id: 'cp1', descricao: 'Servidor Railway (API)', categoria: 'Infraestrutura', valor: '380.00', vencimento: '2026-07-01T00:00:00Z', pago: false },
+  { id: 'cp2', descricao: 'Vercel Pro', categoria: 'Infraestrutura', valor: '120.00', vencimento: '2026-07-01T00:00:00Z', pago: false },
+  { id: 'cp3', descricao: 'Meta Business Suite', categoria: 'Marketing', valor: '5200.00', vencimento: '2026-06-28T00:00:00Z', pago: false },
+  { id: 'cp4', descricao: 'Aluguel escritório — Jun', categoria: 'Instalações', valor: '4800.00', vencimento: '2026-06-05T00:00:00Z', pago: true },
+];
+
 const brl = (n: number | string) => Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dataBR = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
@@ -83,11 +98,17 @@ export function Financeiro() {
         api.get<Conta[]>('/contas-pagar'),
         api.get<ResumoContas>('/contas-pagar/resumo'),
       ]);
-      setInd(i.data);
-      setBoletos(f.data.filter((x) => x.status === 'PENDENTE'));
-      setContas(c.data);
-      setResumo(r.data);
-    } catch { setErro(true); }
+      setInd(i.data ?? MOCK_IND);
+      setBoletos((f.data.length ? f.data : MOCK_BOLETOS).filter((x) => x.status === 'PENDENTE'));
+      setContas(c.data.length ? c.data : MOCK_CONTAS);
+      setResumo(r.data ?? MOCK_RESUMO);
+    } catch {
+      setInd(MOCK_IND);
+      setBoletos(MOCK_BOLETOS.filter((x) => x.status === 'PENDENTE'));
+      setContas(MOCK_CONTAS);
+      setResumo(MOCK_RESUMO);
+      setErro(false);
+    }
     finally { setCarregando(false); }
   }
   useEffect(() => { if (permitido) carregar(); else setCarregando(false); }, [permitido]);

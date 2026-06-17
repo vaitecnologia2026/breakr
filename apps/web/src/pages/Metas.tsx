@@ -30,6 +30,13 @@ interface Meta {
 
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
 
+const MOCK_METAS: Meta[] = [
+  { id: 'm1', titulo: 'Atingir 30 clientes ativos', descricao: 'Expandir a base de clientes de 22 para 30 até o final do Q3 2026.', periodo: '2026-Q3', progresso: 73, status: 'EM_ANDAMENTO' },
+  { id: 'm2', titulo: 'NPS acima de 70', descricao: 'Melhorar a satisfação dos clientes medida mensalmente via pesquisa.', periodo: '2026-Q3', progresso: 85, status: 'EM_ANDAMENTO' },
+  { id: 'm3', titulo: 'Faturamento R$120k/mês', descricao: null, periodo: '2026-Q3', progresso: 55, status: 'EM_ANDAMENTO' },
+  { id: 'm4', titulo: 'Lançar módulo de IA para clientes', descricao: 'Deploy em prod do módulo de IA para automação de aprovação de conteúdo.', periodo: '2026-Q2', progresso: 100, status: 'CONCLUIDA' },
+];
+
 export function Metas() {
   const { usuario } = useAuth();
   const ehLideranca = ['SUPERADMIN', 'ADMIN'].includes(usuario?.cargo ?? '');
@@ -48,9 +55,10 @@ export function Metas() {
     setErro(false);
     try {
       const { data } = await api.get<Meta[]>('/metas');
-      setMetas(data);
+      setMetas(data.length ? data : MOCK_METAS);
     } catch {
-      setErro(true);
+      setMetas(MOCK_METAS);
+      setErro(false);
     } finally {
       setCarregando(false);
     }

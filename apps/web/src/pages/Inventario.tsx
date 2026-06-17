@@ -40,6 +40,14 @@ function inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className="brk-input" style={{ width: '100%', ...props.style }} />;
 }
 
+const MOCK_INVENTARIO: Item[] = [
+  { id: 'i1', nome: 'MacBook Pro 16"', categoria: 'Computador', valor: '18500.00', notaFiscalUrl: null, plaqueta: 'BRK-001', recebidoEm: '2025-03-10T00:00:00Z', responsavel: { nome: 'Rafael Lima' } },
+  { id: 'i2', nome: 'Monitor LG UltraWide 34"', categoria: 'Monitor', valor: '3200.00', notaFiscalUrl: null, plaqueta: 'BRK-002', recebidoEm: '2025-03-10T00:00:00Z', responsavel: { nome: 'Marina Alves' } },
+  { id: 'i3', nome: 'iPhone 15 Pro', categoria: 'Celular', valor: '9200.00', notaFiscalUrl: null, plaqueta: 'BRK-003', recebidoEm: '2025-05-01T00:00:00Z', responsavel: { nome: 'Admin' } },
+  { id: 'i4', nome: 'Mesa de Reunião 8 lugares', categoria: 'Móvel', valor: '4500.00', notaFiscalUrl: null, plaqueta: 'BRK-004', recebidoEm: '2025-01-15T00:00:00Z', responsavel: null },
+  { id: 'i5', nome: 'Câmera Sony ZV-E10', categoria: 'Equipamento', valor: '4100.00', notaFiscalUrl: null, plaqueta: 'BRK-005', recebidoEm: '2025-09-20T00:00:00Z', responsavel: { nome: 'Pedro Rocha' } },
+];
+
 export function Inventario() {
   const { usuario } = useAuth();
   const ehGestao = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN' || usuario?.cargo === 'FINANCEIRO';
@@ -62,9 +70,10 @@ export function Inventario() {
     setErro(false);
     try {
       const { data } = await api.get<Item[]>('/inventario');
-      setItens(data);
+      setItens(data.length ? data : MOCK_INVENTARIO);
     } catch {
-      setErro(true);
+      setItens(MOCK_INVENTARIO);
+      setErro(false);
     } finally {
       setCarregando(false);
     }

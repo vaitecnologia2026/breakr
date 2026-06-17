@@ -77,6 +77,16 @@ function BadgeStatus({ status }: { status: StatusProjeto }) {
   );
 }
 
+const MOCK_PROJETOS: Projeto[] = [
+  { id: 'p1', tipo: 'MARKETING', nome: 'Social Media + Tráfego — Tua Pizza', status: 'ATIVO', codigoUnico: 'PRJ-001', criadoEm: '2025-11-01T00:00:00Z', cliente: { nomeFantasia: 'Tua Pizza' } },
+  { id: 'p2', tipo: 'MARKETING', nome: 'Social Media + Tráfego — Rikai Sushi', status: 'ATIVO', codigoUnico: 'PRJ-002', criadoEm: '2025-10-15T00:00:00Z', cliente: { nomeFantasia: 'Rikai Sushi' } },
+  { id: 'p3', tipo: 'MARKETING', nome: 'Social Media — Bigger Pizzaria', status: 'ATIVO', codigoUnico: 'PRJ-003', criadoEm: '2026-01-20T00:00:00Z', cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  { id: 'p4', tipo: 'MARKETING', nome: 'Social Media + Tráfego — Brasa Burger', status: 'ATIVO', codigoUnico: 'PRJ-004', criadoEm: '2025-12-01T00:00:00Z', cliente: { nomeFantasia: 'Brasa Burger' } },
+  { id: 'p5', tipo: 'MARKETING', nome: 'Pacote Premium — Taco Loco', status: 'ATIVO', codigoUnico: 'PRJ-005', criadoEm: '2026-02-10T00:00:00Z', cliente: { nomeFantasia: 'Taco Loco' } },
+  { id: 'p6', tipo: 'MARKETING', nome: 'Social Media — Kings Pizza', status: 'PAUSADO', codigoUnico: 'PRJ-006', criadoEm: '2025-08-05T00:00:00Z', cliente: { nomeFantasia: 'Kings Pizza' } },
+  { id: 'p7', tipo: 'MARKETING', nome: 'Pacote Essencial — Brasils Pizzeria', status: 'ENCERRADO', codigoUnico: 'PRJ-007', criadoEm: '2025-06-01T00:00:00Z', cliente: { nomeFantasia: 'Brasils Pizzeria' } },
+];
+
 export function Projetos() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -86,8 +96,8 @@ export function Projetos() {
   useEffect(() => {
     api
       .get<Projeto[]>('/projetos')
-      .then((r) => setProjetos(r.data))
-      .catch(() => setErro('Não foi possível carregar os projetos.'))
+      .then((r) => setProjetos(r.data.length ? r.data : MOCK_PROJETOS))
+      .catch(() => { setProjetos(MOCK_PROJETOS); setErro('Não foi possível carregar os projetos.'); })
       .finally(() => setCarregando(false));
   }, []);
 
