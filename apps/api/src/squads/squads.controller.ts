@@ -30,6 +30,12 @@ export class SquadsController {
     return this.squadsService.listar();
   }
 
+  // GET /squads/do-cliente/:clienteId — squad + membros do cliente (auto-preenchimento).
+  @Get('do-cliente/:clienteId')
+  obterDoCliente(@Param('clienteId', ParseUUIDPipe) clienteId: string) {
+    return this.squadsService.obterDoCliente(clienteId);
+  }
+
   // POST /squads — cria squad (Admin/Superadmin).
   @Post()
   @UseGuards(CargosGuard)

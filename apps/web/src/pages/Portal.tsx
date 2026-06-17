@@ -40,6 +40,7 @@ interface PortalData {
     descricao: string | null;
     data: string;
     oQueLevar: string | null;
+    meetLink: string | null;
   }[];
   aulas: {
     id: string;
@@ -446,6 +447,11 @@ function CardAgenda({ eventos }: { eventos: PortalData['eventos'] }) {
             </span>
             {ev.descricao && (
               <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{ev.descricao}</span>
+            )}
+            {ev.meetLink && (
+              <a href={ev.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: '#f0814f', textDecoration: 'none' }}>
+                Entrar na reunião (Meet) →
+              </a>
             )}
             {ev.oQueLevar && (
               <div style={{ marginTop: 4 }}>

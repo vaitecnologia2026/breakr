@@ -23,7 +23,7 @@ export class ComprasService {
         fornecedor: dto.fornecedor,
         solicitanteId: dto.solicitanteId,
         status: StatusCompra.SOLICITADA,
-        valor: new Prisma.Decimal(dto.valor),
+        valor: new Prisma.Decimal(dto.valor ?? '0'),
         codigoUnico: this.codigoUnico.gerar('CMP'),
       },
     });

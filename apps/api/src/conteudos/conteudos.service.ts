@@ -3,14 +3,18 @@
 // responsavel e percorre o funil de status (IDEIA -> ... -> PUBLICADO). Cada
 // criacao/transicao dispara o motor; ao ir para APROVACAO_CLIENTE o CS e
 // notificado para acompanhar a aprovacao no portal.
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Conteudo, StatusConteudo, TipoConteudo } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Conteudo, FuncaoSquad, StatusConteudo, TipoConteudo } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { EngineService } from '../automacao/engine.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { CriarConteudoDto } from './dto/criar-conteudo.dto';
+import { SolicitarCriativoDto } from './dto/solicitar-criativo.dto';
+
+// SLA padrao (horas) para a estrategista atender uma solicitacao de criativo.
+const SLA_CRIATIVO_HORAS = 72;
 
 // Includes padrao usados nas listagens/detalhe (nomes amigaveis das relacoes).
 const INCLUDE_PADRAO = {
@@ -30,14 +34,26 @@ export class ConteudosService {
 
   // Cria a peca com status IDEIA e codigo unico (prefixo CNT) e dispara o motor.
   async criar(dto: CriarConteudoDto): Promise<Conteudo> {
+    // Auto-preenche o squad a partir do cliente quando nao informado — "blindagem"
+    // para nao depender de o usuario lembrar/escolher o squad certo na mao.
+    let squadId = dto.squadId;
+    if (!squadId) {
+      const cliente = await this.prisma.cliente.findUnique({
+        where: { id: dto.clienteId },
+        select: { squadId: true },
+      });
+      squadId = cliente?.squadId ?? undefined;
+    }
+
     const conteudo = await this.prisma.conteudo.create({
       data: {
         clienteId: dto.clienteId,
         titulo: dto.titulo,
         tipo: dto.tipo ?? TipoConteudo.POST,
         descricao: dto.descricao,
-        squadId: dto.squadId,
+        squadId,
         responsavelId: dto.responsavelId,
+        paraTrafego: dto.paraTrafego ?? false,
         dataAgendada: dto.dataAgendada ? new Date(dto.dataAgendada) : undefined,
         status: StatusConteudo.IDEIA,
         codigoUnico: this.codigoUnico.gerar('CNT'),
@@ -128,5 +144,91 @@ export class ConteudosService {
       data: { responsavelId },
     });
     return this.obter(id);
+  }
+
+  // Resolve o membro do squad do cliente por funcao (ex.: DESIGNER, ESTRATEGISTA).
+  private async membroDoSquad(
+    clienteId: string,
+    funcao: FuncaoSquad,
+  ): Promise<{ id: string; nome: string } | null> {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: clienteId },
+      select: { squadId: true },
+    });
+    if (!cliente?.squadId) return null;
+    const membro = await this.prisma.squadMembro.findFirst({
+      where: { squadId: cliente.squadId, funcao },
+      select: { usuario: { select: { id: true, nome: true } } },
+    });
+    return membro?.usuario ?? null;
+  }
+
+  // Encaminha a peca para o design: move para PRODUCAO e atribui o designer do
+  // squad (a automacao "copy revisada -> design" do ClickUp). Notifica o designer.
+  async encaminharParaDesign(id: string): Promise<Conteudo> {
+    const conteudo = await this.obter(id);
+    const designer = await this.membroDoSquad(conteudo.clienteId, FuncaoSquad.DESIGNER);
+
+    await this.prisma.conteudo.update({
+      where: { id },
+      data: {
+        status: StatusConteudo.PRODUCAO,
+        responsavelId: designer?.id ?? conteudo.responsavelId,
+      },
+    });
+
+    if (designer) {
+      await this.notificacoes.criar(designer.id, {
+        titulo: 'Nova peça para design',
+        mensagem: `"${conteudo.titulo}" foi encaminhada para você criar a arte.`,
+        tipo: 'ALERTA',
+        link: '/conteudos',
+      });
+    }
+    return this.obter(id);
+  }
+
+  // Solicitacao de criativo (gestor de trafego -> estrategista). Cria a peca como
+  // IDEIA, marcada para trafego pago, atribuida a estrategista do squad, com prazo
+  // (SLA 72h) — aparece no "Meu dia" dela e dispara notificacao.
+  async solicitarCriativo(dto: SolicitarCriativoDto): Promise<Conteudo> {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: dto.clienteId },
+      select: { id: true, squadId: true, nomeFantasia: true },
+    });
+    if (!cliente) throw new BadRequestException('Cliente nao encontrado');
+
+    const estrategista = await this.membroDoSquad(dto.clienteId, FuncaoSquad.ESTRATEGISTA);
+    const prazo = new Date(Date.now() + SLA_CRIATIVO_HORAS * 60 * 60 * 1000);
+
+    const conteudo = await this.prisma.conteudo.create({
+      data: {
+        clienteId: dto.clienteId,
+        titulo: dto.titulo?.trim() || `Criativo solicitado — ${cliente.nomeFantasia}`,
+        descricao: dto.descricao,
+        tipo: TipoConteudo.POST,
+        status: StatusConteudo.IDEIA,
+        paraTrafego: true,
+        squadId: cliente.squadId ?? undefined,
+        responsavelId: estrategista?.id,
+        dataAgendada: prazo,
+        codigoUnico: this.codigoUnico.gerar('CNT'),
+      },
+    });
+
+    if (estrategista) {
+      await this.notificacoes.criar(estrategista.id, {
+        titulo: 'Solicitação de criativo (SLA 72h)',
+        mensagem: `Gestor de tráfego pediu um criativo para ${cliente.nomeFantasia}. Prazo: 72h.`,
+        tipo: 'ALERTA',
+        link: '/conteudos',
+      });
+    }
+
+    await this.engine.dispatch('conteudo.criado', {
+      conteudoId: conteudo.id,
+      clienteId: conteudo.clienteId,
+    });
+    return conteudo;
   }
 }

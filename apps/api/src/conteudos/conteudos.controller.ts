@@ -19,6 +19,18 @@ import { ConteudosService } from './conteudos.service';
 import { CriarConteudoDto } from './dto/criar-conteudo.dto';
 import { MoverStatusDto } from './dto/mover-status.dto';
 import { AtribuirResponsavelDto } from './dto/atribuir-responsavel.dto';
+import { SolicitarCriativoDto } from './dto/solicitar-criativo.dto';
+
+// Time de produção que pode operar o funil de conteúdo.
+const TIME_CONTEUDO = [
+  Cargo.SUPERADMIN,
+  Cargo.ADMIN,
+  Cargo.ESTRATEGISTA,
+  Cargo.CS,
+  Cargo.COPYWRITER,
+  Cargo.DESIGNER,
+  Cargo.EDITOR_VIDEO,
+] as const;
 
 @Controller('conteudos')
 @UseGuards(JwtAuthGuard)
@@ -54,6 +66,22 @@ export class ConteudosController {
   )
   criar(@Body() dto: CriarConteudoDto) {
     return this.conteudosService.criar(dto);
+  }
+
+  // POST /conteudos/solicitar — gestor de tráfego pede um criativo à estrategista.
+  @Post('solicitar')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.GESTOR_TRAFEGO, Cargo.ESTRATEGISTA)
+  solicitar(@Body() dto: SolicitarCriativoDto) {
+    return this.conteudosService.solicitarCriativo(dto);
+  }
+
+  // POST /conteudos/:id/encaminhar-design — handoff copy→design (marca o designer).
+  @Post(':id/encaminhar-design')
+  @UseGuards(CargosGuard)
+  @Cargos(...TIME_CONTEUDO)
+  encaminharParaDesign(@Param('id', ParseUUIDPipe) id: string) {
+    return this.conteudosService.encaminharParaDesign(id);
   }
 
   // PATCH /conteudos/:id/status — move a peca no funil (mesmo time).

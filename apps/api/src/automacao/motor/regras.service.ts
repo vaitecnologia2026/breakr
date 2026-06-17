@@ -151,6 +151,7 @@ export class RegrasService implements OnModuleInit {
       acoes: [
         { tipo: 'atribuir_squad' },
         { tipo: 'criar_grupo_whatsapp', params: { nome: 'Breakr x {{clienteNome}}' } },
+        { tipo: 'notificar_cs_onboarding' },
       ],
     });
 

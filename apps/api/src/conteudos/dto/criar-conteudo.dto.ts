@@ -1,5 +1,6 @@
 // DTO de criacao de conteudo (peca do funil de producao — M16).
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -35,6 +36,12 @@ export class CriarConteudoDto {
   @IsOptional()
   @IsUUID()
   responsavelId?: string;
+
+  // Peca destinada a trafego pago — apos a aprovacao do cliente vai para o
+  // laboratorio de criativos (e nao direto para agendamento).
+  @IsOptional()
+  @IsBoolean()
+  paraTrafego?: boolean;
 
   @IsOptional()
   @IsDateString()

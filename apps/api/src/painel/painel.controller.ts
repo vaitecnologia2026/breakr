@@ -1,6 +1,8 @@
 // Painel inicial — resumo agregado para a tela "Hoje & Atrasados".
 import { Controller, Get, UseGuards } from '@nestjs/common';
+import { UsuarioPublico } from '@breakr/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UsuarioAtual } from '../usuarios/usuario-atual.decorator';
 import { PainelService } from './painel.service';
 
 @Controller('painel')
@@ -18,5 +20,11 @@ export class PainelController {
   @Get('inbox')
   inbox() {
     return this.painel.inbox();
+  }
+
+  // GET /painel/meu-dia — Hoje & Atrasados personalizado para o usuario logado.
+  @Get('meu-dia')
+  meuDia(@UsuarioAtual() usuario: UsuarioPublico) {
+    return this.painel.meuDia(usuario);
   }
 }

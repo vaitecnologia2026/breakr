@@ -40,4 +40,9 @@ export class AtualizarClienteDto {
   @IsOptional()
   @IsUUID()
   planoId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  linkAreaMembros?: string;
 }

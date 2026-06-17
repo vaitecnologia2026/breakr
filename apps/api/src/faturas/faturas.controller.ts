@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -22,6 +23,12 @@ export class FaturasController {
   @Get()
   listar() {
     return this.faturasService.listar();
+  }
+
+  // GET /faturas/vencendo?dias=7 — cobranças pendentes vencendo na janela (financeiro).
+  @Get('vencendo')
+  vencendo(@Query('dias') dias?: string) {
+    return this.faturasService.vencendo(dias ? Number(dias) : 7);
   }
 
   // GET /faturas/cliente/:id — faturas de um cliente.

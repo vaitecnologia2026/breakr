@@ -36,12 +36,29 @@ type StatusConteudo =
   | 'ROTEIRO'
   | 'PRODUCAO'
   | 'REVISAO'
+  | 'EM_ALTERACAO'
   | 'APROVACAO_CLIENTE'
   | 'AGENDADO'
+  | 'LABORATORIO'
   | 'PUBLICADO'
   | 'ARQUIVADO';
 
 type TipoConteudo = 'POST' | 'REELS' | 'STORY' | 'CARROSSEL' | 'VIDEO' | 'ARTIGO';
+
+// Squad do cliente (auto-preenchimento na criação de peça).
+interface SquadDoCliente {
+  squad: { id: string; nome: string } | null;
+  membros: { funcao: string; usuario: { id: string; nome: string; cargo: string } }[];
+}
+
+const FUNCAO_ROTULO: Record<string, string> = {
+  CS: 'CS',
+  COPYWRITER: 'Copywriter',
+  DESIGNER: 'Designer',
+  EDITOR_VIDEO: 'Editor de vídeo',
+  GESTOR_TRAFEGO: 'Gestor de tráfego',
+  ESTRATEGISTA: 'Estrategista',
+};
 
 interface Conteudo {
   id: string;
@@ -52,6 +69,7 @@ interface Conteudo {
   codigoUnico: string;
   dataAgendada: string | null;
   estrelas: number | null;
+  paraTrafego?: boolean;
   clienteId: string;
   squadId: string | null;
   responsavelId: string | null;
@@ -71,8 +89,10 @@ const ORDEM_STATUS: StatusConteudo[] = [
   'ROTEIRO',
   'PRODUCAO',
   'REVISAO',
+  'EM_ALTERACAO',
   'APROVACAO_CLIENTE',
   'AGENDADO',
+  'LABORATORIO',
   'PUBLICADO',
   'ARQUIVADO',
 ];
@@ -82,9 +102,11 @@ const STATUS_META: Record<StatusConteudo, { rotulo: string; cor: string }> = {
   IDEIA: { rotulo: 'Ideia', cor: '#9aa0ad' },
   ROTEIRO: { rotulo: 'Roteiro', cor: '#9aa0ad' },
   PRODUCAO: { rotulo: 'Produção', cor: '#ff9406' },
-  REVISAO: { rotulo: 'Revisão', cor: '#ff9406' },
+  REVISAO: { rotulo: 'Revisão', cor: '#a855f7' },
+  EM_ALTERACAO: { rotulo: 'Em alteração', cor: '#ef4444' },
   APROVACAO_CLIENTE: { rotulo: 'Aprovação do cliente', cor: '#ca3f17' },
   AGENDADO: { rotulo: 'Agendado', cor: '#4aa3f0' },
+  LABORATORIO: { rotulo: 'Laboratório de criativos', cor: '#a855f7' },
   PUBLICADO: { rotulo: 'Publicado', cor: '#2ecc71' },
   ARQUIVADO: { rotulo: 'Arquivado', cor: '#9aa0ad' },
 };
@@ -244,8 +266,10 @@ function Kanban({
     ROTEIRO: [],
     PRODUCAO: [],
     REVISAO: [],
+    EM_ALTERACAO: [],
     APROVACAO_CLIENTE: [],
     AGENDADO: [],
+    LABORATORIO: [],
     PUBLICADO: [],
     ARQUIVADO: [],
   };
@@ -415,6 +439,24 @@ function CardConteudo({
     }
   }
 
+  // Handoff copy→design: move para Produção e marca o designer do squad.
+  async function encaminharDesign() {
+    if (movendo) return;
+    setMovendo(true);
+    aoErroAcao(null);
+    try {
+      await api.post(`/conteudos/${conteudo.id}/encaminhar-design`);
+      aoAtualizar();
+    } catch {
+      aoErroAcao('Não foi possível encaminhar para design.');
+      setMovendo(false);
+    }
+  }
+
+  // Mostra o botão de handoff nas fases de copy (antes do design).
+  const podeEncaminhar =
+    conteudo.status === 'ROTEIRO' || conteudo.status === 'REVISAO';
+
   return (
     <div
       style={{
@@ -445,8 +487,11 @@ function CardConteudo({
         <BadgeTipo tipo={conteudo.tipo} />
       </div>
 
-      <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
+      <div style={{ fontSize: 12, color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center', gap: 6 }}>
         {conteudo.cliente?.nomeFantasia ?? 'Cliente'}
+        {conteudo.paraTrafego && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#a855f7' }}>· TRÁFEGO</span>
+        )}
       </div>
 
       {conteudo.responsavel?.nome && (
@@ -472,6 +517,26 @@ function CardConteudo({
         rotuloAcessivel={`Mover peça ${conteudo.titulo}`}
         aoMudar={mover}
       />
+
+      {podeEncaminhar && (
+        <button
+          type="button"
+          onClick={encaminharDesign}
+          disabled={movendo}
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--borda-forte)',
+            background: 'var(--superficie-3)',
+            color: 'var(--cinza-vapor)',
+            cursor: movendo ? 'default' : 'pointer',
+          }}
+        >
+          Encaminhar p/ design →
+        </button>
+      )}
     </div>
   );
 }
@@ -588,6 +653,11 @@ function ModalNovaPeca({
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoConteudo>('POST');
   const [descricao, setDescricao] = useState('');
+  const [paraTrafego, setParaTrafego] = useState(false);
+
+  // Squad do cliente (auto-resolvido) + responsável escolhido entre os membros.
+  const [squadInfo, setSquadInfo] = useState<SquadDoCliente | null>(null);
+  const [responsavelId, setResponsavelId] = useState('');
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -611,6 +681,31 @@ function ModalNovaPeca({
     };
   }, []);
 
+  // Ao escolher o cliente, resolve o squad e os membros (auto-preenchimento).
+  useEffect(() => {
+    if (!clienteId) {
+      setSquadInfo(null);
+      setResponsavelId('');
+      return;
+    }
+    let ativo = true;
+    (async () => {
+      try {
+        const { data } = await api.get<SquadDoCliente>(`/squads/do-cliente/${clienteId}`);
+        if (!ativo) return;
+        setSquadInfo(data);
+        // Sugere o copywriter como responsável inicial (início do funil é copy).
+        const copy = data.membros.find((m) => m.funcao === 'COPYWRITER');
+        setResponsavelId(copy?.usuario.id ?? '');
+      } catch {
+        if (ativo) setSquadInfo(null);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [clienteId]);
+
   const valido = clienteId !== '' && titulo.trim().length >= 2;
 
   async function enviar(e: FormEvent) {
@@ -624,6 +719,9 @@ function ModalNovaPeca({
         titulo: titulo.trim(),
         tipo,
         descricao: descricao.trim() || undefined,
+        squadId: squadInfo?.squad?.id,
+        responsavelId: responsavelId || undefined,
+        paraTrafego,
       });
       onCriado();
     } catch {
@@ -706,6 +804,36 @@ function ModalNovaPeca({
           aoMudar={setDescricao}
           placeholder="Briefing curto da peça (opcional)"
         />
+
+        {/* Squad resolvido automaticamente pelo cliente + responsável do squad. */}
+        {clienteId && squadInfo && (
+          squadInfo.squad ? (
+            <>
+              <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+                Squad: <strong style={{ color: 'var(--texto-suave)' }}>{squadInfo.squad.nome}</strong>
+              </p>
+              {squadInfo.membros.length > 0 && (
+                <CampoSelect rotulo="Responsável" valor={responsavelId} aoMudar={setResponsavelId}>
+                  <option value="">Sem responsável definido</option>
+                  {squadInfo.membros.map((m) => (
+                    <option key={m.usuario.id} value={m.usuario.id}>
+                      {m.usuario.nome} — {FUNCAO_ROTULO[m.funcao] ?? m.funcao}
+                    </option>
+                  ))}
+                </CampoSelect>
+              )}
+            </>
+          ) : (
+            <p style={{ fontSize: 12.5, color: 'var(--amarelo-fagulha)' }}>
+              Este cliente ainda não tem squad — defina o squad em Clientes para auto-atribuir.
+            </p>
+          )
+        )}
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--texto-suave)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={paraTrafego} onChange={(e) => setParaTrafego(e.target.checked)} />
+          Peça para tráfego pago (após aprovação vai ao laboratório de criativos)
+        </label>
 
         {erro && <MensagemErro texto={erro} />}
 

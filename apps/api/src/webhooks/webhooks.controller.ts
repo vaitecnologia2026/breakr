@@ -8,6 +8,7 @@
 import { Body, Controller, HttpCode, Logger, Post } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EngineService } from '../automacao/engine.service';
+import { ContratosService } from '../contratos/contratos.service';
 
 // Rota base /integracoes mantém compatibilidade com URL configurada no Autentique.
 
@@ -24,6 +25,7 @@ export class WebhooksController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: EngineService,
+    private readonly contratos: ContratosService,
   ) {}
 
   // Autentique chama este endpoint quando todos os signatários assinaram.
@@ -56,16 +58,16 @@ export class WebhooksController {
       return { ok: true, processado: false, motivo: 'status ja finalizado' };
     }
 
-    await this.prisma.contrato.update({
-      where: { id: contrato.id },
-      data: { status: 'EM_VIGOR', dataInicio: new Date() },
-    });
-
-    // Dispara evento no motor para acionar regras (ex.: criar primeira cobrança).
+    // Notifica o financeiro (regra "Ativar cobranca apos assinatura").
     await this.engine.dispatch('contrato.assinado', {
       contratoId: contrato.id,
       clienteId: contrato.clienteId,
     });
+
+    // Coloca em vigor pelo serviço — que, de forma idempotente, gera a 1ª
+    // cobrança e dispara 'contrato.em_vigor' (CS assume + segue o fluxo).
+    // Sem isto o contrato ficava EM_VIGOR mas sem cobrança/onboarding.
+    await this.contratos.colocarEmVigor(contrato.id);
 
     this.logger.log(`Contrato ${contrato.id} → EM_VIGOR (Autentique docId=${docId})`);
     return { ok: true, processado: true, contratoId: contrato.id };

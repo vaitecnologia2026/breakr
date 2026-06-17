@@ -14,7 +14,8 @@ import { StatusCompra } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CargosGuard } from '../common/rbac/cargos.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
-import { Cargo } from '@breakr/shared';
+import { Cargo, UsuarioPublico } from '@breakr/shared';
+import { UsuarioAtual } from '../usuarios/usuario-atual.decorator';
 import { ComprasService } from './compras.service';
 import { CriarCompraDto } from './dto/criar-compra.dto';
 import { MoverStatusCompraDto } from './dto/mover-status-compra.dto';
@@ -37,12 +38,11 @@ export class ComprasController {
     return this.comprasService.obter(id);
   }
 
-  // POST /compras — cria uma solicitacao (Financeiro/Admin/Superadmin).
+  // POST /compras — qualquer usuário autenticado pode solicitar (o solicitante é
+  // sempre o usuário logado). A aprovação (mudança de status) continua restrita.
   @Post()
-  @UseGuards(CargosGuard)
-  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.FINANCEIRO)
-  criar(@Body() dto: CriarCompraDto) {
-    return this.comprasService.criar(dto);
+  criar(@Body() dto: CriarCompraDto, @UsuarioAtual() usuario: UsuarioPublico) {
+    return this.comprasService.criar({ ...dto, solicitanteId: usuario.id });
   }
 
   // PATCH /compras/:id/status — move a solicitacao de status no fluxo.

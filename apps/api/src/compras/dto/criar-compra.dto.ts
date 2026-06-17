@@ -14,8 +14,10 @@ export class CriarCompraDto {
   @MaxLength(200)
   descricao!: string;
 
+  // Opcional: uma solicitação de material pode não ter valor (ex.: item de estoque).
+  @IsOptional()
   @IsNumberString()
-  valor!: string;
+  valor?: string;
 
   @IsOptional()
   @IsString()

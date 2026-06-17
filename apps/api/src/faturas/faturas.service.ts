@@ -210,6 +210,18 @@ export class FaturasService {
     });
   }
 
+  // Cobranças PENDENTES vencendo nos próximos `dias` dias (default 7) — visão do
+  // financeiro para antecipar os disparos da semana. Inclui as já vencidas.
+  vencendo(dias = 7): Promise<Fatura[]> {
+    const hoje = new Date();
+    const limite = new Date(hoje.getTime() + dias * 24 * 60 * 60 * 1000);
+    return this.prisma.fatura.findMany({
+      where: { status: 'PENDENTE', vencimento: { lte: limite } },
+      orderBy: { vencimento: 'asc' },
+      include: { cliente: { select: { nomeFantasia: true } } },
+    });
+  }
+
   // Lista as faturas de um cliente (mais recentes primeiro).
   listarPorCliente(clienteId: string): Promise<Fatura[]> {
     return this.prisma.fatura.findMany({

@@ -10,15 +10,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Cargo } from '@breakr/shared';
+import { Cargo, UsuarioPublico } from '@breakr/shared';
 import { StatusCampanha } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CargosGuard } from '../common/rbac/cargos.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
+import { UsuarioAtual } from '../usuarios/usuario-atual.decorator';
 import { TrafegoService } from './trafego.service';
 import { CriarCampanhaDto } from './dto/criar-campanha.dto';
 import { AtualizarMetricasDto } from './dto/atualizar-metricas.dto';
 import { MoverStatusCampanhaDto } from './dto/mover-status-campanha.dto';
+import { RegistrarOtimizacaoDto } from './dto/registrar-otimizacao.dto';
 
 const CARGOS_TRAFEGO = [
   Cargo.SUPERADMIN,
@@ -38,6 +40,18 @@ export class TrafegoController {
     @Query('status') status?: StatusCampanha,
   ) {
     return this.trafego.listar({ clienteId, status });
+  }
+
+  // GET /trafego/campanhas/orcamento/:clienteId — teto/comprometido/saldo do cliente.
+  @Get('orcamento/:clienteId')
+  orcamento(@Param('clienteId', ParseUUIDPipe) clienteId: string) {
+    return this.trafego.orcamento(clienteId);
+  }
+
+  // GET /trafego/campanhas/alertas — campanhas fora do threshold (IA assistiva).
+  @Get('alertas')
+  alertas(@Query('clienteId') clienteId?: string) {
+    return this.trafego.alertas(clienteId);
   }
 
   @Get(':id')
@@ -72,6 +86,24 @@ export class TrafegoController {
   @Cargos(...CARGOS_TRAFEGO)
   sugerir(@Param('id', ParseUUIDPipe) id: string) {
     return this.trafego.sugerir(id);
+  }
+
+  // GET /trafego/campanhas/:id/otimizacoes — histórico de otimizações.
+  @Get(':id/otimizacoes')
+  listarOtimizacoes(@Param('id', ParseUUIDPipe) id: string) {
+    return this.trafego.listarOtimizacoes(id);
+  }
+
+  // POST /trafego/campanhas/:id/otimizacoes — registra uma otimização.
+  @Post(':id/otimizacoes')
+  @UseGuards(CargosGuard)
+  @Cargos(...CARGOS_TRAFEGO)
+  registrarOtimizacao(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RegistrarOtimizacaoDto,
+    @UsuarioAtual() usuario: UsuarioPublico,
+  ) {
+    return this.trafego.registrarOtimizacao(id, dto, usuario.id);
   }
 }
 
