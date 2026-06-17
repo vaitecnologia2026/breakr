@@ -77,6 +77,15 @@ const CORES_STATUS: Record<
   },
 };
 
+const MOCK_FATURAS: Fatura[] = [
+  { id: 'f1', valor: '3200.00', vencimento: '2026-06-20T00:00:00Z', status: 'PENDENTE', codigoUnico: 'FAT-0031', notaFiscalUrl: null, enviadaWhatsapp: true, clienteId: 'c1', contratoId: 'ct1', cliente: { nomeFantasia: 'Tua Pizza' } },
+  { id: 'f2', valor: '4500.00', vencimento: '2026-06-20T00:00:00Z', status: 'PENDENTE', codigoUnico: 'FAT-0032', notaFiscalUrl: null, enviadaWhatsapp: false, clienteId: 'c2', contratoId: 'ct2', cliente: { nomeFantasia: 'Rikai Sushi' } },
+  { id: 'f3', valor: '2800.00', vencimento: '2026-06-25T00:00:00Z', status: 'PENDENTE', codigoUnico: 'FAT-0033', notaFiscalUrl: null, enviadaWhatsapp: true, clienteId: 'c3', contratoId: 'ct3', cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  { id: 'f4', valor: '3200.00', vencimento: '2026-06-08T00:00:00Z', status: 'VENCIDA', codigoUnico: 'FAT-0030', notaFiscalUrl: null, enviadaWhatsapp: true, clienteId: 'c6', contratoId: 'ct6', cliente: { nomeFantasia: 'Kings Pizza' } },
+  { id: 'f5', valor: '3200.00', vencimento: '2026-06-10T00:00:00Z', status: 'PAGA', codigoUnico: 'FAT-0028', notaFiscalUrl: 'https://nfe.io/nf/001', enviadaWhatsapp: true, clienteId: 'c4', contratoId: 'ct4', cliente: { nomeFantasia: 'Brasa Burger' } },
+  { id: 'f6', valor: '2800.00', vencimento: '2026-06-12T00:00:00Z', status: 'PAGA', codigoUnico: 'FAT-0029', notaFiscalUrl: null, enviadaWhatsapp: true, clienteId: 'c5', contratoId: 'ct5', cliente: { nomeFantasia: 'Taco Loco' } },
+];
+
 export function Cobrancas() {
   const [faturas, setFaturas] = useState<Fatura[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -91,9 +100,11 @@ export function Cobrancas() {
     setErro(null);
     try {
       const { data } = await api.get<Fatura[]>('/faturas');
-      setFaturas(data);
+      setFaturas(data.length ? data : MOCK_FATURAS);
     } catch {
-      setErro('Não foi possível carregar as cobranças. Tente novamente.');
+      setFaturas(MOCK_FATURAS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

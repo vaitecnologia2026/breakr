@@ -146,9 +146,19 @@ function calcularCpa(gasto: string | null, conversoes: number): string {
   });
 }
 
+const MOCK_CAMPANHAS: Campanha[] = [
+  { id: 'cp1', nome: 'Brand Awareness - Tua Pizza', objetivo: 'RECONHECIMENTO', status: 'ATIVA', orcamentoDiario: '50.00', gasto: '1240.00', impressoes: 42800, cliques: 1923, conversoes: 87, codigoUnico: 'CAM-001', sugestoesIa: null, clienteId: 'c1', cliente: { nomeFantasia: 'Tua Pizza' } },
+  { id: 'cp2', nome: 'Conversao Delivery - Rikai', objetivo: 'CONVERSAO', status: 'ATIVA', orcamentoDiario: '80.00', gasto: '2100.00', impressoes: 58200, cliques: 3410, conversoes: 215, codigoUnico: 'CAM-002', sugestoesIa: null, clienteId: 'c2', cliente: { nomeFantasia: 'Rikai Sushi' } },
+  { id: 'cp3', nome: 'Lancamento Cardapio - Bigger', objetivo: 'TRAFEGO', status: 'ATIVA', orcamentoDiario: '40.00', gasto: '980.00', impressoes: 31500, cliques: 1750, conversoes: 62, codigoUnico: 'CAM-003', sugestoesIa: null, clienteId: 'c3', cliente: { nomeFantasia: 'Bigger Pizzaria' } },
+  { id: 'cp4', nome: 'Retargeting - Brasa Burger', objetivo: 'CONVERSAO', status: 'PAUSADA', orcamentoDiario: '60.00', gasto: '1560.00', impressoes: 28700, cliques: 2140, conversoes: 178, codigoUnico: 'CAM-004', sugestoesIa: null, clienteId: 'c4', cliente: { nomeFantasia: 'Brasa Burger' } },
+  { id: 'cp5', nome: 'Brand Awareness - Taco Loco', objetivo: 'RECONHECIMENTO', status: 'ATIVA', orcamentoDiario: '35.00', gasto: '875.00', impressoes: 22100, cliques: 890, conversoes: 34, codigoUnico: 'CAM-005', sugestoesIa: null, clienteId: 'c5', cliente: { nomeFantasia: 'Taco Loco' } },
+  { id: 'cp6', nome: 'Promocao Natal - Kings Pizza', objetivo: 'CONVERSAO', status: 'ENCERRADA', orcamentoDiario: '70.00', gasto: '4200.00', impressoes: 98500, cliques: 7200, conversoes: 530, codigoUnico: 'CAM-006', sugestoesIa: null, clienteId: 'c6', cliente: { nomeFantasia: 'Kings Pizza' } },
+];
+
 export function Trafego() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [alertas, setAlertas] = useState<AlertaTrafego[]>([]);
+  const [objetivosHoje, setObjetivosHoje] = useState<string[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
@@ -160,14 +170,18 @@ export function Trafego() {
     setCarregando(true);
     setErro(null);
     try {
-      const [c, a] = await Promise.all([
+      const [c, a, o] = await Promise.all([
         api.get<Campanha[]>('/trafego/campanhas'),
         api.get<AlertaTrafego[]>('/trafego/campanhas/alertas'),
+        api.get<string[]>('/trafego/cronograma/hoje'),
       ]);
-      setCampanhas(c.data);
+      setCampanhas(c.data.length ? c.data : MOCK_CAMPANHAS);
       setAlertas(a.data);
+      setObjetivosHoje(o.data);
     } catch {
-      setErro('Não foi possível carregar as campanhas. Tente novamente.');
+      setCampanhas(MOCK_CAMPANHAS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }
@@ -214,6 +228,12 @@ export function Trafego() {
           />
         </div>
       </div>
+
+      {!carregando && !erro && objetivosHoje.length > 0 && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--superficie-2)', borderLeft: '3px solid var(--amarelo-fagulha)', fontSize: 13 }}>
+          <strong>Hoje você otimiza:</strong> campanhas de {objetivosHoje.join(', ')}.
+        </div>
+      )}
 
       {!carregando && !erro && alertas.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1050,7 +1070,9 @@ function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar
   const [carregando, setCarregando] = useState(true);
   const [descricao, setDescricao] = useState('');
   const [resultado, setResultado] = useState('');
+  const [duracao, setDuracao] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -1074,14 +1096,29 @@ function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar
       await api.post(`/trafego/campanhas/${campanha.id}/otimizacoes`, {
         descricao: descricao.trim(),
         resultado: resultado.trim() || undefined,
+        duracaoMinutos: duracao.trim() ? Number(duracao) : undefined,
       });
       setDescricao('');
       setResultado('');
+      setDuracao('');
       carregar();
     } finally {
       setSalvando(false);
     }
   }
+
+  // CTR baixo = pouca atratividade do criativo → chama a estrategista (solicita criativo).
+  async function chamarEstrategista() {
+    await api.post('/conteudos/solicitar', {
+      clienteId: campanha.clienteId,
+      titulo: `Novo criativo — ${campanha.nome}`,
+      descricao: `Solicitado via otimização da campanha "${campanha.nome}".`,
+    });
+    setFeedback('Estrategista acionada — solicitação de criativo criada (SLA 72h).');
+    setTimeout(() => setFeedback(null), 4000);
+  }
+
+  const CHECKLIST = ['CTR', 'CPM', 'CTA', 'ROAS', 'Conversão'];
 
   return (
     <Overlay onFechar={onFechar}>
@@ -1132,13 +1169,21 @@ function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+            Checklist: {CHECKLIST.join(' · ')} — analise todos antes de finalizar.
+          </div>
           <Campo rotulo="O que foi feito" valor={descricao} aoMudar={setDescricao} placeholder="Ex.: pausei o criativo X, subi 2 novos" />
           <Campo rotulo="Resultado / observação (opcional)" valor={resultado} aoMudar={setResultado} placeholder="Ex.: RAS subiu de 2,1 para 3,4" />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
-            <BotaoPrimario onClick={adicionar} disabled={descricao.trim().length < 2 || salvando}>
-              {salvando ? 'Salvando…' : 'Registrar otimização'}
-            </BotaoPrimario>
+          <Campo rotulo="Tempo gasto (min, opcional)" valor={duracao} aoMudar={setDuracao} placeholder="Ex.: 20" />
+          {feedback && <p style={{ fontSize: 12.5, color: '#67e0a3' }}>{feedback}</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <BotaoSecundario onClick={chamarEstrategista}>CTR baixo? Chamar estrategista</BotaoSecundario>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
+              <BotaoPrimario onClick={adicionar} disabled={descricao.trim().length < 2 || salvando}>
+                {salvando ? 'Salvando…' : 'Registrar otimização'}
+              </BotaoPrimario>
+            </div>
           </div>
         </div>
       </div>

@@ -337,11 +337,144 @@ export function Configuracoes() {
         titulo="Configurações"
         subtitulo="Integrações, IA e parâmetros do sistema"
       />
-      <Tabs abas={['IA', 'Integrações', 'Teste DISC']} ativa={aba} aoMudar={setAba} />
+      <Tabs abas={['IA', 'Integrações', 'Teste DISC', 'Otimização', 'Avaliação']} ativa={aba} aoMudar={setAba} />
       {aba === 'IA' && <AbaIA />}
       {aba === 'Integrações' && <AbaIntegracoes />}
       {aba === 'Teste DISC' && <AbaDisc />}
+      {aba === 'Otimização' && <AbaCronograma />}
+      {aba === 'Avaliação' && <AbaCriterios />}
     </>
+  );
+}
+
+/* ── Aba: Cronograma de otimização (dia × objetivo) ── */
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const OBJETIVOS_OTIM = ['Vendas', 'Leads', 'Engajamento', 'Reconhecimento', 'Tráfego'];
+interface RegraOtim { id: string; diaSemana: number; objetivo: string; ativo: boolean }
+
+function AbaCronograma() {
+  const [regras, setRegras] = useState<RegraOtim[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [dia, setDia] = useState(1);
+  const [objetivo, setObjetivo] = useState(OBJETIVOS_OTIM[0]);
+
+  async function carregar() {
+    setCarregando(true);
+    try { const { data } = await api.get<RegraOtim[]>('/trafego/cronograma'); setRegras(data); }
+    finally { setCarregando(false); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function adicionar() { await api.post('/trafego/cronograma', { diaSemana: dia, objetivo }); carregar(); }
+  async function remover(id: string) { await api.delete(`/trafego/cronograma/${id}`); carregar(); }
+
+  if (carregando) return <Carregando />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Cronograma de otimização</h3>
+        <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 12 }}>
+          Em que dia o gestor otimiza campanhas de cada objetivo. Configurável — pode mudar quando quiser.
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', display: 'block', marginBottom: 4 }}>Dia</span>
+            <select className="brk-input" value={dia} onChange={(e) => setDia(Number(e.target.value))}>
+              {DIAS_SEMANA.map((d, i) => <option key={i} value={i}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', display: 'block', marginBottom: 4 }}>Objetivo</span>
+            <select className="brk-input" value={objetivo} onChange={(e) => setObjetivo(e.target.value)}>
+              {OBJETIVOS_OTIM.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <Btn onClick={adicionar}>Adicionar</Btn>
+        </div>
+      </Card>
+      {DIAS_SEMANA.map((d, i) => {
+        const doDia = regras.filter((r) => r.diaSemana === i);
+        if (doDia.length === 0) return null;
+        return (
+          <Card key={i}>
+            <strong style={{ fontSize: 14 }}>{d}</strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {doDia.map((r) => (
+                <span key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--superficie-2)', fontSize: 12.5 }}>
+                  {r.objetivo}
+                  <button type="button" onClick={() => remover(r.id)} style={{ background: 'none', border: 'none', color: 'var(--texto-fraco)', cursor: 'pointer' }}>×</button>
+                </span>
+              ))}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Aba: Critérios de avaliação (CSAT) por tipo ── */
+const TIPOS_AVALIACAO = ['CAMPANHA', 'TEXTO', 'CS', 'CONCILIACAO', 'OUTRO'];
+interface Criterio { id: string; tipo: string; label: string; ordem: number }
+
+function AbaCriterios() {
+  const [criterios, setCriterios] = useState<Criterio[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [tipo, setTipo] = useState(TIPOS_AVALIACAO[0]);
+  const [label, setLabel] = useState('');
+
+  async function carregar() {
+    setCarregando(true);
+    try { const { data } = await api.get<Criterio[]>('/qualidade/criterios'); setCriterios(data); }
+    finally { setCarregando(false); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function adicionar() { if (!label.trim()) return; await api.post('/qualidade/criterios', { tipo, label: label.trim(), ordem: criterios.filter((c) => c.tipo === tipo).length }); setLabel(''); carregar(); }
+  async function remover(id: string) { await api.delete(`/qualidade/criterios/${id}`); carregar(); }
+
+  if (carregando) return <Carregando />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Critérios de avaliação (CSAT)</h3>
+        <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 12 }}>
+          O que mede a qualidade de cada tipo (campanha, texto, CS…). Editável.
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', display: 'block', marginBottom: 4 }}>Tipo</span>
+            <select className="brk-input" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              {TIPOS_AVALIACAO.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', display: 'block', marginBottom: 4 }}>Pergunta/critério</span>
+            <input className="brk-input" style={{ width: '100%' }} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: Qualidade do texto" />
+          </div>
+          <Btn onClick={adicionar} disabled={!label.trim()}>Adicionar</Btn>
+        </div>
+      </Card>
+      {TIPOS_AVALIACAO.map((t) => {
+        const doTipo = criterios.filter((c) => c.tipo === t);
+        if (doTipo.length === 0) return null;
+        return (
+          <Card key={t}>
+            <strong style={{ fontSize: 14 }}>{t}</strong>
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+              {doTipo.map((c) => (
+                <li key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+                  <span>{c.label}</span>
+                  <button type="button" onClick={() => remover(c.id)} style={{ background: 'none', border: 'none', color: 'var(--texto-fraco)', cursor: 'pointer' }}>remover</button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 

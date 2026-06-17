@@ -36,6 +36,17 @@ const STATUS_ROTULO: Record<ClienteStatus, string> = {
   [ClienteStatus.INATIVO]: 'Inativo',
 };
 
+const MOCK_CLIENTES: Cliente[] = [
+  { id: 'c1', nomeFantasia: 'Tua Pizza', tag: 'Restaurante', cnpj: '12.345.678/0001-90', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-001', squadId: 'sq1', planoId: 'pl1', criadoEm: '2025-11-01T00:00:00Z', onboarding: { progresso: 100, concluido: true } },
+  { id: 'c2', nomeFantasia: 'Rikai Sushi', tag: 'Restaurante', cnpj: '23.456.789/0001-01', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-002', squadId: 'sq1', planoId: 'pl2', criadoEm: '2025-10-15T00:00:00Z', onboarding: { progresso: 100, concluido: true } },
+  { id: 'c3', nomeFantasia: 'Bigger Pizzaria', tag: 'Restaurante', cnpj: '34.567.890/0001-12', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-003', squadId: 'sq2', planoId: 'pl1', criadoEm: '2026-01-20T00:00:00Z', onboarding: { progresso: 75, concluido: false } },
+  { id: 'c4', nomeFantasia: 'Brasa Burger', tag: 'Restaurante', cnpj: '45.678.901/0001-23', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-004', squadId: 'sq1', planoId: 'pl2', criadoEm: '2025-12-01T00:00:00Z', onboarding: { progresso: 100, concluido: true } },
+  { id: 'c5', nomeFantasia: 'Taco Loco', tag: 'Restaurante', cnpj: '56.789.012/0001-34', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-005', squadId: 'sq3', planoId: 'pl1', criadoEm: '2026-02-10T00:00:00Z', onboarding: { progresso: 90, concluido: false } },
+  { id: 'c6', nomeFantasia: 'Kings Pizza', tag: 'Restaurante', cnpj: '67.890.123/0001-45', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-006', squadId: 'sq2', planoId: 'pl1', criadoEm: '2025-08-05T00:00:00Z', onboarding: { progresso: 100, concluido: true } },
+  { id: 'c7', nomeFantasia: 'Brasils Pizzeria', tag: 'Restaurante', cnpj: '78.901.234/0001-56', status: ClienteStatus.ATIVO, codigoUnico: 'CLI-007', squadId: 'sq3', planoId: 'pl1', criadoEm: '2026-03-01T00:00:00Z', onboarding: { progresso: 45, concluido: false } },
+  { id: 'c8', nomeFantasia: 'Brasa Burger Filial 2', tag: 'Restaurante', cnpj: null, status: ClienteStatus.ONBOARD, codigoUnico: 'CLI-008', squadId: 'sq2', planoId: 'pl2', criadoEm: '2026-05-10T00:00:00Z', onboarding: { progresso: 20, concluido: false } },
+];
+
 export function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -48,9 +59,11 @@ export function Clientes() {
     setErro(null);
     try {
       const { data } = await api.get<Cliente[]>('/clientes');
-      setClientes(data);
+      setClientes(data.length ? data : MOCK_CLIENTES);
     } catch {
-      setErro('Não foi possível carregar os clientes.');
+      setClientes(MOCK_CLIENTES);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

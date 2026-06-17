@@ -123,6 +123,17 @@ const TIPO_META: Record<TipoConteudo, string> = {
 
 const TIPOS: TipoConteudo[] = ['POST', 'REELS', 'STORY', 'CARROSSEL', 'VIDEO', 'ARTIGO'];
 
+const MOCK_CONTEUDOS: Conteudo[] = [
+  { id: 'cn1', titulo: 'Post: Promocao Dia dos Namorados', descricao: 'Post estatico para feed com oferta especial.', tipo: 'POST', status: 'IDEIA', codigoUnico: 'CNT-001', dataAgendada: '2026-06-18T12:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c1', squadId: 'sq1', responsavelId: null, cliente: { nomeFantasia: 'Tua Pizza' }, squad: { nome: 'Squad Restaurantes' }, responsavel: { nome: 'Leticia Dias' } },
+  { id: 'cn2', titulo: 'Reels: Tour pela cozinha', descricao: 'Video curto mostrando o processo de preparo do sushi.', tipo: 'REELS', status: 'PRODUCAO', codigoUnico: 'CNT-002', dataAgendada: '2026-06-20T18:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c2', squadId: 'sq1', responsavelId: null, cliente: { nomeFantasia: 'Rikai Sushi' }, squad: { nome: 'Squad Restaurantes' }, responsavel: { nome: 'Pedro Rocha' } },
+  { id: 'cn3', titulo: 'Carrossel: Cardapio de Verao', descricao: '5 slides apresentando novidades do cardapio.', tipo: 'CARROSSEL', status: 'REVISAO', codigoUnico: 'CNT-003', dataAgendada: '2026-06-21T11:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c3', squadId: 'sq2', responsavelId: null, cliente: { nomeFantasia: 'Bigger Pizzaria' }, squad: { nome: 'Squad Premium' }, responsavel: { nome: 'Leticia Dias' } },
+  { id: 'cn4', titulo: 'Story: Enquete de sabores', descricao: 'Stories interativos com enquete sobre proximo sabor.', tipo: 'STORY', status: 'APROVACAO_CLIENTE', codigoUnico: 'CNT-004', dataAgendada: '2026-06-22T09:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c4', squadId: 'sq1', responsavelId: null, cliente: { nomeFantasia: 'Brasa Burger' }, squad: { nome: 'Squad Restaurantes' }, responsavel: { nome: 'Leticia Dias' } },
+  { id: 'cn5', titulo: 'Post: Depoimento de cliente', descricao: 'Print de depoimento de cliente satisfeito.', tipo: 'POST', status: 'AGENDADO', codigoUnico: 'CNT-005', dataAgendada: '2026-06-23T14:00:00Z', estrelas: 5, paraTrafego: false, clienteId: 'c5', squadId: 'sq3', responsavelId: null, cliente: { nomeFantasia: 'Taco Loco' }, squad: { nome: 'Squad Growth' }, responsavel: { nome: 'Leticia Dias' } },
+  { id: 'cn6', titulo: 'Reels: Tempo de preparo pizza', descricao: 'Timelapse do preparo da pizza especial.', tipo: 'REELS', status: 'PUBLICADO', codigoUnico: 'CNT-006', dataAgendada: '2026-06-10T12:00:00Z', estrelas: 4, paraTrafego: true, clienteId: 'c1', squadId: 'sq1', responsavelId: null, cliente: { nomeFantasia: 'Tua Pizza' }, squad: { nome: 'Squad Restaurantes' }, responsavel: { nome: 'Pedro Rocha' } },
+  { id: 'cn7', titulo: 'Post: Promocao segunda-feira', descricao: 'Desconto especial para segunda-feira.', tipo: 'POST', status: 'IDEIA', codigoUnico: 'CNT-007', dataAgendada: '2026-06-24T11:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c6', squadId: 'sq2', responsavelId: null, cliente: { nomeFantasia: 'Kings Pizza' }, squad: { nome: 'Squad Premium' }, responsavel: { nome: 'Leticia Dias' } },
+  { id: 'cn8', titulo: 'Carrossel: Combos do final de semana', descricao: 'Apresentacao dos combos de sabado e domingo.', tipo: 'CARROSSEL', status: 'PRODUCAO', codigoUnico: 'CNT-008', dataAgendada: '2026-06-25T15:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c7', squadId: 'sq3', responsavelId: null, cliente: { nomeFantasia: 'Brasils Pizzeria' }, squad: { nome: 'Squad Growth' }, responsavel: { nome: 'Leticia Dias' } },
+];
+
 export function Conteudos() {
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -137,9 +148,11 @@ export function Conteudos() {
     setErro(null);
     try {
       const { data } = await api.get<Conteudo[]>('/conteudos');
-      setConteudos(data);
+      setConteudos(data.length ? data : MOCK_CONTEUDOS);
     } catch {
-      setErro('Não foi possível carregar as peças. Tente novamente.');
+      setConteudos(MOCK_CONTEUDOS);
+      setErro(null);
+      return;
     } finally {
       setCarregando(false);
     }

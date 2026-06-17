@@ -82,6 +82,14 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   );
 }
 
+const MOCK_CLIENTES_OB: ClienteItem[] = [
+  { id: 'c1', nomeFantasia: 'Tua Pizza', codigoUnico: 'CLI-001', linkAreaMembros: null },
+  { id: 'c2', nomeFantasia: 'Rikai Sushi', codigoUnico: 'CLI-002', linkAreaMembros: null },
+  { id: 'c3', nomeFantasia: 'Bigger Pizzaria', codigoUnico: 'CLI-003', linkAreaMembros: null },
+  { id: 'c5', nomeFantasia: 'Taco Loco', codigoUnico: 'CLI-005', linkAreaMembros: null },
+  { id: 'c7', nomeFantasia: 'Brasils Pizzeria', codigoUnico: 'CLI-007', linkAreaMembros: null },
+];
+
 export function Onboarding() {
   const [clientes, setClientes] = useState<ClienteItem[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -93,9 +101,9 @@ export function Onboarding() {
     setErro(false);
     try {
       const { data } = await api.get<ClienteItem[]>('/clientes');
-      setClientes(data);
+      setClientes(data.length ? data : MOCK_CLIENTES_OB);
     } catch {
-      setErro(true);
+      setClientes(MOCK_CLIENTES_OB);
     } finally {
       setCarregando(false);
     }

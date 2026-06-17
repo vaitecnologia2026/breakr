@@ -88,6 +88,57 @@ export class QualidadeService {
     return { total, page, limit, itens };
   }
 
+  // --- Critérios de avaliação (CSAT) configuráveis por tipo ---
+  listarCriterios(tipo?: string) {
+    return this.prisma.criterioAvaliacao.findMany({
+      where: tipo ? { tipo } : undefined,
+      orderBy: [{ tipo: 'asc' }, { ordem: 'asc' }],
+    });
+  }
+  criarCriterio(dto: { tipo: string; label: string; ordem?: number }) {
+    return this.prisma.criterioAvaliacao.create({
+      data: { tipo: dto.tipo, label: dto.label, ordem: dto.ordem ?? 0 },
+    });
+  }
+  async removerCriterio(id: string) {
+    await this.prisma.criterioAvaliacao.delete({ where: { id } }).catch(() => {
+      throw new Error('Critério não encontrado');
+    });
+    return { ok: true };
+  }
+
+  // Rework detalhado: refações por responsável e por squad, separando origem
+  // interna (erro do time) de externa (cliente reclamou). Base de cobrança.
+  async reworkDetalhado() {
+    const logs = await this.prisma.reworkLog.findMany({
+      include: {
+        conteudo: {
+          select: {
+            responsavel: { select: { nome: true } },
+            squad: { select: { nome: true } },
+          },
+        },
+      },
+    });
+
+    const porChave = (chave: (l: (typeof logs)[number]) => string) => {
+      const mapa = new Map<string, { nome: string; interno: number; externo: number }>();
+      for (const l of logs) {
+        const nome = chave(l);
+        const r = mapa.get(nome) ?? { nome, interno: 0, externo: 0 };
+        if (l.origem === 'INTERNO') r.interno += 1;
+        else r.externo += 1;
+        mapa.set(nome, r);
+      }
+      return [...mapa.values()].sort((a, b) => b.interno + b.externo - (a.interno + a.externo));
+    };
+
+    return {
+      porResponsavel: porChave((l) => l.conteudo.responsavel?.nome ?? 'Sem responsável'),
+      porSquad: porChave((l) => l.conteudo.squad?.nome ?? 'Sem squad'),
+    };
+  }
+
   // Carga por designer: conteudos ativos (PRODUCAO ou REVISAO) por responsavel.
   async cargaDesigner() {
     const grupos = await this.prisma.conteudo.groupBy({

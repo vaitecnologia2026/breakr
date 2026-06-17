@@ -1,5 +1,5 @@
 // DTO de registro de otimizacao de campanha (historico de tráfego).
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class RegistrarOtimizacaoDto {
   @IsString()
@@ -11,4 +11,10 @@ export class RegistrarOtimizacaoDto {
   @IsString()
   @MaxLength(500)
   resultado?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  duracaoMinutos?: number;
 }
