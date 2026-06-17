@@ -137,6 +137,45 @@ function aparenciaFatura(status: string): { rotulo: string; cor: string; fundo: 
 
 /* ------------------------------- Página ------------------------------- */
 
+// Dados de demonstração do portal (acesse /portal/demo para visualizar a
+// experiência do cliente — aprovação de criativos estilo ECIT — sem backend).
+const MOCK_PORTAL: PortalData = {
+  cliente: { nomeFantasia: 'Tua Pizza', status: 'ATIVO', codigoUnico: 'demo' },
+  squad: { nome: 'Squad Trovão' },
+  cs: { nome: 'Marina Alves', fotoUrl: null },
+  linkAreaMembros: 'https://exemplo.com/area-membros',
+  comunicado: { mensagem: 'Amanhã é feriado — não teremos expediente normal.', criadoEm: new Date().toISOString() },
+  medalhas: [
+    { titulo: 'Onboarding concluído', icone: '🚀', descricao: 'Completou o onboarding' },
+    { titulo: 'Cliente engajado', icone: '🔥', descricao: '3 meses conosco' },
+  ],
+  plano: { nome: 'Brava' },
+  contrato: { status: 'EM_VIGOR', vencimento: '2026-12-01' },
+  onboarding: {
+    progresso: 60, concluido: false,
+    etapas: [
+      { titulo: 'Preencher briefing da marca', descricao: 'Referências e dados do negócio', link: 'https://exemplo.com/briefing', concluido: true, ordem: 1 },
+      { titulo: 'Enviar acessos (Instagram, Meta, site)', descricao: null, link: null, concluido: true, ordem: 2 },
+      { titulo: 'Aprovar identidade e tom de voz', descricao: null, link: null, concluido: true, ordem: 3 },
+      { titulo: 'Reunião de kickoff com o squad', descricao: null, link: null, concluido: false, ordem: 4 },
+      { titulo: 'Definir metas e orçamento do mês', descricao: null, link: null, concluido: false, ordem: 5 },
+    ],
+  },
+  eventos: [
+    { id: 'e1', titulo: 'Reunião de onboarding', descricao: 'Apresentação do squad', data: '2026-06-20T14:00:00Z', oQueLevar: 'Acesso ao Instagram e Meta', meetLink: 'https://meet.google.com/abc-defg-hij' },
+  ],
+  aulas: [
+    { id: 'a1', titulo: 'Como funciona a agência', descricao: 'Visão geral do processo', videoUrl: 'https://youtu.be/dQw4w9WgXcQ', ordem: 1, concluida: false },
+  ],
+  faturas: [
+    { codigoUnico: 'FAT-001', valor: '2790.00', vencimento: '2026-07-05', status: 'PAGA', notaFiscalUrl: 'https://exemplo.com/nf' },
+  ],
+  conteudosParaAprovar: [
+    { id: 'cnt1', titulo: 'Post — Dia dos Namorados', descricao: 'Arte para feed com promoção especial.', tipo: 'POST', codigoUnico: 'CNT-101' },
+    { id: 'cnt2', titulo: 'Reels — Bastidores da cozinha', descricao: 'Vídeo curto mostrando o preparo.', tipo: 'REELS', codigoUnico: 'CNT-102' },
+  ],
+};
+
 export function Portal() {
   const { codigo } = useParams<{ codigo: string }>();
   const [dados, setDados] = useState<PortalData | null>(null);
@@ -147,6 +186,13 @@ export function Portal() {
 
   useEffect(() => {
     let ativo = true;
+    // Modo demonstração: /portal/demo mostra o portal de exemplo (sem backend).
+    if (codigo === 'demo') {
+      setDados(MOCK_PORTAL);
+      setCarregando(false);
+      setNaoEncontrado(false);
+      return;
+    }
     async function carregar() {
       setCarregando(true);
       setNaoEncontrado(false);
