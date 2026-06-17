@@ -62,6 +62,8 @@ const PAGINAS: ResultItem[] = [
   { id: 'pg-ate',    rotulo: 'Atendimento',   path: '/atendimento',    categoria: 'Páginas', icone: <IcoPage /> },
   { id: 'pg-eq',     rotulo: 'Equipe',        path: '/equipe',         categoria: 'Páginas', icone: <IcoPage /> },
   { id: 'pg-cfg',    rotulo: 'Configurações', path: '/configuracoes',  categoria: 'Páginas', icone: <IcoPage /> },
+  { id: 'pg-inbox',  rotulo: 'Inbox',         path: '/inbox',          categoria: 'Páginas', icone: <IcoPage /> },
+  { id: 'pg-comu',   rotulo: 'Comunicados',   path: '/comunicados',    categoria: 'Páginas', icone: <IcoPage /> },
 ];
 
 // ─── Hook de exposição global ─────────────────────────────────────────────────

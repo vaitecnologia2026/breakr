@@ -185,7 +185,7 @@ function SecaoDashboard() {
     <section>
       <SecaoTitulo>Indicadores de qualidade</SecaoTitulo>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        <KpiCard label="Peças aprovadas" valor={dados.totalAprovados} cor="var(--verde-menta)" />
+        <KpiCard label="Peças aprovadas" valor={dados.totalAprovados} cor="var(--verde)" />
         <KpiCard
           label="Taxa de rework"
           valor={dados.taxaReworkPct}

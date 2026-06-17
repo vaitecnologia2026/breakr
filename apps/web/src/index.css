@@ -858,7 +858,7 @@ input, textarea, select { font-family: inherit; }
 }
 .brk-select-filtro:hover { border-color: var(--borda-forte); }
 .brk-select-filtro:focus { outline: none; border-color: var(--laranja-brasa); }
-.brk-select-filtro option { background: var(--superficie); color: var(--texto-principal); }
+.brk-select-filtro option { background: var(--superficie); color: var(--texto); }
 
 .brk-btn-limpar-filtro {
   height: 36px; padding: 0 12px; border-radius: var(--r-md); font-size: 12.5px;
@@ -896,7 +896,7 @@ input, textarea, select { font-family: inherit; }
 .brk-inbox-item:last-child { border-bottom: none; }
 .brk-inbox-item:hover { background: var(--superficie-2); }
 .brk-inbox-item-ponto { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
-.brk-inbox-item-label { flex: 1; font-size: 13px; color: var(--texto-principal); font-weight: 500; }
+.brk-inbox-item-label { flex: 1; font-size: 13px; color: var(--texto); font-weight: 500; }
 .brk-inbox-item-sub { font-size: 11.5px; color: var(--texto-fraco); white-space: nowrap; }
 .brk-inbox-item-arrow { color: var(--texto-fraco); flex-shrink: 0; opacity: 0.5; }
 .brk-inbox-vazio { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
@@ -909,7 +909,7 @@ input, textarea, select { font-family: inherit; }
 .brk-comunicado-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; justify-content: space-between; }
 .brk-comunicado-meta { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .brk-comunicado-pin { color: var(--laranja-brasa); display: flex; flex-shrink: 0; }
-.brk-comunicado-titulo { font-size: 14px; font-weight: 700; color: var(--texto-principal); }
+.brk-comunicado-titulo { font-size: 14px; font-weight: 700; color: var(--texto); }
 .brk-comunicado-acoes { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .brk-comunicado-data { font-size: 11.5px; color: var(--texto-fraco); white-space: nowrap; }
 .brk-comunicado-btn-icon { width: 26px; height: 26px; border-radius: var(--r-md); border: 1px solid var(--borda); background: transparent; color: var(--texto-fraco); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.12s, color 0.12s; }

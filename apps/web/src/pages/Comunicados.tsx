@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { PaginaShell, BotaoPrimario, EstadoCarregando, EstadoErro, PainelVazio } from './Clientes';
+import { PaginaShell, BotaoPrimario, BotaoSecundario, EstadoCarregando, EstadoErro, PainelVazio } from './Clientes';
 
 interface Autor { id: string; nome: string }
 interface Comunicado {
@@ -107,7 +107,7 @@ function ModalNovoComunicado({ aoFechar, aoSalvar }: { aoFechar: () => void; aoS
   }
 
   return (
-    <div className="brk-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) aoFechar(); }}>
+    <div className="brk-overlay" onClick={(e) => { if (e.target === e.currentTarget) aoFechar(); }}>
       <div className="brk-modal" style={{ maxWidth: 520 }}>
         <div className="brk-modal-header">
           <h2 className="brk-modal-titulo">Novo comunicado</h2>
@@ -117,14 +117,14 @@ function ModalNovoComunicado({ aoFechar, aoSalvar }: { aoFechar: () => void; aoS
             </svg>
           </button>
         </div>
-        <div className="brk-modal-corpo">
+        <div className="brk-modal-body">
           <div className="brk-campo">
-            <label className="brk-label">Título *</label>
+            <label className="brk-campo-label">Título *</label>
             <input ref={inputRef} className="brk-input" value={titulo} onChange={(e) => setTitulo(e.target.value)}
               placeholder="Ex.: Amanhã é feriado nacional" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />
           </div>
           <div className="brk-campo">
-            <label className="brk-label">Mensagem *</label>
+            <label className="brk-campo-label">Mensagem *</label>
             <textarea className="brk-input" style={{ minHeight: 100, resize: 'vertical' }} value={corpo}
               onChange={(e) => setCorpo(e.target.value)} placeholder="Detalhes do comunicado para o time…" />
           </div>
@@ -134,8 +134,8 @@ function ModalNovoComunicado({ aoFechar, aoSalvar }: { aoFechar: () => void; aoS
           </label>
           {erro && <p style={{ fontSize: 12.5, color: '#e2738a', marginTop: 8 }}>{erro}</p>}
         </div>
-        <div className="brk-modal-rodape">
-          <button className="brk-btn-secundario" onClick={aoFechar} disabled={salvando}>Cancelar</button>
+        <div className="brk-modal-footer">
+          <BotaoSecundario onClick={aoFechar} disabled={salvando}>Cancelar</BotaoSecundario>
           <BotaoPrimario onClick={salvar} disabled={!valido || salvando}>
             {salvando ? 'Enviando…' : 'Publicar'}
           </BotaoPrimario>
