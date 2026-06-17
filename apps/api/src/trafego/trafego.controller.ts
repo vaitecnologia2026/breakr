@@ -2,6 +2,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -54,6 +55,12 @@ export class TrafegoController {
     return this.trafego.alertas(clienteId);
   }
 
+  // GET /trafego/campanhas/otimizacoes-gestor — nº de otimizações por gestor.
+  @Get('otimizacoes-gestor')
+  otimizacoesPorGestor() {
+    return this.trafego.otimizacoesPorGestor();
+  }
+
   @Get(':id')
   obter(@Param('id', ParseUUIDPipe) id: string) {
     return this.trafego.obter(id);
@@ -104,6 +111,38 @@ export class TrafegoController {
     @UsuarioAtual() usuario: UsuarioPublico,
   ) {
     return this.trafego.registrarOtimizacao(id, dto, usuario.id);
+  }
+}
+
+// Controller do cronograma de otimização (configurável). Listagem/“hoje” para
+// qualquer autenticado; edição só para gestão/tráfego.
+@Controller('trafego/cronograma')
+@UseGuards(JwtAuthGuard)
+export class CronogramaTrafegoController {
+  constructor(private readonly trafego: TrafegoService) {}
+
+  @Get()
+  listar() {
+    return this.trafego.listarCronograma();
+  }
+
+  @Get('hoje')
+  hoje() {
+    return this.trafego.objetivosDeHoje();
+  }
+
+  @Post()
+  @UseGuards(CargosGuard)
+  @Cargos(...CARGOS_TRAFEGO)
+  criar(@Body() body: { diaSemana: number; objetivo: string }) {
+    return this.trafego.criarRegra(Number(body.diaSemana), String(body.objetivo));
+  }
+
+  @Delete(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(...CARGOS_TRAFEGO)
+  remover(@Param('id', ParseUUIDPipe) id: string) {
+    return this.trafego.removerRegra(id);
   }
 }
 

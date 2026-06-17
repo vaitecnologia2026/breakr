@@ -149,6 +149,7 @@ function calcularCpa(gasto: string | null, conversoes: number): string {
 export function Trafego() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [alertas, setAlertas] = useState<AlertaTrafego[]>([]);
+  const [objetivosHoje, setObjetivosHoje] = useState<string[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
@@ -160,12 +161,14 @@ export function Trafego() {
     setCarregando(true);
     setErro(null);
     try {
-      const [c, a] = await Promise.all([
+      const [c, a, o] = await Promise.all([
         api.get<Campanha[]>('/trafego/campanhas'),
         api.get<AlertaTrafego[]>('/trafego/campanhas/alertas'),
+        api.get<string[]>('/trafego/cronograma/hoje'),
       ]);
       setCampanhas(c.data);
       setAlertas(a.data);
+      setObjetivosHoje(o.data);
     } catch {
       setErro('Não foi possível carregar as campanhas. Tente novamente.');
     } finally {
@@ -214,6 +217,12 @@ export function Trafego() {
           />
         </div>
       </div>
+
+      {!carregando && !erro && objetivosHoje.length > 0 && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--superficie-2)', borderLeft: '3px solid var(--amarelo-fagulha)', fontSize: 13 }}>
+          <strong>Hoje você otimiza:</strong> campanhas de {objetivosHoje.join(', ')}.
+        </div>
+      )}
 
       {!carregando && !erro && alertas.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1050,7 +1059,9 @@ function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar
   const [carregando, setCarregando] = useState(true);
   const [descricao, setDescricao] = useState('');
   const [resultado, setResultado] = useState('');
+  const [duracao, setDuracao] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -1074,14 +1085,29 @@ function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar
       await api.post(`/trafego/campanhas/${campanha.id}/otimizacoes`, {
         descricao: descricao.trim(),
         resultado: resultado.trim() || undefined,
+        duracaoMinutos: duracao.trim() ? Number(duracao) : undefined,
       });
       setDescricao('');
       setResultado('');
+      setDuracao('');
       carregar();
     } finally {
       setSalvando(false);
     }
   }
+
+  // CTR baixo = pouca atratividade do criativo → chama a estrategista (solicita criativo).
+  async function chamarEstrategista() {
+    await api.post('/conteudos/solicitar', {
+      clienteId: campanha.clienteId,
+      titulo: `Novo criativo — ${campanha.nome}`,
+      descricao: `Solicitado via otimização da campanha "${campanha.nome}".`,
+    });
+    setFeedback('Estrategista acionada — solicitação de criativo criada (SLA 72h).');
+    setTimeout(() => setFeedback(null), 4000);
+  }
+
+  const CHECKLIST = ['CTR', 'CPM', 'CTA', 'ROAS', 'Conversão'];
 
   return (
     <Overlay onFechar={onFechar}>
@@ -1132,13 +1158,21 @@ function ModalOtimizacoes({ campanha, onFechar }: { campanha: Campanha; onFechar
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+            Checklist: {CHECKLIST.join(' · ')} — analise todos antes de finalizar.
+          </div>
           <Campo rotulo="O que foi feito" valor={descricao} aoMudar={setDescricao} placeholder="Ex.: pausei o criativo X, subi 2 novos" />
           <Campo rotulo="Resultado / observação (opcional)" valor={resultado} aoMudar={setResultado} placeholder="Ex.: RAS subiu de 2,1 para 3,4" />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
-            <BotaoPrimario onClick={adicionar} disabled={descricao.trim().length < 2 || salvando}>
-              {salvando ? 'Salvando…' : 'Registrar otimização'}
-            </BotaoPrimario>
+          <Campo rotulo="Tempo gasto (min, opcional)" valor={duracao} aoMudar={setDuracao} placeholder="Ex.: 20" />
+          {feedback && <p style={{ fontSize: 12.5, color: '#67e0a3' }}>{feedback}</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <BotaoSecundario onClick={chamarEstrategista}>CTR baixo? Chamar estrategista</BotaoSecundario>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
+              <BotaoPrimario onClick={adicionar} disabled={descricao.trim().length < 2 || salvando}>
+                {salvando ? 'Salvando…' : 'Registrar otimização'}
+              </BotaoPrimario>
+            </div>
           </div>
         </div>
       </div>

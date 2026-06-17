@@ -104,10 +104,51 @@ export class TrafegoService {
     });
   }
 
+  // Dashboard do gestor: nº de otimizações + tempo médio por autor (gestor).
+  async otimizacoesPorGestor() {
+    const logs = await this.prisma.otimizacaoCampanha.findMany({
+      include: { autor: { select: { nome: true } } },
+    });
+    const mapa = new Map<string, { nome: string; total: number; somaDur: number; nDur: number }>();
+    for (const o of logs) {
+      const nome = o.autor?.nome ?? 'Sem autor';
+      const r = mapa.get(nome) ?? { nome, total: 0, somaDur: 0, nDur: 0 };
+      r.total += 1;
+      if (o.duracaoMinutos != null) {
+        r.somaDur += o.duracaoMinutos;
+        r.nDur += 1;
+      }
+      mapa.set(nome, r);
+    }
+    return [...mapa.values()]
+      .map((r) => ({ nome: r.nome, total: r.total, tempoMedioMin: r.nDur ? Math.round(r.somaDur / r.nDur) : null }))
+      .sort((a, b) => b.total - a.total);
+  }
+
+  // --- Cronograma de otimização (configurável: dia da semana × objetivo) ---
+  listarCronograma() {
+    return this.prisma.regraOtimizacao.findMany({ orderBy: [{ diaSemana: 'asc' }, { objetivo: 'asc' }] });
+  }
+  criarRegra(diaSemana: number, objetivo: string) {
+    return this.prisma.regraOtimizacao.create({ data: { diaSemana, objetivo } });
+  }
+  async removerRegra(id: string) {
+    await this.prisma.regraOtimizacao.delete({ where: { id } }).catch(() => {
+      throw new NotFoundException('Regra nao encontrada');
+    });
+    return { ok: true };
+  }
+  // Objetivos cujas campanhas devem ser otimizadas hoje (pelo cronograma).
+  async objetivosDeHoje(): Promise<string[]> {
+    const dow = new Date().getDay();
+    const regras = await this.prisma.regraOtimizacao.findMany({ where: { diaSemana: dow, ativo: true } });
+    return regras.map((r) => r.objetivo);
+  }
+
   // Registra uma otimização feita na campanha (descrição + resultado/observação).
   async registrarOtimizacao(
     campanhaId: string,
-    dto: { descricao: string; resultado?: string },
+    dto: { descricao: string; resultado?: string; duracaoMinutos?: number },
     autorId?: string,
   ) {
     await this.obter(campanhaId);
@@ -116,6 +157,7 @@ export class TrafegoService {
         campanhaId,
         descricao: dto.descricao,
         resultado: dto.resultado,
+        duracaoMinutos: dto.duracaoMinutos,
         autorId,
       },
       include: { autor: { select: { nome: true } } },

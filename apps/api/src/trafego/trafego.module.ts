@@ -6,12 +6,16 @@ import { IntegracoesModule } from '../integracoes/integracoes.module';
 import { AutomacaoModule } from '../automacao/automacao.module';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 import { TrafegoService } from './trafego.service';
-import { TrafegoController, RelatoriosTrafegoController } from './trafego.controller';
+import {
+  TrafegoController,
+  RelatoriosTrafegoController,
+  CronogramaTrafegoController,
+} from './trafego.controller';
 import { AlertasTrafegoSchedulerService } from './alertas-trafego-scheduler.service';
 
 @Module({
   imports: [IaModule, IntegracoesModule, AutomacaoModule, NotificacoesModule],
-  controllers: [TrafegoController, RelatoriosTrafegoController],
+  controllers: [TrafegoController, RelatoriosTrafegoController, CronogramaTrafegoController],
   providers: [TrafegoService, AlertasTrafegoSchedulerService],
   exports: [TrafegoService],
 })

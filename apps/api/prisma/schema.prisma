@@ -883,10 +883,12 @@ model Campanha {
 /// um registro com o que foi feito e o resultado/observacao — o "historico de
 /// otimizacoes" do tráfego (ex.: "RAS medio era 14").
 model OtimizacaoCampanha {
-  id        String   @id @default(uuid())
-  descricao String
-  resultado String?
-  criadoEm  DateTime @default(now()) @map("criado_em")
+  id             String   @id @default(uuid())
+  descricao      String
+  resultado      String?
+  // Tempo gasto na otimização (min), informado pelo gestor — alimenta o dashboard.
+  duracaoMinutos Int?     @map("duracao_minutos")
+  criadoEm       DateTime @default(now()) @map("criado_em")
 
   campanhaId String   @map("campanha_id")
   campanha   Campanha @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
@@ -1237,6 +1239,32 @@ model ClienteMedalha {
   @@unique([medalhaId, clienteId])
   @@index([clienteId])
   @@map("cliente_medalha")
+}
+
+/// Cronograma de otimização (configurável): em que dia da semana o gestor otimiza
+/// campanhas de cada objetivo. diaSemana: 0=domingo … 6=sábado.
+model RegraOtimizacao {
+  id        String   @id @default(uuid())
+  diaSemana Int      @map("dia_semana")
+  objetivo  String
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@map("regra_otimizacao")
+}
+
+/// Critério de avaliação configurável por tipo (CSAT). tipo ex.: CAMPANHA, TEXTO,
+/// CS, CONCILIACAO. label é a pergunta exibida ao cliente.
+model CriterioAvaliacao {
+  id       String   @id @default(uuid())
+  tipo     String
+  label    String
+  ordem    Int      @default(0)
+  ativo    Boolean  @default(true)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([tipo])
+  @@map("criterio_avaliacao")
 }
 
 /// Conta a pagar (financeiro interno). categoria é texto livre por enquanto;

@@ -492,6 +492,72 @@ function SecaoCargaDesigner() {
   );
 }
 
+// ─── seção Rework por designer/squad + Otimizações por gestor ──────────────────
+
+interface ReworkLinha { nome: string; interno: number; externo: number }
+interface ReworkDetalhado { porResponsavel: ReworkLinha[]; porSquad: ReworkLinha[] }
+interface OtimGestor { nome: string; total: number; tempoMedioMin: number | null }
+
+function ListaRework({ titulo, linhas }: { titulo: string; linhas: ReworkLinha[] }) {
+  return (
+    <Card>
+      <SecaoTitulo>{titulo}</SecaoTitulo>
+      {linhas.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Sem rework registrado.</p>
+      ) : (
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+          {linhas.map((l) => (
+            <li key={l.nome} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+              <span style={{ color: 'var(--cinza-vapor)' }}>{l.nome}</span>
+              <span style={{ color: 'var(--texto-suave)' }}>
+                <span style={{ color: '#7faadf' }}>{l.interno} int.</span> · <span style={{ color: '#e2738a' }}>{l.externo} ext.</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function SecaoProdutividade() {
+  const [rework, setRework] = useState<ReworkDetalhado | null>(null);
+  const [otim, setOtim] = useState<OtimGestor[]>([]);
+
+  useEffect(() => {
+    api.get<ReworkDetalhado>('/qualidade/rework-detalhado').then(({ data }) => setRework(data)).catch(() => setRework(null));
+    api.get<OtimGestor[]>('/trafego/campanhas/otimizacoes-gestor').then(({ data }) => setOtim(data)).catch(() => setOtim([]));
+  }, []);
+
+  return (
+    <section>
+      <SecaoTitulo>Produtividade da equipe</SecaoTitulo>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 12 }}>
+        <ListaRework titulo="Refações por designer" linhas={rework?.porResponsavel ?? []} />
+        <ListaRework titulo="Refações por squad" linhas={rework?.porSquad ?? []} />
+        <Card>
+          <SecaoTitulo>Otimizações por gestor</SecaoTitulo>
+          {otim.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Nenhuma otimização registrada.</p>
+          ) : (
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+              {otim.map((o) => (
+                <li key={o.nome} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+                  <span style={{ color: 'var(--cinza-vapor)' }}>{o.nome}</span>
+                  <span style={{ color: 'var(--texto-suave)' }}>
+                    <strong style={{ color: 'var(--texto)' }}>{o.total}</strong>
+                    {o.tempoMedioMin != null && <span style={{ color: 'var(--texto-fraco)' }}> · {o.tempoMedioMin}min méd.</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </section>
+  );
+}
+
 // ─── página principal ─────────────────────────────────────────────────────────
 
 export default function Qualidade() {
@@ -499,6 +565,7 @@ export default function Qualidade() {
     <PaginaShell titulo="Qualidade & Rework" subtitulo="Monitoramento de avaliações e histórico de rework">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
         <SecaoDashboard />
+        <SecaoProdutividade />
         <SecaoRework />
         <SecaoCargaDesigner />
       </div>
