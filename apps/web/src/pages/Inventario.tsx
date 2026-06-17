@@ -161,7 +161,7 @@ export function Inventario() {
                     {[it.categoria, it.valor ? `R$ ${Number(it.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null, it.responsavel?.nome ? `com ${it.responsavel.nome}` : null].filter(Boolean).join(' · ')}
                   </div>
                   {it.notaFiscalUrl && (
-                    <a href={it.notaFiscalUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#f0814f', textDecoration: 'none' }}>Nota fiscal →</a>
+                    <a href={it.notaFiscalUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--cinza-vapor)', textDecoration: 'none' }}>Nota fiscal →</a>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

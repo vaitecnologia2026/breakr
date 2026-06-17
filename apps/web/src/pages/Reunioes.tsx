@@ -162,7 +162,7 @@ export function Reunioes() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12.5, color: '#f0814f', fontWeight: 700 }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--cinza-vapor)', fontWeight: 700 }}>
                     {new Date(r.data).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -171,7 +171,7 @@ export function Reunioes() {
                   </div>
                   {r.descricao && <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>{r.descricao}</div>}
                   {r.meetLink && (
-                    <a href={r.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: '#f0814f', textDecoration: 'none' }}>
+                    <a href={r.meetLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: 'var(--cinza-vapor)', textDecoration: 'none' }}>
                       Link do Meet →
                     </a>
                   )}

@@ -120,7 +120,7 @@ export function Educacional() {
           {cursos.map((c) => (
             <Card key={c.id}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {c.plataforma && <span style={{ fontSize: 11, fontWeight: 700, color: '#f0814f', textTransform: 'uppercase' }}>{c.plataforma}</span>}
+                {c.plataforma && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--cinza-vapor)', textTransform: 'uppercase' }}>{c.plataforma}</span>}
                 <span style={{ fontSize: 15, fontWeight: 700 }}>{c.titulo}</span>
                 {c.descricao && <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>{c.descricao}</span>}
                 <a href={c.url} target="_blank" rel="noopener noreferrer" className="brk-gradient-bg" style={{ marginTop: 4, alignSelf: 'flex-start', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>

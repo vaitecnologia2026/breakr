@@ -130,7 +130,7 @@ export function Agenda() {
           <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: ehGestao ? 14 : 0 }}>
             {feriados.map((f) => (
               <li key={f.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13.5, padding: '8px 12px', borderRadius: 8, background: 'var(--superficie-2)' }}>
-                <span><strong style={{ color: '#f0814f' }}>{dataBR(f.data)}</strong> · {f.titulo}</span>
+                <span><strong style={{ color: 'var(--cinza-vapor)' }}>{dataBR(f.data)}</strong> · {f.titulo}</span>
                 {ehGestao && <button type="button" onClick={() => removerFeriado(f.id)} style={{ background: 'none', border: 'none', color: 'var(--texto-fraco)', cursor: 'pointer', fontSize: 12 }}>remover</button>}
               </li>
             ))}
