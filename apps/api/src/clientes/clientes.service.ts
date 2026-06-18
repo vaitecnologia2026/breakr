@@ -48,6 +48,7 @@ export class ClientesService {
         email: dto.email,
         telefone: dto.telefone,
         planoId: dto.planoId,
+        squadId: dto.squadId,
         status: ClienteStatus.NOVO,
         codigoUnico: this.codigoUnico.gerar('CLI'),
       },

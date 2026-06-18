@@ -30,4 +30,8 @@ export class CriarClienteDto {
   @IsOptional()
   @IsUUID()
   planoId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  squadId?: string;
 }

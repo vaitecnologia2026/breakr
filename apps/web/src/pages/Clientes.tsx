@@ -3,7 +3,7 @@ import { ClienteStatus } from '@breakr/shared';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import {
-  PaginaHeader, Btn, Campo as CampoNovo, Modal, Badge,
+  PaginaHeader, Btn, Campo as CampoNovo, CampoSelect, Modal, Badge,
   Carregando, Vazio, ErroEstado, Alerta,
   Th as ThNovo, Td as TdNovo,
 } from '../components/ui';
@@ -226,8 +226,17 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
   const [tag, setTag] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [planoId, setPlanoId] = useState('');
+  const [squadId, setSquadId] = useState('');
+  const [planos, setPlanos] = useState<{ id: string; nome: string }[]>([]);
+  const [squads, setSquads] = useState<{ id: string; nome: string }[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<{ id: string; nome: string }[]>('/planos').then(({ data }) => setPlanos(data)).catch(() => setPlanos([]));
+    api.get<{ id: string; nome: string }[]>('/squads').then(({ data }) => setSquads(data)).catch(() => setSquads([]));
+  }, []);
 
   const valido = nomeFantasia.trim().length >= 2;
 
@@ -243,6 +252,8 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
         tag: tag.trim() || undefined,
         email: email.trim() || undefined,
         telefone: telefone.trim() || undefined,
+        planoId: planoId || undefined,
+        squadId: squadId || undefined,
       });
       onCriado();
     } catch {
@@ -299,6 +310,14 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
           onChange={(e) => setTelefone(e.target.value)}
           placeholder="(11) 99999-9999 (opcional)"
         />
+        <CampoSelect rotulo="Plano" value={planoId} onChange={(e) => setPlanoId(e.target.value)}>
+          <option value="">Sem plano (definir depois)</option>
+          {planos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+        </CampoSelect>
+        <CampoSelect rotulo="Squad" value={squadId} onChange={(e) => setSquadId(e.target.value)}>
+          <option value="">Sem squad (definir depois)</option>
+          {squads.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+        </CampoSelect>
       </form>
     </Modal>
   );
