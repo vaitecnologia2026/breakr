@@ -22,7 +22,10 @@ WORKDIR /app/apps/api
 EXPOSE 3000
 # Sincroniza o schema (db push, sem --accept-data-loss: recusa mudança destrutiva
 # em vez de apagar dados), garante o admin (seed idempotente) e sobe a API.
-# MIGRAR PARA `prisma migrate deploy` requer: 1) migration de baseline (init) com o
-# schema completo e 2) baselinar o banco existente com
-# `prisma migrate resolve --applied <init>`. Até lá, db push é o caminho seguro.
+# CUTOVER para migrations versionadas (recomendado em produção): a migration de
+# baseline já existe em prisma/migrations/0_init. Passos:
+#   1) UMA VEZ, contra o banco do Railway: `npx prisma migrate resolve --applied 0_init`
+#      (marca o schema atual como baseline, sem recriar tabelas).
+#   2) Trocar o comando abaixo de `db push` para `prisma migrate deploy`.
+# A partir daí, toda mudança de schema vira uma migration (npx prisma migrate dev).
 CMD ["sh", "-c", "npx prisma db push --skip-generate && npx ts-node prisma/seed.ts && node dist/main"]
