@@ -23,12 +23,21 @@ async function bootstrap(): Promise<void> {
   //  • qualquer subdomínio *.vercel.app (produção + previews do front);
   //  • requisições sem origin (curl/health/server-to-server).
   // Nunca lança — origem negada apenas não recebe o header (sem 500 no preflight).
-  const origensConfig = config.get<string>('CORS_ORIGIN', 'http://localhost:5173');
-  const origens = origensConfig.split(',').map((o) => o.trim()).filter(Boolean);
+  // Origens de produção conhecidas (sempre liberadas, além do CORS_ORIGIN do env).
+  const ORIGENS_PADRAO = [
+    'https://breakr.vai-sistema.com',
+    'http://localhost:5173',
+  ];
+  const origensConfig = config.get<string>('CORS_ORIGIN', '');
+  const origens = [
+    ...ORIGENS_PADRAO,
+    ...origensConfig.split(',').map((o) => o.trim()).filter(Boolean),
+  ];
   function origemPermitida(origin?: string): boolean {
     if (!origin) return true;
     if (origens.includes(origin)) return true;
     try {
+      // Previews/produção do front na Vercel.
       return new URL(origin).hostname.endsWith('.vercel.app');
     } catch {
       return false;
