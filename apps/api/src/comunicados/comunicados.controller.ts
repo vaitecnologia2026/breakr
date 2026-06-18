@@ -21,7 +21,7 @@ export class ComunicadosController {
   @UseGuards(CargosGuard)
   @Cargos(...CARGOS_GESTAO)
   criar(@Body() dto: CriarComunicadoDto, @Request() req: any) {
-    return this.svc.criar({ ...dto, autorId: req.user?.sub });
+    return this.svc.criar({ ...dto, autorId: req.user?.id });
   }
 
   @Patch(':id/fixar')

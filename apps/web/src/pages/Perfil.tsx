@@ -60,6 +60,27 @@ export function Perfil() {
     carregar();
   }
 
+  // Troca de senha
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [senhaConf, setSenhaConf] = useState('');
+  const [trocando, setTrocando] = useState(false);
+  const [msgSenha, setMsgSenha] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+
+  async function trocarSenha() {
+    if (trocando) return;
+    if (senhaNova.length < 8) { setMsgSenha({ tipo: 'erro', texto: 'A nova senha deve ter ao menos 8 caracteres.' }); return; }
+    if (senhaNova !== senhaConf) { setMsgSenha({ tipo: 'erro', texto: 'A confirmação não confere.' }); return; }
+    setTrocando(true); setMsgSenha(null);
+    try {
+      await api.post('/auth/trocar-senha', { senhaAtual, senhaNova });
+      setSenhaAtual(''); setSenhaNova(''); setSenhaConf('');
+      setMsgSenha({ tipo: 'ok', texto: 'Senha alterada com sucesso.' });
+    } catch (err) {
+      setMsgSenha({ tipo: 'erro', texto: (err as any)?.response?.data?.message ?? 'Erro ao trocar a senha.' });
+    } finally { setTrocando(false); }
+  }
+
   if (carregando) return <EstadoCarregando />;
   if (erro) return <EstadoErro mensagem="Falha ao carregar o perfil." onTentar={carregar} />;
 
@@ -139,6 +160,22 @@ export function Perfil() {
         <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>
           Acompanhe o que está com você e o que está atrasado no <Link to="/" style={{ color: 'var(--cinza-vapor)' }}>seu painel (Meu dia)</Link>.
         </p>
+      </Card>
+
+      {/* Segurança — trocar senha */}
+      <Card>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Segurança</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360 }}>
+          <input className="brk-input" type="password" placeholder="Senha atual" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} autoComplete="current-password" />
+          <input className="brk-input" type="password" placeholder="Nova senha (mín. 8)" value={senhaNova} onChange={(e) => setSenhaNova(e.target.value)} autoComplete="new-password" />
+          <input className="brk-input" type="password" placeholder="Confirmar nova senha" value={senhaConf} onChange={(e) => setSenhaConf(e.target.value)} autoComplete="new-password" />
+          {msgSenha && <span style={{ fontSize: 12.5, color: msgSenha.tipo === 'ok' ? '#67e0a3' : 'var(--vermelho)' }}>{msgSenha.texto}</span>}
+          <div>
+            <BotaoPrimario onClick={trocarSenha} disabled={trocando || !senhaAtual || !senhaNova}>
+              {trocando ? 'Alterando…' : 'Alterar senha'}
+            </BotaoPrimario>
+          </div>
+        </div>
       </Card>
     </PaginaShell>
   );

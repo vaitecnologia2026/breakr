@@ -52,9 +52,9 @@ export class AtendimentoController {
   @Post(':id/aceitar')
   aceitar(
     @Param('id') id: string,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: { id: string } },
   ) {
-    return this.svc.aceitar(id, req.user.sub);
+    return this.svc.aceitar(id, req.user.id);
   }
 
   @Post(':id/resolver')

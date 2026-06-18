@@ -1,5 +1,5 @@
 // Servico de autenticacao — valida credenciais e emite JWT.
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -49,6 +49,9 @@ export class AuthService {
   }
 
   async trocarSenha(userId: string, senhaAtual: string, senhaNova: string): Promise<TrocarSenhaResult> {
+    if (!senhaNova || senhaNova.length < 8) {
+      throw new BadRequestException('A nova senha deve ter ao menos 8 caracteres.');
+    }
     const usuario = await this.prisma.usuario.findUnique({ where: { id: userId } });
     if (!usuario) throw new UnauthorizedException('Usuário não encontrado');
 
