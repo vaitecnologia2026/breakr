@@ -42,6 +42,7 @@ import { Medalhas } from './pages/Medalhas';
 import { Perfil } from './pages/Perfil';
 import { NotFound } from './pages/NotFound';
 import { Planos } from './pages/Planos';
+import { AvaliarAtendimento } from './pages/AvaliarAtendimento';
 
 export function App() {
   return (
@@ -51,6 +52,7 @@ export function App() {
       <Route path="/captacao" element={<Captacao />} />
       <Route path="/avaliacao-disc" element={<AvaliacaoDisc />} />
       <Route path="/agendar" element={<AgendarPublico />} />
+      <Route path="/avaliar-atendimento/:id" element={<AvaliarAtendimento />} />
 
       <Route
         path="/"

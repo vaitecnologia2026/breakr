@@ -1,5 +1,5 @@
 // Servico de atendimento: inbox WhatsApp com modelo PENDENTE/ATENDENDO/RESOLVIDO.
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { StatusConversa } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { IaService } from '../ia/ia.service';
@@ -23,13 +23,48 @@ export class AtendimentoService {
     const agora = Date.now();
     const esperasMin = pendentes.map((c) => (agora - new Date(c.criadoEm).getTime()) / 60000);
     const media = esperasMin.length ? esperasMin.reduce((a, b) => a + b, 0) / esperasMin.length : 0;
+    const csat = await this.prisma.conversa.aggregate({
+      where: { csatNota: { not: null } },
+      _avg: { csatNota: true },
+      _count: { csatNota: true },
+    });
     return {
       aguardando: pendentes.length,
       emAtendimento,
       resolvidasHoje,
       tempoMedioEsperaMin: Math.round(media),
       maiorEsperaMin: esperasMin.length ? Math.round(Math.max(...esperasMin)) : 0,
+      csatMedio: csat._avg.csatNota ? Math.round(csat._avg.csatNota * 10) / 10 : null,
+      csatTotal: csat._count.csatNota,
     };
+  }
+
+  // Dados mínimos para a página pública de avaliação (link enviado ao cliente).
+  async dadosAvaliacao(id: string) {
+    const c = await this.prisma.conversa.findUnique({
+      where: { id },
+      include: { cliente: { select: { nomeFantasia: true } } },
+    });
+    if (!c) throw new NotFoundException('Atendimento não encontrado');
+    return {
+      cliente: c.cliente?.nomeFantasia ?? null,
+      jaAvaliado: c.csatNota != null,
+      nota: c.csatNota,
+    };
+  }
+
+  // Registra a avaliação (CSAT) do cliente — fluxo público via link.
+  async avaliar(id: string, nota: number, comentario?: string) {
+    if (!Number.isInteger(nota) || nota < 1 || nota > 5) {
+      throw new BadRequestException('Nota deve ser um inteiro de 1 a 5.');
+    }
+    const existe = await this.prisma.conversa.findUnique({ where: { id }, select: { id: true } });
+    if (!existe) throw new NotFoundException('Atendimento não encontrado');
+    await this.prisma.conversa.update({
+      where: { id },
+      data: { csatNota: nota, csatComentario: comentario ?? null, csatRespondidoEm: new Date() },
+    });
+    return { ok: true };
   }
 
   // Resumo do atendimento via IA — condensa a conversa (chats/áudios) p/ devolutiva rápida.

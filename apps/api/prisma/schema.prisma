@@ -944,6 +944,10 @@ model Conversa {
   waTelefone   String?        @map("wa_telefone")
   assunto      String?
   ultimaMsgEm  DateTime?      @map("ultima_msg_em")
+  // CSAT do atendimento: nota 1-5 dada pelo cliente após a resolução.
+  csatNota         Int?      @map("csat_nota")
+  csatComentario   String?   @map("csat_comentario")
+  csatRespondidoEm DateTime? @map("csat_respondido_em")
   criadoEm     DateTime       @default(now()) @map("criado_em")
   atualizadoEm DateTime       @updatedAt @map("atualizado_em")
 

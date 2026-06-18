@@ -208,7 +208,7 @@ function ultimaMsgPreview(c: Conversa): string {
 
 export function Atendimento() {
   const [inbox, setInbox] = useState<InboxData>({ pendente: [], atendendo: [], resolvido: [] });
-  const [fila, setFila] = useState<{ aguardando: number; emAtendimento: number; resolvidasHoje: number; tempoMedioEsperaMin: number; maiorEsperaMin: number } | null>(null);
+  const [fila, setFila] = useState<{ aguardando: number; emAtendimento: number; resolvidasHoje: number; tempoMedioEsperaMin: number; maiorEsperaMin: number; csatMedio: number | null; csatTotal: number } | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [selecionada, setSelecionada] = useState<string | null>(null);
@@ -426,6 +426,7 @@ export function Atendimento() {
               <p style={{ margin: '1px 0 0', fontSize: 10, color: 'var(--texto-fraco)' }}>
                 {inbox.pendente.length} na fila · {inbox.atendendo.length} em atendimento
                 {fila && fila.aguardando > 0 && ` · espera méd. ${fila.tempoMedioEsperaMin}min (máx ${fila.maiorEsperaMin}min)`}
+                {fila && fila.csatMedio != null && ` · CSAT ${fila.csatMedio}★ (${fila.csatTotal})`}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
