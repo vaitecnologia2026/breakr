@@ -337,13 +337,97 @@ export function Configuracoes() {
         titulo="Configurações"
         subtitulo="Integrações, IA e parâmetros do sistema"
       />
-      <Tabs abas={['IA', 'Integrações', 'Teste DISC', 'Otimização', 'Avaliação']} ativa={aba} aoMudar={setAba} />
+      <Tabs abas={['IA', 'Integrações', 'WhatsApp', 'Teste DISC', 'Otimização', 'Avaliação']} ativa={aba} aoMudar={setAba} />
       {aba === 'IA' && <AbaIA />}
       {aba === 'Integrações' && <AbaIntegracoes />}
+      {aba === 'WhatsApp' && <AbaWhatsApp />}
       {aba === 'Teste DISC' && <AbaDisc />}
       {aba === 'Otimização' && <AbaCronograma />}
       {aba === 'Avaliação' && <AbaCriterios />}
     </>
+  );
+}
+
+/* ── Aba: WhatsApp / Atendimento (credenciais Meta/WhatsApp Business) ── */
+interface ConfigWa { ativo: boolean; phoneNumberId: string | null; waBaId: string | null; temWebhookVerifyToken: boolean; accessToken: string | null }
+
+function AbaWhatsApp() {
+  const [carregando, setCarregando] = useState(true);
+  const [cfg, setCfg] = useState<ConfigWa | null>(null);
+  const [ativo, setAtivo] = useState(false);
+  const [phoneNumberId, setPhoneNumberId] = useState('');
+  const [waBaId, setWaBaId] = useState('');
+  const [accessToken, setAccessToken] = useState('');
+  const [webhookVerifyToken, setWebhookVerifyToken] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
+
+  async function carregar() {
+    setCarregando(true);
+    try {
+      const { data } = await api.get<ConfigWa>('/atendimento/config');
+      setCfg(data);
+      setAtivo(data.ativo);
+      setPhoneNumberId(data.phoneNumberId ?? '');
+      setWaBaId(data.waBaId ?? '');
+    } finally { setCarregando(false); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function salvar() {
+    setSalvando(true); setSalvo(false);
+    // Só envia segredos se o usuário digitou um novo valor (não sobrescreve com a máscara).
+    const corpo: Record<string, unknown> = { ativo, phoneNumberId: phoneNumberId.trim(), waBaId: waBaId.trim() };
+    if (accessToken.trim()) corpo.accessToken = accessToken.trim();
+    if (webhookVerifyToken.trim()) corpo.webhookVerifyToken = webhookVerifyToken.trim();
+    try {
+      await api.put('/atendimento/config', corpo);
+      setAccessToken(''); setWebhookVerifyToken('');
+      setSalvo(true);
+      carregar();
+    } finally { setSalvando(false); }
+  }
+
+  if (carregando) return <Carregando />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>WhatsApp Business (Meta)</h3>
+        <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 14 }}>
+          Credenciais da API oficial do WhatsApp para a centralização do atendimento.
+          Os campos de segredo ficam em branco por segurança — preencha só para alterar.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
+          <Switch ativo={ativo} aoAlternar={setAtivo} rotulo="Integração ativa" />
+          <Campo rotulo="Phone Number ID" value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="Ex.: 1029384756" />
+          <Campo rotulo="WABA ID (WhatsApp Business Account)" value={waBaId} onChange={(e) => setWaBaId(e.target.value)} placeholder="Ex.: 5647382910" />
+          <Campo
+            rotulo={`Access Token${cfg?.accessToken ? ` (atual: ${cfg.accessToken})` : ''}`}
+            type="password"
+            value={accessToken}
+            onChange={(e) => setAccessToken(e.target.value)}
+            placeholder={cfg?.accessToken ? 'Preencha para substituir' : 'Cole o token permanente'}
+          />
+          <Campo
+            rotulo={`Webhook Verify Token${cfg?.temWebhookVerifyToken ? ' (configurado)' : ''}`}
+            type="password"
+            value={webhookVerifyToken}
+            onChange={(e) => setWebhookVerifyToken(e.target.value)}
+            placeholder={cfg?.temWebhookVerifyToken ? 'Preencha para substituir' : 'Token de verificação do webhook'}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Btn onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</Btn>
+            {salvo && <Alerta tipo="sucesso">Configuração salva.</Alerta>}
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+          URL do webhook (configure na Meta): <code style={{ color: 'var(--cinza-vapor)' }}>https://api-production-fc29.up.railway.app/atendimento/webhooks/meta</code>
+        </p>
+      </Card>
+    </div>
   );
 }
 
