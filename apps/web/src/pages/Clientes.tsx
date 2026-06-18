@@ -53,6 +53,7 @@ export function Clientes() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState<Cliente | null>(null);
   const [busca, setBusca] = useState('');
 
   async function carregar() {
@@ -134,6 +135,7 @@ export function Clientes() {
                 <ThNovo>Onboarding</ThNovo>
                 <ThNovo>Squad</ThNovo>
                 <ThNovo>Criado em</ThNovo>
+                <ThNovo>Ações</ThNovo>
               </tr>
             </thead>
             <tbody>
@@ -199,6 +201,9 @@ export function Clientes() {
                   <TdNovo>
                     <span style={{ color: 'var(--texto-fraco)' }}>{formatarData(c.criadoEm)}</span>
                   </TdNovo>
+                  <TdNovo>
+                    <Btn variante="secondary" tamanho="sm" onClick={() => setEditando(c)}>Editar</Btn>
+                  </TdNovo>
                 </tr>
               ))}
             </tbody>
@@ -210,24 +215,27 @@ export function Clientes() {
         </div>
       )}
 
-      {modalAberto && (
+      {(modalAberto || editando) && (
         <ModalNovoCliente
-          onFechar={() => setModalAberto(false)}
-          onCriado={() => { setModalAberto(false); carregar(); }}
+          cliente={editando}
+          onFechar={() => { setModalAberto(false); setEditando(null); }}
+          onCriado={() => { setModalAberto(false); setEditando(null); carregar(); }}
         />
       )}
     </section>
   );
 }
 
-function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCriado: () => void }) {
-  const [nomeFantasia, setNomeFantasia] = useState('');
-  const [cnpj, setCnpj] = useState('');
-  const [tag, setTag] = useState('');
+function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente | null; onFechar: () => void; onCriado: () => void }) {
+  const edicao = !!cliente;
+  const [nomeFantasia, setNomeFantasia] = useState(cliente?.nomeFantasia ?? '');
+  const [cnpj, setCnpj] = useState(cliente?.cnpj ?? '');
+  const [tag, setTag] = useState(cliente?.tag ?? '');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [planoId, setPlanoId] = useState('');
-  const [squadId, setSquadId] = useState('');
+  const [planoId, setPlanoId] = useState(cliente?.planoId ?? '');
+  const [squadId, setSquadId] = useState(cliente?.squadId ?? '');
+  const [status, setStatus] = useState<ClienteStatus>(cliente?.status ?? ClienteStatus.NOVO);
   const [planos, setPlanos] = useState<{ id: string; nome: string }[]>([]);
   const [squads, setSquads] = useState<{ id: string; nome: string }[]>([]);
   const [salvando, setSalvando] = useState(false);
@@ -245,32 +253,37 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
     if (!valido || salvando) return;
     setSalvando(true);
     setErroMsg(null);
+    const corpo: Record<string, unknown> = {
+      nomeFantasia: nomeFantasia.trim(),
+      cnpj: cnpj.trim() || undefined,
+      tag: tag.trim() || undefined,
+      planoId: planoId || undefined,
+      squadId: squadId || undefined,
+    };
+    if (email.trim()) corpo.email = email.trim();
+    if (telefone.trim()) corpo.telefone = telefone.trim();
     try {
-      await api.post('/clientes', {
-        nomeFantasia: nomeFantasia.trim(),
-        cnpj: cnpj.trim() || undefined,
-        tag: tag.trim() || undefined,
-        email: email.trim() || undefined,
-        telefone: telefone.trim() || undefined,
-        planoId: planoId || undefined,
-        squadId: squadId || undefined,
-      });
+      if (edicao && cliente) {
+        await api.patch(`/clientes/${cliente.id}`, { ...corpo, status });
+      } else {
+        await api.post('/clientes', corpo);
+      }
       onCriado();
     } catch {
-      setErroMsg('Falha ao cadastrar o cliente. Verifique os dados e tente de novo.');
+      setErroMsg(`Falha ao ${edicao ? 'salvar' : 'cadastrar'} o cliente. Verifique os dados e tente de novo.`);
       setSalvando(false);
     }
   }
 
   return (
     <Modal
-      titulo="Novo cliente"
+      titulo={edicao ? 'Editar cliente' : 'Novo cliente'}
       onFechar={onFechar}
       rodape={
         <div style={{ display: 'flex', gap: 10 }}>
           <Btn variante="secondary" onClick={onFechar} disabled={salvando}>Cancelar</Btn>
           <Btn variante="primary" type="submit" form="form-novo-cliente" disabled={!valido || salvando}>
-            {salvando ? 'Salvando…' : 'Cadastrar'}
+            {salvando ? 'Salvando…' : edicao ? 'Salvar' : 'Cadastrar'}
           </Btn>
         </div>
       }
@@ -318,6 +331,13 @@ function ModalNovoCliente({ onFechar, onCriado }: { onFechar: () => void; onCria
           <option value="">Sem squad (definir depois)</option>
           {squads.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
         </CampoSelect>
+        {edicao && (
+          <CampoSelect rotulo="Status" value={status} onChange={(e) => setStatus(e.target.value as ClienteStatus)}>
+            {Object.keys(STATUS_ROTULO).map((s) => (
+              <option key={s} value={s}>{STATUS_ROTULO[s as ClienteStatus]}</option>
+            ))}
+          </CampoSelect>
+        )}
       </form>
     </Modal>
   );
