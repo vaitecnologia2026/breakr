@@ -5,6 +5,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +14,9 @@ async function bootstrap(): Promise<void> {
   // Headers de segurança HTTP. CSP desligado (API JSON, não serve HTML; o front
   // é servido pela Vercel) para não interferir no consumo cross-origin.
   app.use(helmet({ contentSecurityPolicy: false }));
+
+  // Tratamento global de exceções — resposta consistente, sem vazar stack.
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Validacao automatica de DTOs (class-validator) em todas as rotas.
   app.useGlobalPipes(
