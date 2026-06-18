@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { EstadoCarregando } from '../components/primitivos';
+import { comDemo } from '../lib/demo';
 
 interface Canal { id: string; nome: string; descricao?: string | null }
 interface Mensagem {
@@ -87,8 +88,9 @@ export function Chat() {
 
   useEffect(() => {
     api.get<Canal[]>('/chat/canais').then(({ data }) => {
-      setCanais(data?.length ? data : MOCK_CANAIS);
-      if ((data?.length ? data : MOCK_CANAIS).length) setCanalAtivo((data?.length ? data : MOCK_CANAIS)[0]);
+      const canais = comDemo(data, MOCK_CANAIS);
+      setCanais(canais);
+      if (canais.length) setCanalAtivo(canais[0]);
     }).finally(() => setCarregandoCanais(false));
   }, []);
 
@@ -102,7 +104,7 @@ export function Chat() {
       // Descarta se o usuario ja trocou de canal enquanto esta resposta vinha.
       if (canalIdRef.current !== canal.id) return;
       if (!data?.length && !inicial) return;
-      const msgs = data?.length ? data : (inicial ? MOCK_MENSAGENS : []);
+      const msgs = comDemo(data, inicial ? MOCK_MENSAGENS : []);
       if (!msgs.length) return;
       setMensagens((prev) => {
         if (inicial) return msgs;

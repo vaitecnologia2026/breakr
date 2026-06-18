@@ -41,6 +41,7 @@ import { AgendarPublico } from './pages/AgendarPublico';
 import { Medalhas } from './pages/Medalhas';
 import { Perfil } from './pages/Perfil';
 import { NotFound } from './pages/NotFound';
+import { Planos } from './pages/Planos';
 
 export function App() {
   return (
@@ -64,6 +65,7 @@ export function App() {
         <Route path="clientes" element={<Clientes />} />
         <Route path="onboarding" element={<Onboarding />} />
         <Route path="contratos" element={<Contratos />} />
+        <Route path="planos" element={<Planos />} />
         <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="financeiro" element={<Financeiro />} />
         <Route path="projetos" element={<Projetos />} />

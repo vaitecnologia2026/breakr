@@ -9,6 +9,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Reuniões internas do time (alinhamentos, dailies…), independentes de cliente.
@@ -66,9 +67,9 @@ export function Reunioes() {
     setErro(false);
     try {
       const { data: res } = await api.get<Reuniao[]>('/reunioes-internas');
-      setReunioes(res.length ? res : MOCK_REUNIOES);
+      setReunioes(comDemo(res, MOCK_REUNIOES));
     } catch {
-      setReunioes(MOCK_REUNIOES);
+      setReunioes(mockSeDemo(MOCK_REUNIOES));
       setErro(false);
     } finally {
       setCarregando(false);

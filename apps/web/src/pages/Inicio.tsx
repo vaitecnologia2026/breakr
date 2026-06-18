@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { Carregando, ErroEstado } from '../components/ui';
+import { MODO_DEMO } from '../lib/demo';
 
 type Tom = 'info' | 'alerta' | 'erro';
 interface Acao { chave: string; label: string; count: number; link: string; tom: Tom }
@@ -213,11 +214,11 @@ export function Inicio() {
         api.get<Resumo>('/painel/resumo'),
         api.get<MeuDia>('/painel/meu-dia'),
       ]);
-      setResumo(r.data ?? MOCK_RESUMO);
-      setMeuDia(m.data ?? MOCK_MEU_DIA);
+      setResumo(r.data ?? (MODO_DEMO ? MOCK_RESUMO : null));
+      setMeuDia(m.data ?? (MODO_DEMO ? MOCK_MEU_DIA : null));
     } catch {
-      setResumo(MOCK_RESUMO);
-      setMeuDia(MOCK_MEU_DIA);
+      setResumo(MODO_DEMO ? MOCK_RESUMO : null);
+      setMeuDia(MODO_DEMO ? MOCK_MEU_DIA : null);
     }
     finally { setCarregando(false); }
   }

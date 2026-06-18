@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   EstadoCarregando,
@@ -96,8 +97,8 @@ export function Projetos() {
   useEffect(() => {
     api
       .get<Projeto[]>('/projetos')
-      .then((r) => setProjetos(r.data.length ? r.data : MOCK_PROJETOS))
-      .catch(() => { setProjetos(MOCK_PROJETOS); setErro('Não foi possível carregar os projetos.'); })
+      .then((r) => setProjetos(comDemo(r.data, MOCK_PROJETOS)))
+      .catch(() => { setProjetos(mockSeDemo(MOCK_PROJETOS)); setErro('Não foi possível carregar os projetos.'); })
       .finally(() => setCarregando(false));
   }, []);
 

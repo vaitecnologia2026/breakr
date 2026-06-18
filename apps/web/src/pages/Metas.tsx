@@ -10,6 +10,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Metas trimestrais (OKRs) — liderança define; todos acompanham.
@@ -55,9 +56,9 @@ export function Metas() {
     setErro(false);
     try {
       const { data } = await api.get<Meta[]>('/metas');
-      setMetas(data.length ? data : MOCK_METAS);
+      setMetas(comDemo(data, MOCK_METAS));
     } catch {
-      setMetas(MOCK_METAS);
+      setMetas(mockSeDemo(MOCK_METAS));
       setErro(false);
     } finally {
       setCarregando(false);

@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -112,9 +113,9 @@ export function Recrutamento() {
   async function carregarVagas() {
     try {
       const { data } = await api.get<Vaga[]>('/rh/vagas');
-      setVagas(data.length ? data : MOCK_VAGAS);
+      setVagas(comDemo(data, MOCK_VAGAS));
     } catch {
-      setVagas(MOCK_VAGAS);
+      setVagas(mockSeDemo(MOCK_VAGAS));
     }
   }
 
@@ -126,9 +127,9 @@ export function Recrutamento() {
         api.get<Candidato[]>('/rh/candidatos'),
         carregarVagas(),
       ]);
-      setCandidatos(cands.length ? cands : MOCK_CANDIDATOS);
+      setCandidatos(comDemo(cands, MOCK_CANDIDATOS));
     } catch {
-      setCandidatos(MOCK_CANDIDATOS);
+      setCandidatos(mockSeDemo(MOCK_CANDIDATOS));
       setErro(null);
       return;
     } finally {

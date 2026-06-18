@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { PaginaShell, BotaoPrimario, BotaoSecundario, EstadoCarregando, EstadoErro, PainelVazio } from '../components/primitivos';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 interface Autor { id: string; nome: string }
 interface Comunicado {
@@ -165,8 +166,8 @@ export function Comunicados() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<Comunicado[]>('/comunicados');
-      setLista(data.length ? data : MOCK_COMUNICADOS);
-    } catch { setLista(MOCK_COMUNICADOS); setErro(false); }
+      setLista(comDemo(data, MOCK_COMUNICADOS));
+    } catch { setLista(mockSeDemo(MOCK_COMUNICADOS)); setErro(false); }
     finally { setCarregando(false); }
   }
 

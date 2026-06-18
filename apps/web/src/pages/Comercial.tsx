@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo, MODO_DEMO } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -128,12 +129,12 @@ export function Comercial() {
     setErro(null);
     try {
       const { data } = await api.get<Lead[]>('/comercial/leads');
-      setLeads(data.length ? data : MOCK_LEADS);
+      setLeads(comDemo(data, MOCK_LEADS));
       // Performance é só para gestão/comercial; ignora silenciosamente se 403.
-      api.get<PerformanceComercial>('/comercial/leads/performance').then(({ data: p }) => setPerf(p ?? MOCK_PERF)).catch(() => setPerf(MOCK_PERF));
+      api.get<PerformanceComercial>('/comercial/leads/performance').then(({ data: p }) => setPerf(p ?? (MODO_DEMO ? MOCK_PERF : null))).catch(() => setPerf(MODO_DEMO ? MOCK_PERF : null));
     } catch {
-      setLeads(MOCK_LEADS);
-      setPerf(MOCK_PERF);
+      setLeads(mockSeDemo(MOCK_LEADS));
+      setPerf(MODO_DEMO ? MOCK_PERF : null);
       setErro(null);
       return;
     } finally {

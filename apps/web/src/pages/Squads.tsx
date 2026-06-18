@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { FuncaoSquad } from '@breakr/shared';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -91,9 +92,9 @@ export function Squads() {
     setErro(null);
     try {
       const { data } = await api.get<Squad[]>('/squads');
-      setSquads(data.length ? data : MOCK_SQUADS);
+      setSquads(comDemo(data, MOCK_SQUADS));
     } catch {
-      setSquads(MOCK_SQUADS);
+      setSquads(mockSeDemo(MOCK_SQUADS));
       setErro(null);
     } finally {
       setCarregando(false);

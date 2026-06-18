@@ -9,6 +9,7 @@ import {
   EstadoErro,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo, MODO_DEMO } from '../lib/demo';
 
 /**
  * Painel financeiro (Franci) — consolida o que hoje fica espalhado em vários sistemas.
@@ -98,15 +99,15 @@ export function Financeiro() {
         api.get<Conta[]>('/contas-pagar'),
         api.get<ResumoContas>('/contas-pagar/resumo'),
       ]);
-      setInd(i.data ?? MOCK_IND);
-      setBoletos((f.data.length ? f.data : MOCK_BOLETOS).filter((x) => x.status === 'PENDENTE'));
-      setContas(c.data.length ? c.data : MOCK_CONTAS);
-      setResumo(r.data ?? MOCK_RESUMO);
+      setInd(i.data ?? (MODO_DEMO ? MOCK_IND : null));
+      setBoletos(comDemo(f.data, MOCK_BOLETOS).filter((x) => x.status === 'PENDENTE'));
+      setContas(comDemo(c.data, MOCK_CONTAS));
+      setResumo(r.data ?? (MODO_DEMO ? MOCK_RESUMO : null));
     } catch {
-      setInd(MOCK_IND);
-      setBoletos(MOCK_BOLETOS.filter((x) => x.status === 'PENDENTE'));
-      setContas(MOCK_CONTAS);
-      setResumo(MOCK_RESUMO);
+      setInd(MODO_DEMO ? MOCK_IND : null);
+      setBoletos(mockSeDemo(MOCK_BOLETOS).filter((x) => x.status === 'PENDENTE'));
+      setContas(mockSeDemo(MOCK_CONTAS));
+      setResumo(MODO_DEMO ? MOCK_RESUMO : null);
       setErro(false);
     }
     finally { setCarregando(false); }

@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -175,11 +176,11 @@ export function Trafego() {
         api.get<AlertaTrafego[]>('/trafego/campanhas/alertas'),
         api.get<string[]>('/trafego/cronograma/hoje'),
       ]);
-      setCampanhas(c.data.length ? c.data : MOCK_CAMPANHAS);
+      setCampanhas(comDemo(c.data, MOCK_CAMPANHAS));
       setAlertas(a.data);
       setObjetivosHoje(o.data);
     } catch {
-      setCampanhas(MOCK_CAMPANHAS);
+      setCampanhas(mockSeDemo(MOCK_CAMPANHAS));
       setErro(null);
       return;
     } finally {

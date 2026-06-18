@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -102,9 +103,9 @@ export function Desenvolvimento() {
     setErro(null);
     try {
       const { data } = await api.get<Bug[]>('/bugs');
-      setBugs(data.length ? data : MOCK_BUGS);
+      setBugs(comDemo(data, MOCK_BUGS));
     } catch {
-      setBugs(MOCK_BUGS); setErro(null);
+      setBugs(mockSeDemo(MOCK_BUGS)); setErro(null);
     } finally {
       setCarregando(false);
     }

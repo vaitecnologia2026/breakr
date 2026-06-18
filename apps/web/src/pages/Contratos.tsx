@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   Th,
@@ -140,9 +141,9 @@ export function Contratos() {
     setErro(null);
     try {
       const { data } = await api.get<Contrato[]>('/contratos');
-      setContratos(data.length ? data : MOCK_CONTRATOS);
+      setContratos(comDemo(data, MOCK_CONTRATOS));
     } catch {
-      setContratos(MOCK_CONTRATOS);
+      setContratos(mockSeDemo(MOCK_CONTRATOS));
       setErro(null);
       return;
     } finally {

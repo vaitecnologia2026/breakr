@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ClienteStatus } from '@breakr/shared';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaHeader, Btn, Campo as CampoNovo, Modal, Badge,
   Carregando, Vazio, ErroEstado, Alerta,
@@ -59,9 +60,9 @@ export function Clientes() {
     setErro(null);
     try {
       const { data } = await api.get<Cliente[]>('/clientes');
-      setClientes(data.length ? data : MOCK_CLIENTES);
+      setClientes(comDemo(data, MOCK_CLIENTES));
     } catch {
-      setClientes(MOCK_CLIENTES);
+      setClientes(mockSeDemo(MOCK_CLIENTES));
       setErro(null);
       return;
     } finally {

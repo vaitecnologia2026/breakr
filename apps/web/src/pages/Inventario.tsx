@@ -10,6 +10,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Inventário interno — equipamentos/materiais da empresa.
@@ -70,9 +71,9 @@ export function Inventario() {
     setErro(false);
     try {
       const { data } = await api.get<Item[]>('/inventario');
-      setItens(data.length ? data : MOCK_INVENTARIO);
+      setItens(comDemo(data, MOCK_INVENTARIO));
     } catch {
-      setItens(MOCK_INVENTARIO);
+      setItens(mockSeDemo(MOCK_INVENTARIO));
       setErro(false);
     } finally {
       setCarregando(false);

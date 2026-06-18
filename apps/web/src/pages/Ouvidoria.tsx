@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { PaginaShell, BotaoPrimario, BotaoSecundario } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo } from '../lib/demo';
 
 /**
  * Central de ouvidoria — qualquer usuário abre manifestação; jurídico/admin trata.
@@ -46,7 +47,7 @@ export function Ouvidoria() {
     if (!ehTrata) return;
     try {
       const { data } = await api.get<Manifestacao[]>('/ouvidoria');
-      setItens(data.length ? data : MOCK_OUVIDORIA);
+      setItens(comDemo(data, MOCK_OUVIDORIA));
     } catch {
       /* sem permissão */
     }

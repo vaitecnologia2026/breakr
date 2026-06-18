@@ -9,6 +9,7 @@ import {
   EstadoErro,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Agenda interna: sala de reuniões presencial (RBAC CS/gestão), feriados (gestão),
@@ -66,8 +67,8 @@ export function Agenda() {
         api.get<DiaHO[]>('/agenda/home-office/meus'),
         api.get<string[]>('/agenda/home-office/hoje'),
       ]);
-      setSala(s.data.length ? s.data : MOCK_SALA); setFeriados(f.data.length ? f.data : MOCK_FERIADOS); setMeusHO(m.data.length ? m.data : MOCK_MEUS_HO); setHojeHO(h.data.length ? h.data : MOCK_HOJE_HO);
-    } catch { setSala(MOCK_SALA); setFeriados(MOCK_FERIADOS); setMeusHO(MOCK_MEUS_HO); setHojeHO(MOCK_HOJE_HO); setErro(false); }
+      setSala(comDemo(s.data, MOCK_SALA)); setFeriados(comDemo(f.data, MOCK_FERIADOS)); setMeusHO(comDemo(m.data, MOCK_MEUS_HO)); setHojeHO(comDemo(h.data, MOCK_HOJE_HO));
+    } catch { setSala(mockSeDemo(MOCK_SALA)); setFeriados(mockSeDemo(MOCK_FERIADOS)); setMeusHO(mockSeDemo(MOCK_MEUS_HO)); setHojeHO(mockSeDemo(MOCK_HOJE_HO)); setErro(false); }
     finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); }, []);

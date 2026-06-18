@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { MODO_DEMO } from '../lib/demo';
 import {
   PaginaShell,
   EstadoCarregando,
@@ -182,8 +183,8 @@ function SecaoDashboard() {
   useEffect(() => {
     api
       .get<Dashboard>('/qualidade/dashboard')
-      .then((r) => setDados(r.data ?? MOCK_DASH))
-      .catch(() => { setDados(MOCK_DASH); setErro(null); })
+      .then((r) => setDados(r.data ?? (MODO_DEMO ? MOCK_DASH : null)))
+      .catch(() => { setDados(MODO_DEMO ? MOCK_DASH : null); setErro(null); })
       .finally(() => setCarregando(false));
   }, []);
 
@@ -266,7 +267,7 @@ function SecaoRework() {
     if (filtroOrigem !== 'TODOS') params.set('origem', filtroOrigem);
     api
       .get<ReworkResp>(`/qualidade/rework?${params}`)
-      .then((r) => setDados(r.data ?? MOCK_REWORK))
+      .then((r) => setDados(r.data ?? (MODO_DEMO ? MOCK_REWORK : null)))
       .catch(() => setErro('Não foi possível carregar o histórico.'))
       .finally(() => setCarregando(false));
   }, [filtroOrigem, pagina]);

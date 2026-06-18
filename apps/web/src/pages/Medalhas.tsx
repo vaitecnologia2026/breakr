@@ -7,6 +7,7 @@ import {
   EstadoErro,
 } from '../components/primitivos';
 import { Card, CampoSelect } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Medalhas (gamificação) — admin/CS cria e concede a clientes; aparecem no portal.
@@ -55,9 +56,9 @@ export function Medalhas() {
         api.get<Medalha[]>('/medalhas'),
         api.get<ClienteOpt[]>('/clientes'),
       ]);
-      setMedalhas(m.data.length ? m.data : MOCK_MEDALHAS);
-      setClientes(c.data.length ? c.data : MOCK_CLIENTES_MD);
-    } catch { setMedalhas(MOCK_MEDALHAS); setClientes(MOCK_CLIENTES_MD); setErro(false); }
+      setMedalhas(comDemo(m.data, MOCK_MEDALHAS));
+      setClientes(comDemo(c.data, MOCK_CLIENTES_MD));
+    } catch { setMedalhas(mockSeDemo(MOCK_MEDALHAS)); setClientes(mockSeDemo(MOCK_CLIENTES_MD)); setErro(false); }
     finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); }, []);

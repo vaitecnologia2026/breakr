@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -148,9 +149,9 @@ export function Conteudos() {
     setErro(null);
     try {
       const { data } = await api.get<Conteudo[]>('/conteudos');
-      setConteudos(data.length ? data : MOCK_CONTEUDOS);
+      setConteudos(comDemo(data, MOCK_CONTEUDOS));
     } catch {
-      setConteudos(MOCK_CONTEUDOS);
+      setConteudos(mockSeDemo(MOCK_CONTEUDOS));
       setErro(null);
       return;
     } finally {

@@ -9,6 +9,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Avaliações de desempenho — cada um vê as suas; liderança cria e acompanha.
@@ -53,16 +54,16 @@ export function Desempenho() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<Avaliacao[]>('/desempenho/meus');
-      setMeus(data.length ? data : MOCK_AVALIACOES);
+      setMeus(comDemo(data, MOCK_AVALIACOES));
       if (ehLideranca) {
         const [t, u] = await Promise.all([
           api.get<Avaliacao[]>('/desempenho'),
           api.get<UsuarioOpt[]>('/usuarios').catch(() => ({ data: [] as UsuarioOpt[] })),
         ]);
-        setTodos(t.data.length ? t.data : MOCK_AVALIACOES);
+        setTodos(comDemo(t.data, MOCK_AVALIACOES));
         setUsuarios(u.data);
       }
-    } catch { setMeus(MOCK_AVALIACOES); setErro(false); }
+    } catch { setMeus(mockSeDemo(MOCK_AVALIACOES)); setErro(false); }
     finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [ehLideranca]);

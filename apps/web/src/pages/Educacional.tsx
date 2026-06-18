@@ -9,6 +9,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Educacional — catálogo de cursos/treinamentos (links externos: Hotmart etc.).
@@ -56,9 +57,9 @@ export function Educacional() {
     setErro(false);
     try {
       const { data } = await api.get<Curso[]>('/educacional');
-      setCursos(data.length ? data : MOCK_CURSOS);
+      setCursos(comDemo(data, MOCK_CURSOS));
     } catch {
-      setCursos(MOCK_CURSOS);
+      setCursos(mockSeDemo(MOCK_CURSOS));
       setErro(false);
     } finally {
       setCarregando(false);

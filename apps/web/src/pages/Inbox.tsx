@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { PaginaShell, EstadoCarregando, EstadoErro } from '../components/primitivos';
+import { MODO_DEMO } from '../lib/demo';
 
 interface FaturaItem { id: string; codigoUnico: string; valor: string; vencimento: string; cliente?: { nomeFantasia: string } }
 interface BugItem { id: string; titulo: string; severidade: string; status: string }
@@ -122,8 +123,8 @@ export function Inbox() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<InboxData>('/painel/inbox');
-      setDados(data ?? MOCK_INBOX);
-    } catch { setDados(MOCK_INBOX); setErro(false); }
+      setDados(data ?? (MODO_DEMO ? MOCK_INBOX : null));
+    } catch { setDados(MODO_DEMO ? MOCK_INBOX : null); setErro(false); }
     finally { setCarregando(false); }
   }
 

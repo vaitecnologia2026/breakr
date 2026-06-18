@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   Th,
@@ -100,9 +101,9 @@ export function Cobrancas() {
     setErro(null);
     try {
       const { data } = await api.get<Fatura[]>('/faturas');
-      setFaturas(data.length ? data : MOCK_FATURAS);
+      setFaturas(comDemo(data, MOCK_FATURAS));
     } catch {
-      setFaturas(MOCK_FATURAS);
+      setFaturas(mockSeDemo(MOCK_FATURAS));
       setErro(null);
       return;
     } finally {

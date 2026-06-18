@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -95,9 +96,9 @@ export function Compras() {
     setErro(null);
     try {
       const { data } = await api.get<Compra[]>('/compras');
-      setCompras(data.length ? data : MOCK_COMPRAS);
+      setCompras(comDemo(data, MOCK_COMPRAS));
     } catch {
-      setCompras(MOCK_COMPRAS);
+      setCompras(mockSeDemo(MOCK_COMPRAS));
       setErro(null);
       return;
     } finally {

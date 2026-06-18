@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
   Th,
@@ -84,10 +85,10 @@ export function Automacoes() {
         api.get<Execucao[]>('/motor/execucoes'),
       ]);
       setHabilitado(status.data.habilitado);
-      setRegras(rs.data.length ? rs.data : MOCK_REGRAS);
-      setExecucoes(es.data.length ? es.data : MOCK_EXECUCOES);
+      setRegras(comDemo(rs.data, MOCK_REGRAS));
+      setExecucoes(comDemo(es.data, MOCK_EXECUCOES));
     } catch {
-      setRegras(MOCK_REGRAS); setExecucoes(MOCK_EXECUCOES); setErro(false);
+      setRegras(mockSeDemo(MOCK_REGRAS)); setExecucoes(mockSeDemo(MOCK_EXECUCOES)); setErro(false);
     } finally {
       setCarregando(false);
     }

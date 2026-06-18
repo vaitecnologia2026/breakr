@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { PaginaShell, BotaoPrimario } from '../components/primitivos';
 import { Card } from '../components/ui';
+import { MODO_DEMO } from '../lib/demo';
 
 /**
  * eNPS — NPS interno do time (anônimo).
@@ -48,9 +49,9 @@ export function Enps() {
     if (!ehLideranca) return;
     try {
       const { data } = await api.get<Resultados>('/enps/resultados');
-      setRes(data ?? MOCK_ENPS);
+      setRes(data ?? (MODO_DEMO ? MOCK_ENPS : null));
     } catch {
-      setRes(MOCK_ENPS);
+      setRes(MODO_DEMO ? MOCK_ENPS : null);
     }
   }
 

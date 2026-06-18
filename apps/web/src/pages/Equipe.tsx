@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaHeader, Btn, Campo, CampoSelect, Modal,
   Carregando, ErroEstado, Vazio, Badge, Alerta, Th, Td,
@@ -64,8 +65,8 @@ export function Equipe() {
     setCarregando(true); setErro(false);
     try {
       const { data } = await api.get<Usuario[]>('/usuarios');
-      setLista(data.length ? data : MOCK_EQUIPE);
-    } catch { setLista(MOCK_EQUIPE); }
+      setLista(comDemo(data, MOCK_EQUIPE));
+    } catch { setLista(mockSeDemo(MOCK_EQUIPE)); }
     finally { setCarregando(false); }
   }
 

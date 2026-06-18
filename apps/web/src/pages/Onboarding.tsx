@@ -9,6 +9,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { Card, CampoSelect } from '../components/ui';
+import { comDemo, mockSeDemo } from '../lib/demo';
 
 /**
  * Gestão do onboarding do cliente (visão interna — CS/Admin).
@@ -101,9 +102,9 @@ export function Onboarding() {
     setErro(false);
     try {
       const { data } = await api.get<ClienteItem[]>('/clientes');
-      setClientes(data.length ? data : MOCK_CLIENTES_OB);
+      setClientes(comDemo(data, MOCK_CLIENTES_OB));
     } catch {
-      setClientes(MOCK_CLIENTES_OB);
+      setClientes(mockSeDemo(MOCK_CLIENTES_OB));
     } finally {
       setCarregando(false);
     }
