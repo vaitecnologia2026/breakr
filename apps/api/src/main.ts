@@ -18,9 +18,17 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // CORS liberado apenas para a origem configurada (web).
+  // CORS — aceita uma OU várias origens (CORS_ORIGIN separado por vírgula),
+  // ex.: "https://breakr.vai-sistema.com,https://breakr-os.vercel.app".
+  // Necessário porque credentials:true não permite wildcard.
+  const origensConfig = config.get<string>('CORS_ORIGIN', 'http://localhost:5173');
+  const origens = origensConfig.split(',').map((o) => o.trim()).filter(Boolean);
   app.enableCors({
-    origin: config.get<string>('CORS_ORIGIN', 'http://localhost:5173'),
+    origin: (origin, cb) => {
+      // Requisições sem origin (curl/health/server-to-server) são permitidas.
+      if (!origin || origens.includes(origin)) return cb(null, true);
+      return cb(new Error(`Origem não permitida pelo CORS: ${origin}`), false);
+    },
     credentials: true,
   });
 

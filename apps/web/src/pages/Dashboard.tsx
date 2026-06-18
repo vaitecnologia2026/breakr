@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Sidebar } from '../components/Sidebar';
+import { Sidebar, useSidebarMobile } from '../components/Sidebar';
 import { NotificationBell } from '../components/NotificationBell';
 import { GlobalSearch, abrirBusca } from '../components/GlobalSearch';
 import { BrkAI } from '../components/BrkAI';
@@ -115,15 +116,30 @@ function FavoritesBar() {
 export function Dashboard() {
   const { pathname } = useLocation();
   const nomePagina = ROTA_NOME[pathname] ?? 'Breakr OS';
+  const menuMobile = useSidebarMobile();
+
+  // Fecha o menu mobile ao trocar de página.
+  useEffect(() => { menuMobile.fechar(); }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="brk-layout">
-      <Sidebar />
+      <Sidebar mobileAberta={menuMobile.aberta} />
+      {/* Overlay para fechar o menu no mobile ao tocar fora */}
+      {menuMobile.aberta && <div className="brk-sidebar-overlay" onClick={menuMobile.fechar} />}
 
       <div className="brk-main">
         {/* Topbar melhorada */}
         <header className="brk-topbar">
           <div className="brk-topbar-left">
+            <button
+              className="brk-topbar-menu-btn"
+              onClick={menuMobile.alternar}
+              aria-label="Abrir menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <div className="brk-topbar-breadcrumb">
               <span className="brk-topbar-breadcrumb-root">Breakr OS</span>
               <span className="brk-topbar-sep">/</span>

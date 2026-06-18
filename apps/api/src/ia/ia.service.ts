@@ -2,7 +2,7 @@
 // partir da configuracao e delega ao adapter. Qualquer feature (sugestoes de
 // conteudo, IA de trafego, agentes...) chama `completar()` aqui e nao precisa
 // saber qual provedor esta configurado.
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ProvedorIa } from '@prisma/client';
 import { IaConfigService, MODELO_PADRAO } from './ia-config.service';
 import { IaProvider } from './provedores/ia.port';
@@ -43,7 +43,7 @@ export class IaService {
   async completar(prompt: string): Promise<string> {
     const r = await this.resolver();
     if (!r) {
-      throw new Error('IA nao configurada — ative e informe a chave do provedor em Configuracoes.');
+      throw new BadRequestException('IA nao configurada — ative e informe a chave do provedor em Configuracoes.');
     }
     return r.provider.completar(prompt, { apiKey: r.apiKey, modelo: r.modelo });
   }

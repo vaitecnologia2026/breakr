@@ -524,8 +524,8 @@ export function Atendimento() {
                   }}
                   style={{
                     flex: 1,
-                    background: ativa ? 'rgba(208,80,40,0.14)' : 'transparent',
-                    border: ativa ? '1px solid rgba(208,80,40,0.35)' : '1px solid var(--borda)',
+                    background: ativa ? 'rgba(255,255,255,0.14)' : 'transparent',
+                    border: ativa ? '1px solid rgba(255,255,255,0.35)' : '1px solid var(--borda)',
                     borderRadius: 8,
                     padding: '4px 4px',
                     cursor: 'pointer',
@@ -805,7 +805,7 @@ function ItemConversa({
       onClick={onClick}
       style={{
         width: '100%',
-        background: ativa ? 'rgba(208,80,40,0.1)' : 'transparent',
+        background: ativa ? 'rgba(255,255,255,0.1)' : 'transparent',
         border: 'none',
         borderLeft: `3px solid ${ativa ? 'var(--laranja-brasa)' : 'transparent'}`,
         padding: '7px 12px 7px 11px',
@@ -1251,7 +1251,7 @@ function PainelTemplatesLista({
             onClick={() => onSelecionar(t)}
             style={{
               width: '100%',
-              background: ativo ? 'rgba(208,80,40,0.10)' : 'transparent',
+              background: ativo ? 'rgba(255,255,255,0.10)' : 'transparent',
               border: 'none',
               borderLeft: `3px solid ${ativo ? 'var(--laranja-brasa)' : 'transparent'}`,
               padding: '10px 14px 10px 13px',
@@ -1275,11 +1275,11 @@ function PainelTemplatesLista({
                 fontWeight: 700,
                 padding: '1px 6px',
                 borderRadius: 99,
-                background: ativo ? 'rgba(208,80,40,0.15)' : 'var(--superficie-3)',
+                background: ativo ? 'rgba(255,255,255,0.15)' : 'var(--superficie-3)',
                 color: ativo ? 'var(--laranja-brasa)' : 'var(--texto-fraco)',
                 flexShrink: 0,
                 letterSpacing: '0.04em',
-                border: `1px solid ${ativo ? 'rgba(208,80,40,0.25)' : 'var(--borda)'}`,
+                border: `1px solid ${ativo ? 'rgba(255,255,255,0.25)' : 'var(--borda)'}`,
               }}>
                 {t.categoria}
               </span>
@@ -1459,8 +1459,8 @@ function EstadoVazioGrupos() {
         width: 68,
         height: 68,
         borderRadius: '50%',
-        background: 'rgba(208,80,40,0.07)',
-        border: '1px solid rgba(208,80,40,0.14)',
+        background: 'rgba(255,255,255,0.07)',
+        border: '1px solid rgba(255,255,255,0.14)',
         display: 'grid',
         placeItems: 'center',
         fontSize: 28,

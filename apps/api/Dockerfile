@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 COPY --from=build /app ./
 WORKDIR /app/apps/api
 EXPOSE 3000
-# MVP: aplica o schema com `db push`, garante o admin (seed idempotente) e sobe.
-# Quando houver migrations, trocar `db push` por `prisma migrate deploy`.
+# Sincroniza o schema (db push, sem --accept-data-loss: recusa mudança destrutiva
+# em vez de apagar dados), garante o admin (seed idempotente) e sobe a API.
+# MIGRAR PARA `prisma migrate deploy` requer: 1) migration de baseline (init) com o
+# schema completo e 2) baselinar o banco existente com
+# `prisma migrate resolve --applied <init>`. Até lá, db push é o caminho seguro.
 CMD ["sh", "-c", "npx prisma db push --skip-generate && npx ts-node prisma/seed.ts && node dist/main"]

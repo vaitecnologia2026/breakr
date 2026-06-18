@@ -1,5 +1,5 @@
 // Servico de atendimento: inbox WhatsApp com modelo PENDENTE/ATENDENDO/RESOLVIDO.
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -72,7 +72,7 @@ export class AtendimentoService {
 
   async enviarMensagem(conversaId: string, texto: string) {
     const conversa = await this.prisma.conversa.findUnique({ where: { id: conversaId } });
-    if (!conversa) throw new Error('Conversa não encontrada');
+    if (!conversa) throw new NotFoundException('Conversa não encontrada');
 
     const msg = await this.prisma.mensagem.create({
       data: { conversaId, autor: 'ATENDENTE', direcao: 'outbound', tipo: 'text', texto },

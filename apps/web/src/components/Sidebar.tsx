@@ -170,7 +170,7 @@ function writeGroupsState(s: Record<string, boolean>) {
 
 // ─── Sidebar principal ────────────────────────────────────────────────────────
 
-export function Sidebar() {
+export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {}) {
   const { usuario, logout } = useAuth();
   const { favoritos, toggleFav } = useFavoritos();
   const isAdmin = usuario?.cargo === 'ADMIN' || usuario?.cargo === 'SUPERADMIN';
@@ -192,7 +192,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className={`brk-sidebar${collapsed ? ' collapsed' : ''}`}>
+    <aside className={`brk-sidebar${collapsed ? ' collapsed' : ''}${mobileAberta ? ' mobile-open' : ''}`}>
       {/* ── Logo ── */}
       <div className="brk-sidebar-logo">
         <Logo tamanho={collapsed ? 20 : 22} />

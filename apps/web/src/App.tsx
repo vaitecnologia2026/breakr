@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Portal } from './pages/Portal';
@@ -40,6 +40,7 @@ import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
 import { Medalhas } from './pages/Medalhas';
 import { Perfil } from './pages/Perfil';
+import { NotFound } from './pages/NotFound';
 
 export function App() {
   return (
@@ -94,7 +95,7 @@ export function App() {
         <Route path="configuracoes" element={<Configuracoes />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

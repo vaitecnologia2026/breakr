@@ -1489,6 +1489,11 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
   box-shadow: var(--sombra-card);
 }
 
+/* Botão hambúrguer (mobile) e overlay — escondidos no desktop */
+.brk-topbar-menu-btn { display: none; background: none; border: none; color: var(--texto-suave); padding: 6px; border-radius: var(--r-md); cursor: pointer; }
+.brk-topbar-menu-btn:hover { background: var(--superficie-2); color: var(--texto); }
+.brk-sidebar-overlay { display: none; }
+
 /* ── Responsividade ── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }
@@ -1496,9 +1501,14 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
   .brk-sidebar { display: none; }
   .brk-sidebar.mobile-open {
     display: flex;
-    position: fixed; inset: 0; z-index: 100;
+    position: fixed; inset: 0 auto 0 0; z-index: 100;
     width: 240px; animation: brk-fade 0.15s ease;
   }
+  .brk-sidebar-overlay {
+    display: block; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); z-index: 99;
+  }
+  .brk-topbar-menu-btn { display: inline-flex; align-items: center; }
   .brk-topbar { padding: 0 16px; }
   .brk-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .brk-pagina-header { flex-direction: column; align-items: flex-start; }

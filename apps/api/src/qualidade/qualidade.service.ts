@@ -1,6 +1,6 @@
 // Dashboard de Qualidade & Rework (M18).
 // Agrega metricas sobre aprovacoes, avaliacoes dimensionais e historico de rework.
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { StatusConteudo } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -102,7 +102,7 @@ export class QualidadeService {
   }
   async removerCriterio(id: string) {
     await this.prisma.criterioAvaliacao.delete({ where: { id } }).catch(() => {
-      throw new Error('Critério não encontrado');
+      throw new NotFoundException('Critério não encontrado');
     });
     return { ok: true };
   }

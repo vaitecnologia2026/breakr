@@ -28,9 +28,11 @@ async function main() {
 
   // 2) Usuario admin (idempotente por email unico).
   const senhaHash = await bcrypt.hash(ADMIN_SENHA, 10);
+  // update vazio: NÃO sobrescreve a senha a cada boot/seed (evita resetar uma
+  // troca manual do admin). A senha só é definida na criação inicial.
   const admin = await prisma.usuario.upsert({
     where: { email: ADMIN_EMAIL },
-    update: { senhaHash },
+    update: {},
     create: {
       nome: 'Admin Breakr',
       email: ADMIN_EMAIL,
@@ -41,7 +43,7 @@ async function main() {
   });
 
   console.log('[seed] Config singleton OK:', CONFIG_ID);
-  console.log('[seed] Admin OK:', admin.email, '(senha:', ADMIN_SENHA + ')');
+  console.log('[seed] Admin OK:', admin.email);
 }
 
 main()
