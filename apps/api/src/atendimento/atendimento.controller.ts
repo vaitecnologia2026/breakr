@@ -27,9 +27,19 @@ export class AtendimentoController {
     return this.svc.getConfig();
   }
 
+  @Get('fila')
+  fila() {
+    return this.svc.fila();
+  }
+
   @Get(':id')
   obter(@Param('id') id: string) {
     return this.svc.obter(id);
+  }
+
+  @Get(':id/resumo')
+  resumir(@Param('id') id: string) {
+    return this.svc.resumir(id);
   }
 
   @Post()

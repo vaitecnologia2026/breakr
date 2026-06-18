@@ -1,10 +1,58 @@
 // Servico de atendimento: inbox WhatsApp com modelo PENDENTE/ATENDENDO/RESOLVIDO.
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { StatusConversa } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { IaService } from '../ia/ia.service';
 
 @Injectable()
 export class AtendimentoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ia: IaService,
+  ) {}
+
+  // Fila e tempo de espera — visão de controle do atendimento centralizado.
+  async fila() {
+    const inicioHoje = new Date();
+    inicioHoje.setHours(0, 0, 0, 0);
+    const [pendentes, emAtendimento, resolvidasHoje] = await Promise.all([
+      this.prisma.conversa.findMany({ where: { status: StatusConversa.PENDENTE }, select: { criadoEm: true } }),
+      this.prisma.conversa.count({ where: { status: StatusConversa.ATENDENDO } }),
+      this.prisma.conversa.count({ where: { status: StatusConversa.RESOLVIDO, atualizadoEm: { gte: inicioHoje } } }),
+    ]);
+    const agora = Date.now();
+    const esperasMin = pendentes.map((c) => (agora - new Date(c.criadoEm).getTime()) / 60000);
+    const media = esperasMin.length ? esperasMin.reduce((a, b) => a + b, 0) / esperasMin.length : 0;
+    return {
+      aguardando: pendentes.length,
+      emAtendimento,
+      resolvidasHoje,
+      tempoMedioEsperaMin: Math.round(media),
+      maiorEsperaMin: esperasMin.length ? Math.round(Math.max(...esperasMin)) : 0,
+    };
+  }
+
+  // Resumo do atendimento via IA — condensa a conversa (chats/áudios) p/ devolutiva rápida.
+  async resumir(id: string) {
+    const conversa = await this.prisma.conversa.findUnique({
+      where: { id },
+      include: {
+        mensagens: { orderBy: { criadoEm: 'asc' } },
+        cliente: { select: { nomeFantasia: true } },
+      },
+    });
+    if (!conversa) throw new NotFoundException('Conversa não encontrada');
+    if (!conversa.mensagens.length) return { resumo: 'Sem mensagens para resumir ainda.' };
+    const transcricao = conversa.mensagens
+      .map((m) => `${m.autor}: ${m.texto ?? `[${m.tipo}]`}`)
+      .join('\n');
+    const prompt =
+      `Você é um assistente de atendimento. Resuma de forma objetiva (3 a 5 linhas) a conversa abaixo` +
+      ` com o cliente ${conversa.cliente?.nomeFantasia ?? ''}, destacando o que o cliente pediu, o` +
+      ` status atual e o próximo passo.\n\n${transcricao}`;
+    const resumo = await this.ia.completar(prompt);
+    return { resumo };
+  }
 
   async listar() {
     const todas = await this.prisma.conversa.findMany({

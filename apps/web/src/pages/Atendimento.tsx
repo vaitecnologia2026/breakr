@@ -208,6 +208,7 @@ function ultimaMsgPreview(c: Conversa): string {
 
 export function Atendimento() {
   const [inbox, setInbox] = useState<InboxData>({ pendente: [], atendendo: [], resolvido: [] });
+  const [fila, setFila] = useState<{ aguardando: number; emAtendimento: number; resolvidasHoje: number; tempoMedioEsperaMin: number; maiorEsperaMin: number } | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [selecionada, setSelecionada] = useState<string | null>(null);
@@ -244,6 +245,7 @@ export function Atendimento() {
       const res = await api.get<InboxData>('/atendimento');
       setInbox(res.data);
       setErro(null);
+      api.get<typeof fila>('/atendimento/fila').then(({ data }) => setFila(data)).catch(() => {});
     } catch {
       setErro('Falha ao carregar conversas.');
     } finally {
@@ -422,7 +424,8 @@ export function Atendimento() {
                 Atendimento
               </h2>
               <p style={{ margin: '1px 0 0', fontSize: 10, color: 'var(--texto-fraco)' }}>
-                {inbox.pendente.length} pendente{inbox.pendente.length !== 1 ? 's' : ''} · {inbox.atendendo.length} ativo{inbox.atendendo.length !== 1 ? 's' : ''}
+                {inbox.pendente.length} na fila · {inbox.atendendo.length} em atendimento
+                {fila && fila.aguardando > 0 && ` · espera méd. ${fila.tempoMedioEsperaMin}min (máx ${fila.maiorEsperaMin}min)`}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -1008,6 +1011,23 @@ function PainelChat({
   const cor = corAvatar(nome);
   const ini = iniciais(nome);
 
+  // Resumo do atendimento por IA (condensa o chat para devolutiva rápida).
+  const [resumo, setResumo] = useState<string | null>(null);
+  const [resumindo, setResumindo] = useState(false);
+  async function resumirIa() {
+    if (resumindo) return;
+    setResumindo(true);
+    setResumo(null);
+    try {
+      const { data } = await api.get<{ resumo: string }>(`/atendimento/${conversa.id}/resumo`);
+      setResumo(data.resumo);
+    } catch (err) {
+      setResumo((err as any)?.response?.data?.message ?? 'Não foi possível gerar o resumo.');
+    } finally {
+      setResumindo(false);
+    }
+  }
+
   return (
     <div
       style={{
@@ -1076,6 +1096,9 @@ function PainelChat({
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <BotaoSecundario onClick={resumirIa}>
+            {resumindo ? 'Resumindo…' : '✨ Resumir IA'}
+          </BotaoSecundario>
           {conversa.status === 'PENDENTE' && (
             <BotaoPrimario onClick={onAceitar}>Aceitar</BotaoPrimario>
           )}
@@ -1095,6 +1118,32 @@ function PainelChat({
           </BotaoIcone>
         </div>
       </div>
+
+      {/* Resumo por IA */}
+      {resumo && (
+        <div
+          style={{
+            padding: '10px 20px',
+            borderBottom: '1px solid var(--borda)',
+            background: 'var(--superficie-2)',
+            fontSize: 13,
+            color: 'var(--texto-suave)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'flex-start',
+          }}
+        >
+          <strong style={{ color: 'var(--texto)', flexShrink: 0 }}>Resumo IA:</strong>
+          <span style={{ whiteSpace: 'pre-wrap' }}>{resumo}</span>
+          <button
+            type="button"
+            onClick={() => setResumo(null)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--texto-fraco)', cursor: 'pointer', flexShrink: 0 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Área de mensagens */}
       <div
