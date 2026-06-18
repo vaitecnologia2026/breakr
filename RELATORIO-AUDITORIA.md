@@ -1,6 +1,7 @@
 # Relatório de Auditoria de Produção — Breakr OS
 
-**Data:** 18/06/2026 · **Branch:** `main` · **Deploy:** https://breakr-os.vercel.app (READY)
+**Data:** 18/06/2026 · **Branch:** `main` · **Deploy:** https://breakr.vai-sistema.com (front) + Railway (API), READY
+**Atualizado** com a fase pós-auditoria de "código real / go-live" — ver seção 10.
 
 ---
 
@@ -133,10 +134,57 @@ apps/web/src/pages/NotFound.tsx (novo)
 
 ---
 
-## 9. Status final
+## 9. Status final (auditoria inicial)
 
 **PARCIALMENTE PRONTO — o frontend está pronto e no ar; o sistema fica 100% operacional em
 produção assim que o backend for provisionado (banco + variáveis de ambiente).**
 
 Nenhum erro de código/build pendente. Os bloqueios restantes são de **infraestrutura e
 credenciais** (banco, envs, integrações) — externos ao código e listados acima.
+
+---
+
+## 10. Evolução pós-auditoria — fase "código real / go-live"
+
+Após a auditoria, com o contrato fechado (18/06/2026), o projeto entrou na fase de produção.
+Tudo abaixo já está na `main` e no deploy (front Vercel + API Railway, ambos no ar e validados).
+
+### Infra / deploy resolvidos
+- **CORS**: front em `breakr.vai-sistema.com` era bloqueado → API agora aceita o domínio custom
+  + `*.vercel.app` + `CORS_ORIGIN`, sem 500 no preflight. Login validado ponta a ponta (HTTP 401
+  para credencial inválida, com headers CORS corretos).
+- **Migrations**: criada migration de **baseline `0_init`** (schema completo) consolidando as 15
+  incrementais — base para cutover de `db push` → `migrate deploy` (passo de baseline documentado).
+- **Deploy**: pipeline Vercel (front) + Railway (API, auto-deploy no push) funcionando; vários
+  deploys de produção `READY` confirmados.
+
+### Segurança / hardening
+- **Trocar senha** do próprio usuário (UI no Perfil + `POST /auth/trocar-senha`, mín. 8).
+- Seed **não reseta nem loga** a senha do admin.
+- **Rate-limit** de 8 tentativas/min no login (anti-força-bruta), sem afetar o polling.
+- **helmet** (headers de segurança HTTP).
+- **Filtro global de exceções** (erro consistente; stack só no log do servidor, nunca ao cliente).
+- **RBAC** em comunicados (escrita só gestão) + exceções HTTP corretas (404/400 no lugar de 500).
+- **Bug corrigido**: autor de comunicado / atendente de conversa liam `req.user.sub`
+  (inexistente) → corrigido para `req.user.id`.
+
+### Produto / módulos
+- **Mocks gateados** por `VITE_DEMO`: produção mostra dado real e estados vazios.
+- **Integrações configuráveis no admin de verdade**: os adapters (Asaas, Autentique, Speed,
+  WhatsApp) agora leem a config salva em Configurações → Integrações (DB) com fallback p/ env —
+  antes ficavam órfãos. WhatsApp/Meta com aba dedicada.
+- **Atendimento (core)**: fila + tempo de espera, **IA resumindo o chat**, **CSAT** (página
+  pública de avaliação `/avaliar-atendimento/:id`) + média no inbox.
+- **CRUD operacional completo**: Clientes (criar/editar/status + plano/squad), Equipe
+  (criar/editar/ativar), Squads (criar/renomear/membros), **Planos** (tela nova).
+- **Perfil do colaborador** (RH): documentos, alerta de pagamento, advertências.
+- **Mobile**: menu hambúrguer + overlay (antes a sidebar sumia no celular). **Página 404** real.
+- **Re-tema minimalista** preto/branco/cinza.
+
+### Status final (atualizado)
+**PRONTO PARA PRODUÇÃO no nível de código e infraestrutura básica.** Front e API no ar,
+seguros e validados. O que resta é **operacional/externo**, não código:
+1. Popular os **dados reais** (cadastro pela tela: Planos → Squads → Equipe → Clientes).
+2. Conectar **credenciais reais** das integrações (WhatsApp oficial, Asaas, Autentique) na aba
+   Configurações — o core do atendimento liga ponta a ponta quando o WhatsApp entrar.
+3. Cutover opcional para `migrate deploy` (baseline) e CI com testes (qualidade contínua).
