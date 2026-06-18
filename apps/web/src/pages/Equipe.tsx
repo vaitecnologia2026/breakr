@@ -55,6 +55,7 @@ export function Equipe() {
   const [erro, setErro] = useState(false);
   const [busca, setBusca] = useState('');
   const [modalNovo, setModalNovo] = useState(false);
+  const [editando, setEditando] = useState<Usuario | null>(null);
   const [erroCriar, setErroCriar] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<string | null>(null);
@@ -95,6 +96,39 @@ export function Equipe() {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setErroCriar(msg ?? 'Erro ao criar usuário. Verifique os dados e tente novamente.');
     } finally { setSalvando(false); }
+  }
+
+  function abrirEdicao(u: Usuario) {
+    setEditando(u);
+    setForm({ nome: u.nome, email: u.email, senha: '', cargo: u.cargo });
+    setErroCriar(null);
+    setModalNovo(true);
+  }
+
+  function fecharModal() {
+    setModalNovo(false);
+    setEditando(null);
+    setForm({ nome: '', email: '', senha: '', cargo: 'CS' });
+  }
+
+  // Salva criação OU edição (PATCH só nome/cargo — e-mail e senha não mudam aqui).
+  async function salvar() {
+    if (editando) {
+      if (!form.nome.trim()) { setErroCriar('Informe o nome.'); return; }
+      setSalvando(true); setErroCriar(null);
+      try {
+        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo });
+        await carregar();
+        fecharModal();
+        setSucesso('Usuário atualizado.');
+        setTimeout(() => setSucesso(null), 4000);
+      } catch (e: unknown) {
+        const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setErroCriar(msg ?? 'Erro ao salvar. Tente novamente.');
+      } finally { setSalvando(false); }
+      return;
+    }
+    await criar();
   }
 
   async function toggleAtivo(u: Usuario) {
@@ -193,13 +227,16 @@ export function Equipe() {
                     </span>
                   </Td>
                   <Td>
-                    <Btn
-                      variante={u.ativo ? 'secondary' : 'ghost'}
-                      tamanho="sm"
-                      onClick={() => toggleAtivo(u)}
-                    >
-                      {u.ativo ? 'Desativar' : 'Ativar'}
-                    </Btn>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Btn variante="secondary" tamanho="sm" onClick={() => abrirEdicao(u)}>Editar</Btn>
+                      <Btn
+                        variante={u.ativo ? 'secondary' : 'ghost'}
+                        tamanho="sm"
+                        onClick={() => toggleAtivo(u)}
+                      >
+                        {u.ativo ? 'Desativar' : 'Ativar'}
+                      </Btn>
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -210,12 +247,14 @@ export function Equipe() {
 
       {modalNovo && (
         <Modal
-          titulo="Novo usuário"
-          onFechar={() => setModalNovo(false)}
+          titulo={editando ? 'Editar usuário' : 'Novo usuário'}
+          onFechar={fecharModal}
           rodape={
             <>
-              <Btn variante="secondary" onClick={() => setModalNovo(false)}>Cancelar</Btn>
-              <Btn onClick={criar} disabled={salvando}>{salvando ? 'Criando…' : 'Criar usuário'}</Btn>
+              <Btn variante="secondary" onClick={fecharModal}>Cancelar</Btn>
+              <Btn onClick={salvar} disabled={salvando}>
+                {salvando ? 'Salvando…' : editando ? 'Salvar' : 'Criar usuário'}
+              </Btn>
             </>
           }
         >
@@ -231,15 +270,18 @@ export function Equipe() {
             type="email"
             placeholder="usuario@breakr.com"
             value={form.email}
+            disabled={!!editando}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
-          <Campo
-            rotulo="Senha inicial"
-            type="password"
-            placeholder="Mínimo 8 caracteres"
-            value={form.senha}
-            onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
-          />
+          {!editando && (
+            <Campo
+              rotulo="Senha inicial"
+              type="password"
+              placeholder="Mínimo 8 caracteres"
+              value={form.senha}
+              onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
+            />
+          )}
           <CampoSelect
             rotulo="Cargo"
             value={form.cargo}

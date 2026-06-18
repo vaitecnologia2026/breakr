@@ -160,7 +160,7 @@ export function Squads() {
           }}
         >
           {filtrados.map((s) => (
-            <CardSquad key={s.id} squad={s} />
+            <CardSquad key={s.id} squad={s} aoAtualizar={carregar} />
           ))}
         </div>
       )}
@@ -180,7 +180,21 @@ export function Squads() {
 
 /* ------------------------------ Card ------------------------------ */
 
-function CardSquad({ squad }: { squad: Squad }) {
+function CardSquad({ squad, aoAtualizar }: { squad: Squad; aoAtualizar: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [nome, setNome] = useState(squad.nome);
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvarNome() {
+    if (!nome.trim() || salvando) return;
+    setSalvando(true);
+    try {
+      await api.patch(`/squads/${squad.id}`, { nome: nome.trim() });
+      setEditando(false);
+      aoAtualizar();
+    } finally { setSalvando(false); }
+  }
+
   return (
     <article
       style={{
@@ -221,17 +235,35 @@ function CardSquad({ squad }: { squad: Squad }) {
             {squad.nome.charAt(0).toUpperCase()}
           </span>
           <div style={{ minWidth: 0 }}>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {squad.nome}
-            </h3>
+            {editando ? (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  className="brk-input"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') salvarNome(); if (e.key === 'Escape') { setEditando(false); setNome(squad.nome); } }}
+                  autoFocus
+                  style={{ fontSize: 14, padding: '4px 8px' }}
+                />
+                <BotaoPrimario onClick={salvarNome} disabled={salvando}>{salvando ? '…' : 'OK'}</BotaoPrimario>
+                <BotaoSecundario onClick={() => { setEditando(false); setNome(squad.nome); }}>×</BotaoSecundario>
+              </div>
+            ) : (
+              <h3
+                onClick={() => setEditando(true)}
+                title="Clique para renomear"
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}
+              >
+                {squad.nome}
+              </h3>
+            )}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
               <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
                 {squad.membros.length}{' '}

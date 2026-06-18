@@ -121,6 +121,19 @@ export class SquadsService {
     }
   }
 
+  // Renomeia um squad.
+  async atualizar(id: string, nome: string): Promise<Squad> {
+    await this.garantirSquad(id);
+    try {
+      return await this.prisma.squad.update({ where: { id }, data: { nome } });
+    } catch (erro) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
+        throw new ConflictException('Ja existe um squad com esse nome');
+      }
+      throw erro;
+    }
+  }
+
   // Vincula um usuario ao squad com uma funcao.
   // Regras: 1 funcao por squad e 1 usuario por squad (@@unique).
   async adicionarMembro(

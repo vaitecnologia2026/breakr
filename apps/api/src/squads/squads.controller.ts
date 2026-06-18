@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -42,6 +43,14 @@ export class SquadsController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
   criar(@Body() dto: CriarSquadDto) {
     return this.squadsService.criar(dto);
+  }
+
+  // PATCH /squads/:id — renomeia o squad (Admin/Superadmin).
+  @Patch(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  atualizar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CriarSquadDto) {
+    return this.squadsService.atualizar(id, dto.nome);
   }
 
   // POST /squads/:id/membros — vincula usuario ao squad (Admin/Superadmin).
