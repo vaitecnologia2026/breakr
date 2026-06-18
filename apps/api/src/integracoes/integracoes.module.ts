@@ -2,10 +2,14 @@
 // Padrão PORT/ADAPTER: consumidores injetam pelo token (@Inject(WHATSAPP_PORT))
 // e nunca conhecem a implementação concreta.
 //
-// Seleção: se a env key estiver no ambiente → adapter real. Caso contrário → stub.
-// Para ativar uma integração: basta adicionar a env var no Railway/cofre.
+// Seleção: credenciais vêm primeiro da config do ADMIN (Configurações → Integrações,
+// salva em Config.parametros.integracoes) e, como fallback, das variáveis de ambiente.
+// Se houver chave → adapter real; senão → stub. (Mudanças no admin valem no próximo
+// boot/restart do serviço.)
 import { Logger, Module, Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaModule } from '../prisma/prisma.module';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   ASAAS_PORT,
   AUTENTIQUE_PORT,
@@ -28,6 +32,22 @@ import { GoogleMeetService } from './real/google-meet.service';
 
 const logger = new Logger('IntegracoesModule');
 
+// Id do Config singleton onde a aba Integrações grava as chaves (mesmo da
+// IntegracoesConfigService). Lê com try/catch p/ não derrubar o boot se o DB oscilar.
+const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
+interface IntegEntry { apiKey?: string | null; sandbox?: boolean; instancia?: string | null }
+interface IntegDb { asaas?: IntegEntry; speed?: IntegEntry; autentique?: IntegEntry; whatsapp?: IntegEntry }
+
+async function lerIntegracoesDb(prisma: PrismaService): Promise<IntegDb> {
+  try {
+    const cfg = await prisma.config.findUnique({ where: { id: CONFIG_ID } });
+    const params = (cfg?.parametros as Record<string, unknown>) ?? {};
+    return (params.integracoes as IntegDb) ?? {};
+  } catch {
+    return {};
+  }
+}
+
 const providers: Provider[] = [
   // Stubs sempre registrados como fallback
   AsaasStubService,
@@ -38,58 +58,62 @@ const providers: Provider[] = [
 
   {
     provide: WHATSAPP_PORT,
-    inject: [ConfigService, WhatsappStubService],
-    useFactory: (config: ConfigService, stub: WhatsappStubService) => {
-      const token = config.get<string>('WHATSAPP_TOKEN');
-      const instancia = config.get<string>('MEGAAPI_INSTANCE');
+    inject: [ConfigService, PrismaService, WhatsappStubService],
+    useFactory: async (config: ConfigService, prisma: PrismaService, stub: WhatsappStubService) => {
+      const db = await lerIntegracoesDb(prisma);
+      const token = db.whatsapp?.apiKey ?? config.get<string>('WHATSAPP_TOKEN');
+      const instancia = db.whatsapp?.instancia ?? config.get<string>('MEGAAPI_INSTANCE');
       if (token && instancia) {
         logger.log('WhatsApp: adapter REAL (MegaAPI) ativo.');
         return new WhatsappMegaService(token, instancia);
       }
-      logger.log('WhatsApp: usando STUB (defina WHATSAPP_TOKEN + MEGAAPI_INSTANCE para ativar).');
+      logger.log('WhatsApp: usando STUB (configure em Configurações → Integrações ou env).');
       return stub;
     },
   },
 
   {
     provide: ASAAS_PORT,
-    inject: [ConfigService, AsaasStubService],
-    useFactory: (config: ConfigService, stub: AsaasStubService) => {
-      const key = config.get<string>('ASAAS_API_KEY');
+    inject: [ConfigService, PrismaService, AsaasStubService],
+    useFactory: async (config: ConfigService, prisma: PrismaService, stub: AsaasStubService) => {
+      const db = await lerIntegracoesDb(prisma);
+      const key = db.asaas?.apiKey ?? config.get<string>('ASAAS_API_KEY');
       if (key) {
-        const sandbox = config.get<string>('ASAAS_SANDBOX') === 'true';
+        const sandbox = db.asaas?.sandbox ?? config.get<string>('ASAAS_SANDBOX') === 'true';
         logger.log(`Asaas: adapter REAL ativo (${sandbox ? 'sandbox' : 'produção'}).`);
         return new AsaasService(key, sandbox);
       }
-      logger.log('Asaas: usando STUB (defina ASAAS_API_KEY para ativar).');
+      logger.log('Asaas: usando STUB (configure em Configurações → Integrações ou env).');
       return stub;
     },
   },
 
   {
     provide: AUTENTIQUE_PORT,
-    inject: [ConfigService, AutentiqueStubService],
-    useFactory: (config: ConfigService, stub: AutentiqueStubService) => {
-      const token = config.get<string>('AUTENTIQUE_TOKEN');
+    inject: [ConfigService, PrismaService, AutentiqueStubService],
+    useFactory: async (config: ConfigService, prisma: PrismaService, stub: AutentiqueStubService) => {
+      const db = await lerIntegracoesDb(prisma);
+      const token = db.autentique?.apiKey ?? config.get<string>('AUTENTIQUE_TOKEN');
       if (token) {
         logger.log('Autentique: adapter REAL ativo.');
         return new AutentiqueService(token);
       }
-      logger.log('Autentique: usando STUB (defina AUTENTIQUE_TOKEN para ativar).');
+      logger.log('Autentique: usando STUB (configure em Configurações → Integrações ou env).');
       return stub;
     },
   },
 
   {
     provide: SPEED_PORT,
-    inject: [ConfigService, SpeedStubService],
-    useFactory: (config: ConfigService, stub: SpeedStubService) => {
-      const key = config.get<string>('SPEED_API_KEY');
+    inject: [ConfigService, PrismaService, SpeedStubService],
+    useFactory: async (config: ConfigService, prisma: PrismaService, stub: SpeedStubService) => {
+      const db = await lerIntegracoesDb(prisma);
+      const key = db.speed?.apiKey ?? config.get<string>('SPEED_API_KEY');
       if (key) {
         logger.log('Speed NF-e: adapter REAL ativo.');
         return new SpeedService(key);
       }
-      logger.log('Speed NF-e: usando STUB (defina SPEED_API_KEY para ativar).');
+      logger.log('Speed NF-e: usando STUB (configure em Configurações → Integrações ou env).');
       return stub;
     },
   },
@@ -115,6 +139,7 @@ const providers: Provider[] = [
 ];
 
 @Module({
+  imports: [PrismaModule],
   providers,
   exports: [ASAAS_PORT, SPEED_PORT, AUTENTIQUE_PORT, WHATSAPP_PORT, GOOGLE_MEET_PORT],
 })
