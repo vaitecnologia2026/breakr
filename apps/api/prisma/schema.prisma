@@ -82,6 +82,7 @@ model Usuario {
   telefone  String?
   fotoUrl   String?  @map("foto_url")
   ativo     Boolean  @default(true)
+  ultimoLoginEm DateTime? @map("ultimo_login_em")
   criadoEm  DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 

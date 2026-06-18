@@ -337,14 +337,58 @@ export function Configuracoes() {
         titulo="Configurações"
         subtitulo="Integrações, IA e parâmetros do sistema"
       />
-      <Tabs abas={['IA', 'Integrações', 'WhatsApp', 'Teste DISC', 'Otimização', 'Avaliação']} ativa={aba} aoMudar={setAba} />
+      <Tabs abas={['IA', 'Integrações', 'WhatsApp', 'Teste DISC', 'Otimização', 'Avaliação', 'Acessos']} ativa={aba} aoMudar={setAba} />
       {aba === 'IA' && <AbaIA />}
       {aba === 'Integrações' && <AbaIntegracoes />}
       {aba === 'WhatsApp' && <AbaWhatsApp />}
       {aba === 'Teste DISC' && <AbaDisc />}
       {aba === 'Otimização' && <AbaCronograma />}
       {aba === 'Avaliação' && <AbaCriterios />}
+      {aba === 'Acessos' && <AbaAcessos />}
     </>
+  );
+}
+
+/* ── Aba: Acessos (logins recentes — auditoria) ── */
+interface Acesso { id: string; ator: string; criadoEm: string; dados: { nome?: string; cargo?: string; ip?: string | null } | null }
+
+function AbaAcessos() {
+  const [lista, setLista] = useState<Acesso[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    api.get<Acesso[]>('/auth/acessos')
+      .then(({ data }) => setLista(data))
+      .catch(() => setLista([]))
+      .finally(() => setCarregando(false));
+  }, []);
+
+  if (carregando) return <Carregando />;
+
+  return (
+    <Card>
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Acessos recentes</h3>
+      <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 12 }}>
+        Últimos logins no sistema (quem entrou, quando e de qual IP).
+      </p>
+      {lista.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Nenhum acesso registrado ainda.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1fr 1fr', gap: 8, fontSize: 11.5, color: 'var(--texto-fraco)', padding: '6px 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span>Data / Hora</span><span>Usuário</span><span>Cargo</span><span>IP</span>
+          </div>
+          {lista.map((a) => (
+            <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1fr 1fr', gap: 8, fontSize: 13, padding: '8px', borderTop: '1px solid var(--borda)', alignItems: 'center' }}>
+              <span style={{ color: 'var(--texto-suave)' }}>{new Date(a.criadoEm).toLocaleString('pt-BR')}</span>
+              <span style={{ color: 'var(--texto)', fontWeight: 600 }}>{a.dados?.nome ?? a.ator}</span>
+              <span style={{ color: 'var(--texto-fraco)' }}>{a.dados?.cargo ?? '—'}</span>
+              <span style={{ color: 'var(--texto-fraco)' }}>{a.dados?.ip ?? '—'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

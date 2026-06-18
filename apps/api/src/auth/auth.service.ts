@@ -16,7 +16,7 @@ export class AuthService {
   ) {}
 
   // Valida email + senha (bcrypt) e retorna o contrato LoginResponse do @breakr/shared.
-  async login(email: string, senha: string): Promise<LoginResponse> {
+  async login(email: string, senha: string, ip?: string): Promise<LoginResponse> {
     const usuario = await this.prisma.usuario.findUnique({ where: { email } });
 
     // Mensagem generica para nao revelar se o e-mail existe.
@@ -37,6 +37,24 @@ export class AuthService {
     };
     const token = await this.jwt.signAsync(payload);
 
+    // Registra o acesso (não bloqueia o login se falhar).
+    try {
+      await this.prisma.usuario.update({
+        where: { id: usuario.id },
+        data: { ultimoLoginEm: new Date() },
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          ator: usuario.email,
+          acao: 'LOGIN',
+          entidade: 'auth',
+          dados: { nome: usuario.nome, cargo: usuario.cargo, ip: ip ?? null },
+        },
+      });
+    } catch {
+      /* logging de acesso é best-effort */
+    }
+
     return {
       token,
       usuario: {
@@ -46,6 +64,15 @@ export class AuthService {
         cargo: usuario.cargo as Cargo,
       },
     };
+  }
+
+  // Lista os acessos (logins) recentes — para a tela de auditoria do admin.
+  async listarAcessos(limit = 50) {
+    return this.prisma.auditLog.findMany({
+      where: { acao: 'LOGIN' },
+      orderBy: { criadoEm: 'desc' },
+      take: Math.min(limit, 200),
+    });
   }
 
   async trocarSenha(userId: string, senhaAtual: string, senhaNova: string): Promise<TrocarSenhaResult> {
