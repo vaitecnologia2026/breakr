@@ -18,17 +18,24 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // CORS — aceita uma OU várias origens (CORS_ORIGIN separado por vírgula),
-  // ex.: "https://breakr.vai-sistema.com,https://breakr-os.vercel.app".
-  // Necessário porque credentials:true não permite wildcard.
+  // CORS — credentials:true não permite wildcard, então validamos a origem:
+  //  • lista explícita via CORS_ORIGIN (separada por vírgula), p/ domínio custom;
+  //  • qualquer subdomínio *.vercel.app (produção + previews do front);
+  //  • requisições sem origin (curl/health/server-to-server).
+  // Nunca lança — origem negada apenas não recebe o header (sem 500 no preflight).
   const origensConfig = config.get<string>('CORS_ORIGIN', 'http://localhost:5173');
   const origens = origensConfig.split(',').map((o) => o.trim()).filter(Boolean);
+  function origemPermitida(origin?: string): boolean {
+    if (!origin) return true;
+    if (origens.includes(origin)) return true;
+    try {
+      return new URL(origin).hostname.endsWith('.vercel.app');
+    } catch {
+      return false;
+    }
+  }
   app.enableCors({
-    origin: (origin, cb) => {
-      // Requisições sem origin (curl/health/server-to-server) são permitidas.
-      if (!origin || origens.includes(origin)) return cb(null, true);
-      return cb(new Error(`Origem não permitida pelo CORS: ${origin}`), false);
-    },
+    origin: (origin, cb) => cb(null, origemPermitida(origin)),
     credentials: true,
   });
 
