@@ -3,11 +3,16 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+
+  // Headers de segurança HTTP. CSP desligado (API JSON, não serve HTML; o front
+  // é servido pela Vercel) para não interferir no consumo cross-origin.
+  app.use(helmet({ contentSecurityPolicy: false }));
 
   // Validacao automatica de DTOs (class-validator) em todas as rotas.
   app.useGlobalPipes(

@@ -1,5 +1,6 @@
 // Controller de autenticacao.
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, Req } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService, TrocarSenhaResult } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -11,7 +12,10 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // POST /auth/login → { token, usuario }
+  // Rate-limit anti-força-bruta: 8 tentativas/min por IP.
   @Post('login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto): Promise<LoginResponse> {
     return this.authService.login(dto.email, dto.senha);

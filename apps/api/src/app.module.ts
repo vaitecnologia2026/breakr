@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
@@ -53,6 +54,8 @@ import { MedalhasModule } from './medalhas/medalhas.module';
     ConfigModule.forRoot({ isGlobal: true }),
     // Agendador (cron) in-process — usado pela rotina de renovacao do motor.
     ScheduleModule.forRoot(),
+    // Rate-limit (aplicado seletivamente, ex.: login). 60 req/min é o teto padrão.
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     PrismaModule,
     CommonModule,
     AuthModule,
