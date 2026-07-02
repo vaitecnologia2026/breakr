@@ -1,4 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
+import { Bloqueio } from './pages/Bloqueio';
+
+// Ative para desabilitar todos os acessos e exibir apenas os logos.
+const SISTEMA_BLOQUEADO = true;
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Portal } from './pages/Portal';
@@ -45,6 +49,8 @@ import { Planos } from './pages/Planos';
 import { AvaliarAtendimento } from './pages/AvaliarAtendimento';
 
 export function App() {
+  if (SISTEMA_BLOQUEADO) return <Bloqueio />;
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
