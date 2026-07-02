@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Bloqueio } from './pages/Bloqueio';
 
 // Ative para desabilitar todos os acessos e exibir apenas os logos.
-const SISTEMA_BLOQUEADO = true;
+const SISTEMA_BLOQUEADO = false;
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Portal } from './pages/Portal';
