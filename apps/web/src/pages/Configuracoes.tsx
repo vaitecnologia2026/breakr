@@ -327,6 +327,62 @@ function AbaIntegracoes() {
   );
 }
 
+/* ── Aba Portal (frase motivacional exibida ao cliente) ── */
+function AbaPortal() {
+  const [frase, setFrase] = useState('');
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
+
+  async function carregar() {
+    setCarregando(true); setErroCarga(null);
+    try {
+      const { data } = await api.get<{ fraseMotivacional: string | null }>('/config/portal');
+      setFrase(data.fraseMotivacional ?? '');
+    } catch { setErroCarga('Erro ao carregar configuração do portal.'); }
+    finally { setCarregando(false); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function salvar() {
+    setSalvando(true); setFeedback(null);
+    try {
+      await api.patch('/config/portal', { fraseMotivacional: frase });
+      await carregar();
+      setFeedback({ tipo: 'sucesso', msg: 'Frase do portal salva com sucesso.' });
+    } catch { setFeedback({ tipo: 'erro', msg: 'Erro ao salvar a frase do portal.' }); }
+    finally { setSalvando(false); }
+  }
+
+  if (carregando) return <Carregando />;
+  if (erroCarga) return <ErroEstado mensagem={erroCarga} onTentar={carregar} />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginBottom: 4 }}>
+        Frase motivacional exibida no portal do cliente, abaixo do nome do CS.
+        Deixe em branco para não exibir nenhuma frase.
+      </p>
+
+      {feedback && <Alerta tipo={feedback.tipo}>{feedback.msg}</Alerta>}
+
+      <div className="brk-card brk-card-p">
+        <Campo
+          rotulo="Frase motivacional do portal"
+          placeholder="Ex: Cada entrega aproxima você do próximo nível. Conte com a gente! 🚀"
+          value={frase}
+          onChange={(e) => setFrase(e.target.value)}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
+        <Btn onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar frase'}</Btn>
+      </div>
+    </div>
+  );
+}
+
 /* ── Componente principal ── */
 export function Configuracoes() {
   const [aba, setAba] = useState('IA');
@@ -337,13 +393,14 @@ export function Configuracoes() {
         titulo="Configurações"
         subtitulo="Integrações, IA e parâmetros do sistema"
       />
-      <Tabs abas={['IA', 'Integrações', 'WhatsApp', 'Teste DISC', 'Otimização', 'Avaliação', 'Acessos']} ativa={aba} aoMudar={setAba} />
+      <Tabs abas={['IA', 'Integrações', 'WhatsApp', 'Teste DISC', 'Otimização', 'Avaliação', 'Portal', 'Acessos']} ativa={aba} aoMudar={setAba} />
       {aba === 'IA' && <AbaIA />}
       {aba === 'Integrações' && <AbaIntegracoes />}
       {aba === 'WhatsApp' && <AbaWhatsApp />}
       {aba === 'Teste DISC' && <AbaDisc />}
       {aba === 'Otimização' && <AbaCronograma />}
       {aba === 'Avaliação' && <AbaCriterios />}
+      {aba === 'Portal' && <AbaPortal />}
       {aba === 'Acessos' && <AbaAcessos />}
     </>
   );

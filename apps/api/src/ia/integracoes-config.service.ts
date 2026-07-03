@@ -79,7 +79,10 @@ export class IntegracoesConfigService {
       },
     };
 
-    const payload = { integracoes: novas } as unknown as Parameters<typeof this.prisma.config.upsert>[0]['update']['parametros'];
+    // Preserva demais chaves de parametros (ex.: portalFrase) — grava só integracoes.
+    const configAtual = await this.prisma.config.findUnique({ where: { id: CONFIG_ID } });
+    const paramsAtuais = (configAtual?.parametros as Record<string, unknown>) ?? {};
+    const payload = { ...paramsAtuais, integracoes: novas } as unknown as Parameters<typeof this.prisma.config.upsert>[0]['update']['parametros'];
     await this.prisma.config.upsert({
       where: { id: CONFIG_ID },
       update: { parametros: payload },

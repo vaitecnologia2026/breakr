@@ -11,6 +11,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
 
+// Config singleton — mesma linha usada por IntegracoesConfigService/PortalConfigService.
+const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
+
 @Injectable()
 export class PortalService {
   constructor(
@@ -72,6 +75,15 @@ export class PortalService {
       select: { mensagem: true, criadoEm: true },
     });
 
+    // Frase motivacional exibida abaixo do nome do CS (Config.parametros.portalFrase).
+    const configPortal = await this.prisma.config.findUnique({
+      where: { id: CONFIG_ID },
+      select: { parametros: true },
+    });
+    const paramsPortal = (configPortal?.parametros as Record<string, unknown>) ?? {};
+    const fraseMotivacional =
+      typeof paramsPortal.portalFrase === 'string' ? paramsPortal.portalFrase : null;
+
     return {
       cliente: {
         nomeFantasia: cliente.nomeFantasia,
@@ -81,6 +93,8 @@ export class PortalService {
       squad: cliente.squad ? { nome: cliente.squad.nome } : null,
       // CS responsavel pelo cliente (para a saudacao "seu CS" no onboarding).
       cs: csUsuario ? { nome: csUsuario.nome, fotoUrl: csUsuario.fotoUrl } : null,
+      // Frase motivacional configurável (exibida abaixo do nome do CS no portal).
+      fraseMotivacional,
       linkAreaMembros: cliente.linkAreaMembros,
       // Banner de comunicado (ex.: "amanhã é feriado, sem expediente").
       comunicado: comunicado ? { mensagem: comunicado.mensagem, criadoEm: comunicado.criadoEm } : null,

@@ -20,6 +20,7 @@ interface PortalData {
   cliente: { nomeFantasia: string; status: string; codigoUnico: string };
   squad: { nome: string } | null;
   cs: { nome: string; fotoUrl: string | null } | null;
+  fraseMotivacional: string | null;
   linkAreaMembros: string | null;
   comunicado: { mensagem: string; criadoEm: string } | null;
   medalhas: { titulo: string; icone: string | null; descricao: string | null }[];
@@ -143,6 +144,7 @@ const MOCK_PORTAL: PortalData = {
   cliente: { nomeFantasia: 'Tua Pizza', status: 'ATIVO', codigoUnico: 'demo' },
   squad: { nome: 'Squad Trovão' },
   cs: { nome: 'Marina Alves', fotoUrl: null },
+  fraseMotivacional: 'Cada entrega aproxima você do próximo nível. Conte com a gente! 🚀',
   linkAreaMembros: 'https://exemplo.com/area-membros',
   comunicado: { mensagem: 'Amanhã é feriado — não teremos expediente normal.', criadoEm: new Date().toISOString() },
   medalhas: [
@@ -275,7 +277,7 @@ export function Portal() {
 /* ------------------------------ Cabeçalho ----------------------------- */
 
 function Cabecalho({ dados }: { dados: PortalData }) {
-  const { cliente, squad, plano, cs, linkAreaMembros } = dados;
+  const { cliente, squad, plano, cs, fraseMotivacional, linkAreaMembros } = dados;
   const cor = corStatusCliente(cliente.status);
 
   const linhaPlanoSquad = [plano && `Plano ${plano.nome}`, squad && `Squad ${squad.nome}`]
@@ -320,6 +322,22 @@ function Cabecalho({ dados }: { dados: PortalData }) {
             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--cinza-vapor)' }}>{cs.nome}</span>
           </div>
         </div>
+      )}
+
+      {/* Frase motivacional (abaixo do "Seu CS") — configurável em Configurações. */}
+      {fraseMotivacional && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 13.5,
+            fontStyle: 'italic',
+            color: 'var(--texto-suave)',
+            borderLeft: '3px solid var(--borda)',
+            paddingLeft: 10,
+          }}
+        >
+          {fraseMotivacional}
+        </p>
       )}
 
       {linkAreaMembros && (
