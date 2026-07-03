@@ -51,6 +51,7 @@ interface Contrato {
   clienteId: string;
   planoId: string | null;
   cliente?: { nomeFantasia: string };
+  plano?: { nome: string; tiposProjeto: string[] } | null;
 }
 
 interface ClienteOpt {
@@ -282,6 +283,23 @@ function TabelaContratos({
   );
 }
 
+// Rótulos amigáveis dos tipos de projeto (para o "caminho do switch de planos").
+const ROTULO_TIPO_PROJETO: Record<string, string> = {
+  MARKETING: 'Marketing',
+  GESTAO: 'Gestão',
+  FINANCEIRO: 'Financeiro',
+};
+
+// Caminho que o switch de planos tomou: nome do plano + tipos de projeto gerados
+// (ex.: "Híbrido → Marketing + Gestão"). Derivado do plano do contrato (A4, l.74).
+function caminhoSwitchPlanos(contrato: Contrato): string | null {
+  const tipos = contrato.plano?.tiposProjeto ?? [];
+  if (tipos.length === 0) return null;
+  const projetos = tipos.map((t) => ROTULO_TIPO_PROJETO[t] ?? t).join(' + ');
+  const nome = contrato.plano?.nome;
+  return nome ? `${nome} → ${projetos}` : projetos;
+}
+
 function LinhaContrato({
   contrato,
   aoAtualizar,
@@ -293,6 +311,7 @@ function LinhaContrato({
 }) {
   const [executando, setExecutando] = useState(false);
   const acao = PROXIMA_ACAO[contrato.status];
+  const caminho = caminhoSwitchPlanos(contrato);
 
   async function avancar() {
     if (!acao || executando) return;
@@ -317,6 +336,11 @@ function LinhaContrato({
             <div style={{ fontWeight: 600, color: 'var(--cinza-vapor)' }}>
               {contrato.cliente?.nomeFantasia ?? 'Cliente'}
             </div>
+            {caminho && (
+              <div style={{ fontSize: 11.5, color: 'var(--texto-fraco)', marginTop: 2 }}>
+                Switch de planos: {caminho}
+              </div>
+            )}
           </div>
         </div>
       </Td>

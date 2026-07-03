@@ -228,7 +228,11 @@ export class ContratosService {
   listar(): Promise<Contrato[]> {
     return this.prisma.contrato.findMany({
       orderBy: { criadoEm: 'desc' },
-      include: { cliente: { select: { nomeFantasia: true } } },
+      // plano (nome + tiposProjeto) p/ exibir o "caminho do switch de planos" (A4, l.74).
+      include: {
+        cliente: { select: { nomeFantasia: true } },
+        plano: { select: { nome: true, tiposProjeto: true } },
+      },
     });
   }
 
