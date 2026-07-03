@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FuncaoSquad, StatusConteudo, TipoConteudo } from '@prisma/client';
+import { FuncaoSquad, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
@@ -51,6 +51,12 @@ export class PortalService {
         conteudos: {
           where: { status: StatusConteudo.APROVACAO_CLIENTE },
           orderBy: { criadoEm: 'desc' },
+        },
+        // Estrategia enviada aguardando aprovacao do cliente (B6, l.202-208).
+        estrategias: {
+          where: { status: StatusEstrategia.ENVIADA },
+          orderBy: { enviadaEm: 'desc' },
+          take: 1,
         },
       },
     });
@@ -155,6 +161,14 @@ export class PortalService {
         midiaUrl: c.midiaUrl,
         codigoUnico: c.codigoUnico,
       })),
+      // Estrategia aguardando aprovacao do cliente (B6). Null se nao houver.
+      estrategiaParaAprovar: cliente.estrategias[0]
+        ? {
+            id: cliente.estrategias[0].id,
+            titulo: cliente.estrategias[0].titulo,
+            descricao: cliente.estrategias[0].descricao,
+          }
+        : null,
     };
   }
 
@@ -311,5 +325,60 @@ export class PortalService {
       update: {},
     });
     return { ok: true };
+  }
+
+  // Carrega a estrategia garantindo que pertence ao cliente do portal e que esta
+  // aguardando aprovacao (status ENVIADA) — B6.
+  private async estrategiaDoCliente(codigo: string, estrategiaId: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { codigoUnico: codigo },
+      select: { id: true },
+    });
+    if (!cliente) throw new NotFoundException('Portal nao encontrado');
+    const estrategia = await this.prisma.estrategia.findUnique({
+      where: { id: estrategiaId },
+      select: { id: true, clienteId: true, status: true },
+    });
+    if (!estrategia || estrategia.clienteId !== cliente.id) {
+      throw new NotFoundException('Estrategia nao encontrada neste portal');
+    }
+    if (estrategia.status !== StatusEstrategia.ENVIADA) {
+      throw new BadRequestException('Esta estrategia nao esta aguardando aprovacao');
+    }
+    return estrategia;
+  }
+
+  // Cliente aprova a estrategia — libera a producao de conteudo.
+  async aprovarEstrategia(
+    codigo: string,
+    estrategiaId: string,
+    dados: { comentario?: string },
+  ) {
+    await this.estrategiaDoCliente(codigo, estrategiaId);
+    return this.prisma.estrategia.update({
+      where: { id: estrategiaId },
+      data: {
+        status: StatusEstrategia.APROVADA,
+        comentarioCliente: dados.comentario,
+        respondidaEm: new Date(),
+      },
+    });
+  }
+
+  // Cliente pede ajuste na estrategia — volta para a estrategista.
+  async solicitarAjusteEstrategia(
+    codigo: string,
+    estrategiaId: string,
+    dados: { comentario: string },
+  ) {
+    await this.estrategiaDoCliente(codigo, estrategiaId);
+    return this.prisma.estrategia.update({
+      where: { id: estrategiaId },
+      data: {
+        status: StatusEstrategia.AJUSTE,
+        comentarioCliente: dados.comentario,
+        respondidaEm: new Date(),
+      },
+    });
   }
 }

@@ -69,6 +69,8 @@ interface PortalData {
     midiaUrl: string | null;
     codigoUnico: string;
   }[];
+  // Estratégia aguardando aprovação do cliente (B6). Null se não houver.
+  estrategiaParaAprovar: { id: string; titulo: string; descricao: string | null } | null;
 }
 
 /* --------------------------- Helpers locais --------------------------- */
@@ -178,6 +180,7 @@ const MOCK_PORTAL: PortalData = {
     { id: 'cnt1', titulo: 'Post — Dia dos Namorados', descricao: 'Arte para feed com promoção especial.', tipo: 'POST', midiaUrl: 'https://picsum.photos/seed/breakrpost/900/700', codigoUnico: 'CNT-101' },
     { id: 'cnt2', titulo: 'Reels — Bastidores da cozinha', descricao: 'Vídeo curto mostrando o preparo.', tipo: 'REELS', midiaUrl: null, codigoUnico: 'CNT-102' },
   ],
+  estrategiaParaAprovar: { id: 'est1', titulo: 'Funil de captação — Verão', descricao: 'Topo: awareness com Reels. Meio: enquetes e provas sociais. Fundo: oferta com cupom.' },
 };
 
 export function Portal() {
@@ -237,6 +240,13 @@ export function Portal() {
               </div>
             )}
             <CardNovaDemanda codigo={codigo ?? ''} />
+            {dados.estrategiaParaAprovar && (
+              <CardEstrategia
+                estrategia={dados.estrategiaParaAprovar}
+                codigo={codigo ?? ''}
+                aoMudar={() => setVersao((v) => v + 1)}
+              />
+            )}
             {dados.conteudosParaAprovar.length > 0 && (
               <CardAprovacoes
                 pecas={dados.conteudosParaAprovar}
@@ -840,6 +850,99 @@ function CardAprovacoes({
           <PecaAprovacao key={peca.id} peca={peca} codigo={codigo} aoMudar={aoMudar} />
         ))}
       </ul>
+    </Card>
+  );
+}
+
+// Card de aprovação de estratégia pelo cliente (B6). Aprovar ou pedir ajuste.
+function CardEstrategia({
+  estrategia,
+  codigo,
+  aoMudar,
+}: {
+  estrategia: NonNullable<PortalData['estrategiaParaAprovar']>;
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const [comentario, setComentario] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [modoAjuste, setModoAjuste] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function aprovar() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/estrategia/${estrategia.id}/aprovar`, {
+        comentario: comentario.trim() || undefined,
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível aprovar agora. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  async function pedirAjuste() {
+    if (comentario.trim().length < 3) {
+      setErro('Descreva o ajuste desejado (mín. 3 caracteres).');
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/estrategia/${estrategia.id}/ajuste`, {
+        comentario: comentario.trim(),
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível enviar o ajuste. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Card>
+      <TituloCard>Estratégia para aprovar</TituloCard>
+      <div style={{ border: '1px solid var(--borda)', borderRadius: 12, padding: 16, background: 'var(--superficie-2)', marginTop: 8 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>{estrategia.titulo}</div>
+        {estrategia.descricao && (
+          <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 6, whiteSpace: 'pre-wrap' }}>{estrategia.descricao}</p>
+        )}
+
+        <textarea
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+          placeholder={modoAjuste ? 'Descreva o ajuste que você gostaria…' : 'Comentário (opcional)…'}
+          rows={3}
+          disabled={enviando}
+          style={{ width: '100%', marginTop: 12, padding: 10, borderRadius: 8, border: '1px solid var(--borda)', background: 'var(--superficie)', color: 'var(--texto)', resize: 'vertical', fontSize: 13 }}
+        />
+
+        {erro && <p style={{ fontSize: 12.5, color: '#ef4444', marginTop: 6 }}>{erro}</p>}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          {!modoAjuste ? (
+            <>
+              <button type="button" onClick={aprovar} disabled={enviando} style={{ fontSize: 13, fontWeight: 700, padding: '9px 16px', borderRadius: 10, border: 'none', background: '#10b981', color: '#fff', cursor: enviando ? 'default' : 'pointer' }}>
+                {enviando ? 'Enviando…' : 'Aprovar estratégia'}
+              </button>
+              <button type="button" onClick={() => { setModoAjuste(true); setErro(null); }} disabled={enviando} style={{ fontSize: 13, fontWeight: 700, padding: '9px 16px', borderRadius: 10, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: 'pointer' }}>
+                Pedir ajuste
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={pedirAjuste} disabled={enviando} style={{ fontSize: 13, fontWeight: 700, padding: '9px 16px', borderRadius: 10, border: 'none', background: '#f59e0b', color: '#fff', cursor: enviando ? 'default' : 'pointer' }}>
+                {enviando ? 'Enviando…' : 'Enviar pedido de ajuste'}
+              </button>
+              <button type="button" onClick={() => { setModoAjuste(false); setErro(null); }} disabled={enviando} style={{ fontSize: 13, padding: '9px 16px', borderRadius: 10, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-fraco)', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </Card>
   );
 }

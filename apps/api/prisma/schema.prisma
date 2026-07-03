@@ -143,6 +143,9 @@ model Usuario {
   dmEnviadas  MensagemDireta[] @relation("DmRemetente")
   dmRecebidas MensagemDireta[] @relation("DmDestinatario")
 
+  // Estrategias criadas pelo estrategista (B6)
+  estrategias Estrategia[] @relation("EstrategiaAutor")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -271,6 +274,9 @@ model Cliente {
 
   // Operacao de marketing (Fase 2)
   conteudos Conteudo[]
+
+  // Aprovacao de estrategia pelo cliente (B6)
+  estrategias Estrategia[]
 
   // Origem comercial (Fase 3) — leads que viraram este cliente.
   leadsOrigem Lead[] @relation("LeadCliente")
@@ -718,6 +724,39 @@ model ReworkLog {
   @@index([conteudoId])
   @@index([origem])
   @@map("rework_log")
+}
+
+/// Ciclo de vida da estrategia aprovada pelo cliente (B6, req. l.202-208).
+enum StatusEstrategia {
+  RASCUNHO  // estrategista ainda montando
+  ENVIADA   // enviada ao cliente para aprovacao (aparece no portal)
+  APROVADA  // cliente aprovou — libera producao
+  AJUSTE    // cliente pediu ajustes
+}
+
+/// Estrategia/funil montada pela estrategista e aprovada pelo cliente no portal.
+/// Enquanto houver estrategia ENVIADA/AJUSTE do cliente, a producao de conteudo
+/// (mover para PRODUCAO) fica bloqueada — "producao so apos aprovar estrategia".
+model Estrategia {
+  id                String           @id @default(uuid())
+  titulo            String
+  descricao         String?          // a estrategia/funil (texto)
+  status            StatusEstrategia @default(RASCUNHO)
+  comentarioCliente String?          @map("comentario_cliente")
+  enviadaEm         DateTime?        @map("enviada_em")
+  respondidaEm      DateTime?        @map("respondida_em")
+  criadoEm          DateTime         @default(now()) @map("criado_em")
+  atualizadoEm      DateTime         @updatedAt @map("atualizado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  estrategistaId String?  @map("estrategista_id")
+  estrategista   Usuario? @relation("EstrategiaAutor", fields: [estrategistaId], references: [id])
+
+  @@index([clienteId])
+  @@index([status])
+  @@map("estrategia")
 }
 
 // ============================================================

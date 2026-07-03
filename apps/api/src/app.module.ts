@@ -48,6 +48,7 @@ import { ComunicadosClienteModule } from './comunicados-cliente/comunicados-clie
 import { AgendarModule } from './agendar/agendar.module';
 import { MedalhasModule } from './medalhas/medalhas.module';
 import { PainelDesignerModule } from './painel-designer/painel-designer.module';
+import { EstrategiaModule } from './estrategia/estrategia.module';
 
 @Module({
   imports: [
@@ -127,6 +128,8 @@ import { PainelDesignerModule } from './painel-designer/painel-designer.module';
     MedalhasModule,
     // Painel do designer (B8): fila por prazo/prioridade + notas pessoais.
     PainelDesignerModule,
+    // Aprovacao de estrategia pelo cliente (B6).
+    EstrategiaModule,
   ],
 })
 export class AppModule {}

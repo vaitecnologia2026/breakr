@@ -14,6 +14,7 @@ import { PortalService } from './portal.service';
 import { AprovarConteudoDto } from './dto/aprovar-conteudo.dto';
 import { AjusteConteudoDto } from './dto/ajuste-conteudo.dto';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
+import { AprovarEstrategiaDto } from './dto/aprovar-estrategia.dto';
 
 @Controller('portal')
 export class PortalController {
@@ -61,5 +62,25 @@ export class PortalController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.portal.marcarAulaConcluida(codigo, id);
+  }
+
+  // POST /portal/:codigo/estrategia/:id/aprovar — cliente aprova a estratégia (B6).
+  @Post(':codigo/estrategia/:id/aprovar')
+  aprovarEstrategia(
+    @Param('codigo') codigo: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AprovarEstrategiaDto,
+  ) {
+    return this.portal.aprovarEstrategia(codigo, id, dto);
+  }
+
+  // POST /portal/:codigo/estrategia/:id/ajuste — cliente pede ajuste na estratégia (B6).
+  @Post(':codigo/estrategia/:id/ajuste')
+  ajusteEstrategia(
+    @Param('codigo') codigo: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AjusteConteudoDto,
+  ) {
+    return this.portal.solicitarAjusteEstrategia(codigo, id, dto);
   }
 }

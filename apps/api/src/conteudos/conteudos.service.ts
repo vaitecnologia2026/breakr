@@ -4,7 +4,7 @@
 // criacao/transicao dispara o motor; ao ir para APROVACAO_CLIENTE o CS e
 // notificado para acompanhar a aprovacao no portal.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Conteudo, FuncaoSquad, StatusConteudo, TipoConteudo } from '@prisma/client';
+import { Conteudo, FuncaoSquad, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
@@ -111,6 +111,11 @@ export class ConteudosService {
       throw new NotFoundException('Conteudo nao encontrado');
     }
 
+    // B6: bloqueia mover para PRODUCAO se a estratégia do cliente não foi aprovada.
+    if (novoStatus === StatusConteudo.PRODUCAO) {
+      await this.garantirEstrategiaAprovada(conteudo.clienteId);
+    }
+
     await this.prisma.conteudo.update({
       where: { id },
       data: { status: novoStatus },
@@ -175,10 +180,31 @@ export class ConteudosService {
     return membro?.usuario ?? null;
   }
 
+  // Dependência da aprovação de estratégia (B6): bloqueia a produção de conteúdo
+  // enquanto o cliente tiver uma estratégia pendente (ENVIADA) ou em AJUSTE. Se o
+  // cliente não tem estratégia (ou a última já foi APROVADA), não bloqueia — assim
+  // o fluxo atual de quem ainda não usa estratégia segue inalterado.
+  private async garantirEstrategiaAprovada(clienteId: string): Promise<void> {
+    const pendente = await this.prisma.estrategia.findFirst({
+      where: {
+        clienteId,
+        status: { in: [StatusEstrategia.ENVIADA, StatusEstrategia.AJUSTE] },
+      },
+      select: { id: true },
+    });
+    if (pendente) {
+      throw new BadRequestException(
+        'A estratégia deste cliente ainda não foi aprovada. A produção só é liberada após a aprovação da estratégia pelo cliente.',
+      );
+    }
+  }
+
   // Encaminha a peca para o design: move para PRODUCAO e atribui o designer do
   // squad (a automacao "copy revisada -> design" do ClickUp). Notifica o designer.
   async encaminharParaDesign(id: string): Promise<Conteudo> {
     const conteudo = await this.obter(id);
+    // B6: o handoff para design leva a peça a PRODUCAO — exige estratégia aprovada.
+    await this.garantirEstrategiaAprovada(conteudo.clienteId);
     const designer = await this.membroDoSquad(conteudo.clienteId, FuncaoSquad.DESIGNER);
 
     await this.prisma.conteudo.update({
