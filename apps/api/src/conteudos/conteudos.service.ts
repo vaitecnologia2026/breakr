@@ -51,6 +51,7 @@ export class ConteudosService {
         titulo: dto.titulo,
         tipo: dto.tipo ?? TipoConteudo.POST,
         descricao: dto.descricao,
+        midiaUrl: dto.midiaUrl,
         squadId,
         responsavelId: dto.responsavelId,
         paraTrafego: dto.paraTrafego ?? false,
@@ -142,6 +143,17 @@ export class ConteudosService {
     await this.prisma.conteudo.update({
       where: { id },
       data: { responsavelId },
+    });
+    return this.obter(id);
+  }
+
+  // Anexa/atualiza a URL da midia da peca (imagem/video/carrossel) — o cliente ve
+  // essa midia na aprovacao pelo portal. String vazia limpa a midia (B5, l.258).
+  async atualizarMidia(id: string, midiaUrl?: string): Promise<Conteudo> {
+    await this.obter(id);
+    await this.prisma.conteudo.update({
+      where: { id },
+      data: { midiaUrl: midiaUrl?.trim() || null },
     });
     return this.obter(id);
   }

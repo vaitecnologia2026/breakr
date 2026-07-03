@@ -65,6 +65,7 @@ interface Conteudo {
   id: string;
   titulo: string;
   descricao: string | null;
+  midiaUrl?: string | null;
   tipo: TipoConteudo;
   status: StatusConteudo;
   codigoUnico: string;
@@ -438,6 +439,9 @@ function CardConteudo({
 }) {
   // Trava o seletor enquanto o PATCH desta peça está em voo.
   const [movendo, setMovendo] = useState(false);
+  // Editor inline da URL da mídia (imagem/vídeo) que o cliente vê na aprovação (B5).
+  const [editMidia, setEditMidia] = useState(false);
+  const [midia, setMidia] = useState(conteudo.midiaUrl ?? '');
 
   async function mover(novo: StatusConteudo) {
     if (movendo || novo === conteudo.status) return;
@@ -463,6 +467,20 @@ function CardConteudo({
       aoAtualizar();
     } catch {
       aoErroAcao('Não foi possível encaminhar para design.');
+      setMovendo(false);
+    }
+  }
+
+  // Anexa/atualiza a URL da mídia da peça (para o cliente visualizar na aprovação).
+  async function salvarMidia() {
+    if (movendo) return;
+    setMovendo(true);
+    aoErroAcao(null);
+    try {
+      await api.patch(`/conteudos/${conteudo.id}/midia`, { midiaUrl: midia.trim() });
+      aoAtualizar();
+    } catch {
+      aoErroAcao('Não foi possível salvar a mídia.');
       setMovendo(false);
     }
   }
@@ -549,6 +567,47 @@ function CardConteudo({
           }}
         >
           Encaminhar p/ design →
+        </button>
+      )}
+
+      {editMidia ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <input
+            className="brk-input"
+            type="url"
+            placeholder="URL da imagem/vídeo…"
+            value={midia}
+            onChange={(e) => setMidia(e.target.value)}
+            disabled={movendo}
+            style={{ fontSize: 12 }}
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              onClick={salvarMidia}
+              disabled={movendo}
+              style={{ fontSize: 11.5, fontWeight: 600, padding: '5px 9px', borderRadius: 7, border: '1px solid var(--borda-forte)', background: 'var(--superficie-3)', color: 'var(--cinza-vapor)', cursor: movendo ? 'default' : 'pointer' }}
+            >
+              Salvar mídia
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditMidia(false); setMidia(conteudo.midiaUrl ?? ''); }}
+              disabled={movendo}
+              style={{ fontSize: 11.5, padding: '5px 9px', borderRadius: 7, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-fraco)', cursor: movendo ? 'default' : 'pointer' }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditMidia(true)}
+          disabled={movendo}
+          style={{ fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: movendo ? 'default' : 'pointer', textAlign: 'left' }}
+        >
+          {conteudo.midiaUrl ? '🎬 Editar mídia' : '🎬 Anexar mídia'}
         </button>
       )}
     </div>
@@ -667,6 +726,7 @@ function ModalNovaPeca({
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoConteudo>('POST');
   const [descricao, setDescricao] = useState('');
+  const [midiaUrl, setMidiaUrl] = useState('');
   const [paraTrafego, setParaTrafego] = useState(false);
 
   // Squad do cliente (auto-resolvido) + responsável escolhido entre os membros.
@@ -733,6 +793,7 @@ function ModalNovaPeca({
         titulo: titulo.trim(),
         tipo,
         descricao: descricao.trim() || undefined,
+        midiaUrl: midiaUrl.trim() || undefined,
         squadId: squadInfo?.squad?.id,
         responsavelId: responsavelId || undefined,
         paraTrafego,
@@ -817,6 +878,13 @@ function ModalNovaPeca({
           valor={descricao}
           aoMudar={setDescricao}
           placeholder="Briefing curto da peça (opcional)"
+        />
+
+        <Campo
+          rotulo="URL da mídia"
+          valor={midiaUrl}
+          aoMudar={setMidiaUrl}
+          placeholder="Link da imagem/vídeo p/ o cliente aprovar (opcional)"
         />
 
         {/* Squad resolvido automaticamente pelo cliente + responsável do squad. */}

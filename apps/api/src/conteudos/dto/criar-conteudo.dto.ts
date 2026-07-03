@@ -29,6 +29,12 @@ export class CriarConteudoDto {
   @MaxLength(2000)
   descricao?: string;
 
+  // URL da midia (imagem/video/carrossel) da peca — exibida na aprovacao do cliente.
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  midiaUrl?: string;
+
   @IsOptional()
   @IsUUID()
   squadId?: string;

@@ -20,6 +20,7 @@ import { CriarConteudoDto } from './dto/criar-conteudo.dto';
 import { MoverStatusDto } from './dto/mover-status.dto';
 import { AtribuirResponsavelDto } from './dto/atribuir-responsavel.dto';
 import { SolicitarCriativoDto } from './dto/solicitar-criativo.dto';
+import { AtualizarMidiaDto } from './dto/atualizar-midia.dto';
 
 // Time de produção que pode operar o funil de conteúdo.
 const TIME_CONTEUDO = [
@@ -120,5 +121,24 @@ export class ConteudosController {
     @Body() dto: AtribuirResponsavelDto,
   ) {
     return this.conteudosService.atribuirResponsavel(id, dto.responsavelId);
+  }
+
+  // PATCH /conteudos/:id/midia — anexa/atualiza a URL da mídia da peça (mesmo time).
+  @Patch(':id/midia')
+  @UseGuards(CargosGuard)
+  @Cargos(
+    Cargo.SUPERADMIN,
+    Cargo.ADMIN,
+    Cargo.ESTRATEGISTA,
+    Cargo.CS,
+    Cargo.COPYWRITER,
+    Cargo.DESIGNER,
+    Cargo.EDITOR_VIDEO,
+  )
+  atualizarMidia(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AtualizarMidiaDto,
+  ) {
+    return this.conteudosService.atualizarMidia(id, dto.midiaUrl);
   }
 }

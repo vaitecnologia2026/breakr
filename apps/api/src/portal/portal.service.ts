@@ -151,6 +151,8 @@ export class PortalService {
         titulo: c.titulo,
         descricao: c.descricao,
         tipo: c.tipo,
+        // URL da mídia (imagem/vídeo/carrossel) para o cliente visualizar (B5, l.258).
+        midiaUrl: c.midiaUrl,
         codigoUnico: c.codigoUnico,
       })),
     };

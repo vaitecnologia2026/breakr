@@ -639,6 +639,8 @@ model Conteudo {
   descricao   String?
   tipo        TipoConteudo   @default(POST)
   status      StatusConteudo @default(IDEIA)
+  // URL da midia (imagem/video/carrossel) exibida na aprovacao do cliente (B5, l.258).
+  midiaUrl    String?        @map("midia_url")
   codigoUnico String         @unique @map("codigo_unico")
   dataAgendada DateTime?     @map("data_agendada")
   // Peca de trafego pago: ao ser aprovada vai p/ o laboratorio de criativos.

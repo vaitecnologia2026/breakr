@@ -65,6 +65,8 @@ interface PortalData {
     titulo: string;
     descricao: string | null;
     tipo: string;
+    // URL da mídia (imagem/vídeo/carrossel) para o cliente visualizar (B5, l.258).
+    midiaUrl: string | null;
     codigoUnico: string;
   }[];
 }
@@ -173,8 +175,8 @@ const MOCK_PORTAL: PortalData = {
     { codigoUnico: 'FAT-001', valor: '2790.00', vencimento: '2026-07-05', status: 'PAGA', notaFiscalUrl: 'https://exemplo.com/nf' },
   ],
   conteudosParaAprovar: [
-    { id: 'cnt1', titulo: 'Post — Dia dos Namorados', descricao: 'Arte para feed com promoção especial.', tipo: 'POST', codigoUnico: 'CNT-101' },
-    { id: 'cnt2', titulo: 'Reels — Bastidores da cozinha', descricao: 'Vídeo curto mostrando o preparo.', tipo: 'REELS', codigoUnico: 'CNT-102' },
+    { id: 'cnt1', titulo: 'Post — Dia dos Namorados', descricao: 'Arte para feed com promoção especial.', tipo: 'POST', midiaUrl: 'https://picsum.photos/seed/breakrpost/900/700', codigoUnico: 'CNT-101' },
+    { id: 'cnt2', titulo: 'Reels — Bastidores da cozinha', descricao: 'Vídeo curto mostrando o preparo.', tipo: 'REELS', midiaUrl: null, codigoUnico: 'CNT-102' },
   ],
 };
 
@@ -842,6 +844,47 @@ function CardAprovacoes({
   );
 }
 
+// Renderiza a mídia anexada à peça: imagem, vídeo ou (fallback) link externo (B5).
+function MidiaPeca({ url }: { url: string }) {
+  const lower = url.toLowerCase();
+  const ehImagem = /\.(png|jpe?g|gif|webp|svg|avif)(\?|$)/.test(lower);
+  const ehVideo = /\.(mp4|webm|mov|m4v|ogv)(\?|$)/.test(lower);
+  const box = {
+    marginTop: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    border: '1px solid var(--borda)',
+  } as const;
+  if (ehImagem) {
+    return (
+      <div style={box}>
+        <img
+          src={url}
+          alt="Prévia da peça"
+          style={{ display: 'block', width: '100%', maxHeight: 360, objectFit: 'contain', background: 'var(--superficie-3)' }}
+        />
+      </div>
+    );
+  }
+  if (ehVideo) {
+    return (
+      <div style={box}>
+        <video src={url} controls style={{ display: 'block', width: '100%', maxHeight: 360, background: '#000' }} />
+      </div>
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--texto-suave)', textDecoration: 'underline' }}
+    >
+      Ver mídia anexada ↗
+    </a>
+  );
+}
+
 function PecaAprovacao({
   peca,
   codigo,
@@ -913,6 +956,7 @@ function PecaAprovacao({
       {peca.descricao && (
         <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 6 }}>{peca.descricao}</p>
       )}
+      {peca.midiaUrl && <MidiaPeca url={peca.midiaUrl} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
         <RatingLinha label="Nota geral" valor={estrelas} aoMudar={setEstrelas} desabilitado={enviando} />
