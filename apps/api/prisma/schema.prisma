@@ -137,6 +137,10 @@ model Usuario {
   // Chat interno
   mensagensChat MensagemChat[] @relation("MensagemChatAutor")
 
+  // Mensagens diretas (DM 1:1) enviadas e recebidas (B7)
+  dmEnviadas  MensagemDireta[] @relation("DmRemetente")
+  dmRecebidas MensagemDireta[] @relation("DmDestinatario")
+
   @@index([departamentoId])
   @@map("usuario")
 }
@@ -1056,6 +1060,24 @@ model MensagemChat {
 
   @@index([canalId, criadoEm])
   @@map("mensagem_chat")
+}
+
+/// Mensagem direta 1:1 entre dois usuarios (DM do chat interno) — B7 (req. l.383).
+model MensagemDireta {
+  id       String    @id @default(uuid())
+  texto    String
+  lidaEm   DateTime? @map("lida_em")
+  criadoEm DateTime  @default(now()) @map("criado_em")
+
+  deId String  @map("de_id")
+  de   Usuario @relation("DmRemetente", fields: [deId], references: [id], onDelete: Cascade)
+
+  paraId String  @map("para_id")
+  para   Usuario @relation("DmDestinatario", fields: [paraId], references: [id], onDelete: Cascade)
+
+  @@index([deId, paraId, criadoEm])
+  @@index([paraId, lidaEm])
+  @@map("mensagem_direta")
 }
 
 /// Configuracao de IA (singleton, id fixo "singleton"). Guarda as chaves dos 3
