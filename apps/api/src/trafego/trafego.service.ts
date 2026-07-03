@@ -16,7 +16,10 @@ import { EngineService } from '../automacao/engine.service';
 import { CriarCampanhaDto } from './dto/criar-campanha.dto';
 import { AtualizarMetricasDto } from './dto/atualizar-metricas.dto';
 
-const INCLUDE = { cliente: { select: { nomeFantasia: true } } } satisfies Prisma.CampanhaInclude;
+// Inclui o squad do cliente (nome) para permitir filtro por squad no tráfego (A3).
+const INCLUDE = {
+  cliente: { select: { nomeFantasia: true, squad: { select: { nome: true } } } },
+} satisfies Prisma.CampanhaInclude;
 
 @Injectable()
 export class TrafegoService {

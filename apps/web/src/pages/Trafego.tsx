@@ -50,7 +50,7 @@ interface Campanha {
   codigoUnico: string;
   sugestoesIa: string | null;
   clienteId: string;
-  cliente?: { nomeFantasia: string };
+  cliente?: { nomeFantasia: string; squad?: { nome: string } | null };
 }
 
 interface ClienteOpt {
@@ -166,6 +166,7 @@ export function Trafego() {
   const [modalSolicitar, setModalSolicitar] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
+  const [filtroSquad, setFiltroSquad] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -193,13 +194,21 @@ export function Trafego() {
   }, []);
 
   const q = busca.toLowerCase().trim();
-  const filtrados = q
+  const porBusca = q
     ? campanhas.filter(
         (c) =>
           c.nome.toLowerCase().includes(q) ||
           (c.cliente?.nomeFantasia ?? '').toLowerCase().includes(q),
       )
     : campanhas;
+  // Filtro por squad do cliente (A3). '' = todos os squads.
+  const filtrados = filtroSquad
+    ? porBusca.filter((c) => c.cliente?.squad?.nome === filtroSquad)
+    : porBusca;
+  // Squads disponíveis (derivados das campanhas carregadas) para o dropdown.
+  const squadsDisponiveis = [
+    ...new Set(campanhas.map((c) => c.cliente?.squad?.nome).filter((n): n is string => !!n)),
+  ].sort();
 
   return (
     <PaginaShell
@@ -228,6 +237,18 @@ export function Trafego() {
             disabled={carregando}
           />
         </div>
+        <select
+          className="brk-input"
+          value={filtroSquad}
+          onChange={(e) => setFiltroSquad(e.target.value)}
+          disabled={carregando}
+          aria-label="Filtrar por squad"
+        >
+          <option value="">Todos os squads</option>
+          {squadsDisponiveis.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
 
       {!carregando && !erro && objetivosHoje.length > 0 && (
