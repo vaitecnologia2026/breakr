@@ -1,8 +1,10 @@
 // DTO de login — validado pelo ValidationPipe global (class-validator).
-import { IsEmail, IsString, MinLength } from 'class-validator';
+// O identificador (email) aceita e-mail (admin@breakr.com) OU usuario simples (admin).
+import { IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
-  @IsEmail({}, { message: 'E-mail invalido' })
+  @IsString({ message: 'Informe o usuario' })
+  @MinLength(3, { message: 'Usuario invalido' })
   email!: string;
 
   @IsString()

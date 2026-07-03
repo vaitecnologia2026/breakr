@@ -16,8 +16,17 @@ export class AuthService {
   ) {}
 
   // Valida email + senha (bcrypt) e retorna o contrato LoginResponse do @breakr/shared.
-  async login(email: string, senha: string, ip?: string): Promise<LoginResponse> {
-    const usuario = await this.prisma.usuario.findUnique({ where: { email } });
+  async login(identificador: string, senha: string, ip?: string): Promise<LoginResponse> {
+    // Aceita e-mail (admin@breakr.com) ou usuario simples (admin). Sem "@",
+    // resolve pelo prefixo do e-mail (ex.: "admin" -> "admin@...").
+    const ident = identificador.trim().toLowerCase();
+    let usuario = await this.prisma.usuario.findUnique({ where: { email: ident } });
+    if (!usuario && !ident.includes('@')) {
+      usuario = await this.prisma.usuario.findFirst({
+        where: { email: { startsWith: `${ident}@` } },
+        orderBy: { criadoEm: 'asc' },
+      });
+    }
 
     // Mensagem generica para nao revelar se o e-mail existe.
     const credenciaisInvalidas = new UnauthorizedException('Credenciais invalidas');

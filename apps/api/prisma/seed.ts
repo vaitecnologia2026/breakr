@@ -11,8 +11,9 @@ const prisma = new PrismaClient();
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@breakr.com';
-// Sobrescreva com a variavel de ambiente ADMIN_SENHA no Railway antes do deploy.
-const ADMIN_SENHA = process.env.ADMIN_SENHA ?? 'Breakr@OS2026';
+// Credencial simples de acesso: usuario "admin" / senha "admin123".
+// Sobrescreva com a variavel de ambiente ADMIN_SENHA no Railway se quiser algo mais forte.
+const ADMIN_SENHA = process.env.ADMIN_SENHA ?? 'admin123';
 
 async function main() {
   // 1) Config singleton (branding/parametros vazios na Fase 0).
@@ -28,11 +29,13 @@ async function main() {
 
   // 2) Usuario admin (idempotente por email unico).
   const senhaHash = await bcrypt.hash(ADMIN_SENHA, 10);
-  // update vazio: NÃO sobrescreve a senha a cada boot/seed (evita resetar uma
-  // troca manual do admin). A senha só é definida na criação inicial.
+  // Garante a credencial de acesso (admin / admin123) tambem para um admin ja
+  // existente: o update reaplica a senha e reativa a conta a cada seed/boot.
+  // Para deixar de resetar a senha no boot, volte "update" para {} apos definir
+  // uma senha propria em producao.
   const admin = await prisma.usuario.upsert({
     where: { email: ADMIN_EMAIL },
-    update: {},
+    update: { senhaHash, ativo: true },
     create: {
       nome: 'Admin Breakr',
       email: ADMIN_EMAIL,

@@ -4,61 +4,16 @@ import axios from 'axios';
 import { useAuth } from '../lib/auth';
 import { Logo } from '../components/Logo';
 
-// Token de acesso para o período de demonstração de 48h.
-// Sobrescreva com a variável de ambiente VITE_GATE_TOKEN.
-const GATE_TOKEN = import.meta.env.VITE_GATE_TOKEN ?? 'BREAKR48H';
-const GATE_KEY = 'brk.gate.ts';
-const GATE_TTL_MS = 48 * 60 * 60 * 1000; // 48 horas
-
-function gateValido(): boolean {
-  try {
-    const ts = localStorage.getItem(GATE_KEY);
-    return !!ts && Date.now() - parseInt(ts, 10) < GATE_TTL_MS;
-  } catch {
-    return false;
-  }
-}
-
-function marcarGate() {
-  try { localStorage.setItem(GATE_KEY, String(Date.now())); } catch { /* noop */ }
-}
-
 const KEYFRAMES = `
-@keyframes gate-out {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-24px) scale(0.97); pointer-events: none; }
-}
 @keyframes login-in {
   0%   { opacity: 0; transform: translateY(24px) scale(0.97); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes vai-pulse {
-  0%, 100% { filter: brightness(1); }
-  50%       { filter: brightness(1.15); }
-}
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%       { transform: translateX(-8px); }
-  40%       { transform: translateX(8px); }
-  60%       { transform: translateX(-5px); }
-  80%       { transform: translateX(5px); }
 }
 `;
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  // gate = mostra tela de token | login = mostra formulário de login
-  const [tela, setTela] = useState<'gate' | 'transicao' | 'login'>(() =>
-    gateValido() ? 'login' : 'gate',
-  );
-
-  function aoValidarToken() {
-    marcarGate();
-    setTela('transicao');
-    setTimeout(() => setTela('login'), 480);
-  }
 
   return (
     <div
@@ -76,190 +31,15 @@ export function Login() {
       <div className="brk-glow" aria-hidden="true" />
 
       <main style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 408 }}>
-        {(tela === 'gate' || tela === 'transicao') && (
-          <div
-            key="gate"
-            style={{
-              animation:
-                tela === 'transicao'
-                  ? 'gate-out 0.45s cubic-bezier(0.4,0,0.6,1) forwards'
-                  : undefined,
-            }}
-          >
-            <GateTela aoValidar={aoValidarToken} />
-          </div>
-        )}
-
-        {tela === 'login' && (
-          <div
-            key="login"
-            style={{ animation: 'login-in 0.45s cubic-bezier(0.22,1,0.36,1) both' }}
-          >
-            <FormLogin login={login} navigate={navigate} />
-          </div>
-        )}
+        <div style={{ animation: 'login-in 0.45s cubic-bezier(0.22,1,0.36,1) both' }}>
+          <FormLogin login={login} navigate={navigate} />
+        </div>
       </main>
     </div>
   );
 }
 
-// ─── Tela de gate (token 48h) ─────────────────────────────────────────────────
-
-function GateTela({ aoValidar }: { aoValidar: () => void }) {
-  const [token, setToken] = useState('');
-  const [erro, setErro] = useState(false);
-  const [validando, setValidando] = useState(false);
-
-  function validar(e: FormEvent) {
-    e.preventDefault();
-    if (validando) return;
-    if (token.trim().toUpperCase() === GATE_TOKEN.toUpperCase()) {
-      setValidando(true);
-      aoValidar();
-    } else {
-      setErro(true);
-      setTimeout(() => setErro(false), 600);
-    }
-  }
-
-  return (
-    <>
-      <div style={{ marginBottom: 32, textAlign: 'center' }}>
-        <LogoVAI />
-        <p
-          style={{
-            marginTop: 18,
-            fontSize: 13,
-            color: 'var(--texto-fraco)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-          }}
-        >
-          Tecnologia que acelera negócios
-        </p>
-      </div>
-
-      <div
-        style={{
-          background: 'var(--superficie)',
-          border: '1px solid var(--borda)',
-          borderRadius: 18,
-          padding: '28px 26px',
-          boxShadow: 'var(--sombra-card)',
-          textAlign: 'center',
-        }}
-        className="brk-gradient-border"
-      >
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'rgba(202, 63, 23, 0.12)',
-            border: '1px solid rgba(202, 63, 23, 0.3)',
-            borderRadius: 99,
-            padding: '5px 14px',
-            marginBottom: 20,
-          }}
-        >
-          <span style={{ fontSize: 13, color: '#CA3F17', fontWeight: 700 }}>
-            ⏱ Acesso especial · 48 horas
-          </span>
-        </div>
-
-        <h1
-          style={{
-            fontSize: 22,
-            fontWeight: 800,
-            lineHeight: 1.2,
-            marginBottom: 6,
-            color: 'var(--cinza-vapor)',
-          }}
-        >
-          Seu Breakr OS está pronto
-        </h1>
-        <p style={{ fontSize: 13.5, color: 'var(--texto-suave)', marginBottom: 24 }}>
-          Digite o token de acesso enviado pela equipe VAI para explorar o sistema.
-        </p>
-
-        <form onSubmit={validar} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input
-            type="text"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Token de acesso"
-            autoFocus
-            autoCapitalize="characters"
-            style={{
-              background: 'var(--preto-fumaca)',
-              border: `1px solid ${erro ? '#e2738a' : 'var(--borda-forte)'}`,
-              borderRadius: 11,
-              padding: '13px 16px',
-              color: 'var(--texto)',
-              fontSize: 15,
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textAlign: 'center',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-              animation: erro ? 'shake 0.4s ease' : undefined,
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--amarelo-fagulha)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px var(--foco)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = erro ? '#e2738a' : 'var(--borda-forte)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          />
-
-          {erro && (
-            <p style={{ fontSize: 12.5, color: '#e2738a', margin: 0 }}>
-              Token inválido. Verifique com a equipe VAI.
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={validando || token.trim().length === 0}
-            className="brk-gradient-bg"
-            style={{
-              border: 'none',
-              borderRadius: 11,
-              padding: '13px 16px',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: 15,
-              opacity: validando || token.trim().length === 0 ? 0.6 : 1,
-              cursor: validando || token.trim().length === 0 ? 'not-allowed' : 'pointer',
-              transition: 'opacity 0.15s, filter 0.15s',
-            }}
-          >
-            {validando ? 'Validando…' : 'Acessar sistema'}
-          </button>
-        </form>
-      </div>
-
-      <p
-        style={{
-          marginTop: 20,
-          textAlign: 'center',
-          fontSize: 12,
-          color: 'var(--texto-fraco)',
-        }}
-      >
-        Desenvolvido por{' '}
-        <span style={{ color: 'var(--laranja-fagulha)', fontWeight: 700 }}>
-          VAI Tecnologia
-        </span>
-      </p>
-    </>
-  );
-}
-
-// ─── Formulário de login (após gate) ─────────────────────────────────────────
+// ─── Formulário de login ─────────────────────────────────────────────────────
 
 function FormLogin({
   login,
@@ -268,12 +48,12 @@ function FormLogin({
   login: (email: string, senha: string) => Promise<void>;
   navigate: ReturnType<typeof useNavigate>;
 }) {
-  const [email, setEmail] = useState('admin@breakr.com');
+  const [usuario, setUsuario] = useState('admin');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  // Foca a senha automaticamente pois o e-mail já vem preenchido.
+  // Foca a senha automaticamente pois o usuário já vem preenchido.
   useEffect(() => {
     const input = document.getElementById('senha-input') as HTMLInputElement | null;
     input?.focus();
@@ -284,12 +64,12 @@ function FormLogin({
     setErro(null);
     setEnviando(true);
     try {
-      await login(email.trim(), senha);
+      await login(usuario.trim(), senha);
       navigate('/', { replace: true });
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) {
-          setErro('E-mail ou senha inválidos.');
+          setErro('Usuário ou senha inválidos.');
         } else if (err.response) {
           const msg = (err.response.data as { message?: string })?.message;
           setErro(msg ?? 'Não foi possível entrar. Tente novamente.');
@@ -332,13 +112,13 @@ function FormLogin({
         }}
       >
         <Campo
-          id="email"
-          rotulo="E-mail"
-          type="email"
-          placeholder="voce@breakr.com.br"
-          value={email}
+          id="usuario"
+          rotulo="Usuário"
+          type="text"
+          placeholder="admin"
+          value={usuario}
           autoComplete="username"
-          onChange={setEmail}
+          onChange={setUsuario}
         />
 
         <Campo
@@ -402,38 +182,6 @@ function FormLogin({
         Quando os padrões não servem, nós quebramos.
       </p>
     </>
-  );
-}
-
-// ─── Logo VAI ─────────────────────────────────────────────────────────────────
-
-function LogoVAI() {
-  return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-      <img
-        src="/vai-logo.png"
-        alt="VAI Tecnologia"
-        width={110}
-        height={55}
-        style={{
-          objectFit: 'contain',
-          animation: 'vai-pulse 3s ease-in-out infinite',
-          imageRendering: 'auto',
-        }}
-      />
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.22em',
-          color: 'var(--texto-fraco)',
-          textTransform: 'uppercase',
-          marginTop: 4,
-        }}
-      >
-        Tecnologia
-      </span>
-    </div>
   );
 }
 
