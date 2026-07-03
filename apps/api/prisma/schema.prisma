@@ -81,6 +81,8 @@ model Usuario {
   cargo     Cargo
   telefone  String?
   fotoUrl   String?  @map("foto_url")
+  // Notas pessoais do colaborador (scratchpad do painel do designer) — B8 (l.407-415).
+  notasPessoais String? @map("notas_pessoais")
   ativo     Boolean  @default(true)
   ultimoLoginEm DateTime? @map("ultimo_login_em")
   criadoEm  DateTime @default(now()) @map("criado_em")

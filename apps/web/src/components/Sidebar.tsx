@@ -110,6 +110,7 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
+      { para: '/painel-designer', rotulo: 'Painel do designer', icone: <IcoLayout /> },
       { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },
       { para: '/trafego',   rotulo: 'Tráfego',   icone: <IcoTrendingUp /> },
     ],

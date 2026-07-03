@@ -47,6 +47,7 @@ import { Perfil } from './pages/Perfil';
 import { NotFound } from './pages/NotFound';
 import { Planos } from './pages/Planos';
 import { AvaliarAtendimento } from './pages/AvaliarAtendimento';
+import { PainelDesigner } from './pages/PainelDesigner';
 
 export function App() {
   if (SISTEMA_BLOQUEADO) return <Bloqueio />;
@@ -78,6 +79,7 @@ export function App() {
         <Route path="financeiro" element={<Financeiro />} />
         <Route path="projetos" element={<Projetos />} />
         <Route path="conteudos" element={<Conteudos />} />
+        <Route path="painel-designer" element={<PainelDesigner />} />
         <Route path="qualidade" element={<Qualidade />} />
         <Route path="trafego" element={<Trafego />} />
         <Route path="squads" element={<Squads />} />

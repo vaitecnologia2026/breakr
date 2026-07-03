@@ -47,6 +47,7 @@ import { AgendaModule } from './agenda/agenda.module';
 import { ComunicadosClienteModule } from './comunicados-cliente/comunicados-cliente.module';
 import { AgendarModule } from './agendar/agendar.module';
 import { MedalhasModule } from './medalhas/medalhas.module';
+import { PainelDesignerModule } from './painel-designer/painel-designer.module';
 
 @Module({
   imports: [
@@ -124,6 +125,8 @@ import { MedalhasModule } from './medalhas/medalhas.module';
     // Agendamento público com colaborador (booking) + medalhas (gamificação).
     AgendarModule,
     MedalhasModule,
+    // Painel do designer (B8): fila por prazo/prioridade + notas pessoais.
+    PainelDesignerModule,
   ],
 })
 export class AppModule {}
