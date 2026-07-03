@@ -339,7 +339,11 @@ function LinhaContrato({
       <Td>
         {acao ? (
           <BotaoSecundario onClick={avancar} disabled={executando}>
-            {executando ? 'Processando…' : acao.rotulo}
+            {executando
+              ? acao.rota === 'enviar-assinatura'
+                ? 'Gerando contrato… (~30s)'
+                : 'Processando…'
+              : acao.rotulo}
           </BotaoSecundario>
         ) : contrato.status === 'EM_VIGOR' ? (
           <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>1ª cobrança gerada</span>
