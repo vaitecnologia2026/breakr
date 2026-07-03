@@ -34,6 +34,7 @@ async function bootstrap(): Promise<void> {
   // Nunca lança — origem negada apenas não recebe o header (sem 500 no preflight).
   // Origens de produção conhecidas (sempre liberadas, além do CORS_ORIGIN do env).
   const ORIGENS_PADRAO = [
+    'https://breakr.vaitecnologia.com.br',
     'https://breakr.vai-sistema.com',
     'http://localhost:5173',
   ];
