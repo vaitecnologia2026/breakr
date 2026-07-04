@@ -35,29 +35,26 @@ export function Logo({ tamanho = 28, comTexto = true }: LogoProps) {
           userSelect: 'none',
         }}
       >
-        <span
-          style={{
-            display: 'inline-flex',
-            animation: 'brk-raio-strike 0.65s cubic-bezier(0.22,1,0.36,1) both',
-          }}
-        >
-          <Raio tamanho={tamanho} />
-        </span>
-        {comTexto && (
+        {comTexto ? (
+          <img
+            src="/breakr-logo-branca.png"
+            alt="Breakr"
+            className="brk-logo-img"
+            style={{
+              height: tamanho * 1.05,
+              width: 'auto',
+              display: 'block',
+              animation: 'brk-text-enter 0.5s cubic-bezier(0.22,1,0.36,1) both',
+            }}
+          />
+        ) : (
           <span
             style={{
-              fontWeight: 800,
-              fontSize: tamanho * 0.72,
-              letterSpacing: '-0.03em',
-              lineHeight: 1,
-              color: 'var(--cinza-vapor)',
-              animation: 'brk-text-enter 0.45s 0.25s cubic-bezier(0.22,1,0.36,1) both',
+              display: 'inline-flex',
+              animation: 'brk-raio-strike 0.65s cubic-bezier(0.22,1,0.36,1) both',
             }}
           >
-            Breakr{' '}
-            <span className="brk-gradient-text" style={{ fontWeight: 800 }}>
-              OS
-            </span>
+            <Raio tamanho={tamanho} />
           </span>
         )}
       </span>

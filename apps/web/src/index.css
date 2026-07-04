@@ -4,17 +4,18 @@
    ============================================================ */
 
 :root {
-  /* Paleta — minimalista preto/branco/cinza (estilo ClickUp). O "acento" agora é
-     um destaque neutro claro; sem cor de marca forte. Cores semânticas (verde/
-     vermelho/amarelo/azul) seguem só para status funcionais. */
-  --preto-fumaca: #0d0d12;
-  --cinza-vapor: #f0f0f5;
-  --laranja-brasa: #e8e8ef;   /* highlight neutro claro (ex.-acento de marca) */
-  --vermelho-fogo: #94122c;
-  --amarelo-fagulha: #ffffff;  /* seleção/destaque em branco */
+  /* Paleta institucional (Manual de Marca Breakr 2024). Preto Fumaça domina o
+     fundo; Cinza Vapor é o texto; Laranja Brasa / Vermelho Fogo / Amarelo Fagulha
+     são os acentos da marca. Cores semânticas (verde/vermelho/amarelo/azul)
+     seguem só para status funcionais. */
+  --preto-fumaca: #0F0D05;
+  --cinza-vapor: #F3F4F7;
+  --laranja-brasa: #CA3F17;   /* Laranja Brasa (Manual de Marca) */
+  --vermelho-fogo: #94122C;
+  --amarelo-fagulha: #FF9406;  /* Amarelo Fagulha (Manual de Marca) */
 
-  /* "Gradiente" agora é grafite neutro — texto branco continua legível em cima. */
-  --gradiente-brasa: linear-gradient(135deg, #2e2e3a, #3c3c4a);
+  /* Gradiente da marca — mescla das cores institucionais (Vermelho Fogo → Laranja Brasa → Amarelo Fagulha). */
+  --gradiente-brasa: linear-gradient(135deg, #94122C 0%, #CA3F17 55%, #FF9406 100%);
 
   /* Superfícies — cool-neutral dark (enterprise, como Linear/Vercel) */
   --bg: #0d0d12;
@@ -66,7 +67,7 @@
   --r-lg: 6px;
   --r-xl: 8px;
 
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Lexend', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -104,6 +105,10 @@ input, textarea, select { font-family: inherit; }
   -webkit-text-fill-color: currentColor;
 }
 .brk-gradient-bg { background: var(--gradiente-brasa); }
+/* Logo oficial (wordmark branca). No tema claro, escurece p/ virar a versão preta
+   da marca (Manual: fundo claro → logotipo escuro). */
+.brk-logo-img { max-width: 100%; }
+[data-tema="light"] .brk-logo-img { filter: brightness(0); }
 .brk-gradient-border { position: relative; }
 .brk-gradient-border::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit;

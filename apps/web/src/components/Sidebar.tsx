@@ -202,7 +202,7 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
     <aside className={`brk-sidebar${collapsed ? ' collapsed' : ''}${mobileAberta ? ' mobile-open' : ''}`}>
       {/* ── Logo ── */}
       <div className="brk-sidebar-logo">
-        <Logo tamanho={collapsed ? 20 : 22} />
+        <Logo tamanho={collapsed ? 20 : 22} comTexto={!collapsed} />
       </div>
 
       {/* ── Perfil social no topo ── */}
