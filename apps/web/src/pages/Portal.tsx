@@ -71,6 +71,8 @@ interface PortalData {
   }[];
   // Estratégia aguardando aprovação do cliente (B6). Null se não houver.
   estrategiaParaAprovar: { id: string; titulo: string; descricao: string | null } | null;
+  // Pesquisas do portal pendentes de resposta (req. l.44-46).
+  pesquisasPendentes: { id: string; titulo: string; descricao: string | null }[];
 }
 
 /* --------------------------- Helpers locais --------------------------- */
@@ -181,6 +183,9 @@ const MOCK_PORTAL: PortalData = {
     { id: 'cnt2', titulo: 'Reels — Bastidores da cozinha', descricao: 'Vídeo curto mostrando o preparo.', tipo: 'REELS', midiaUrl: null, codigoUnico: 'CNT-102' },
   ],
   estrategiaParaAprovar: { id: 'est1', titulo: 'Funil de captação — Verão', descricao: 'Topo: awareness com Reels. Meio: enquetes e provas sociais. Fundo: oferta com cupom.' },
+  pesquisasPendentes: [
+    { id: 'psq1', titulo: 'Como foi seu último mês com a gente?', descricao: 'Sua opinião ajuda a melhorar o atendimento.' },
+  ],
 };
 
 export function Portal() {
@@ -243,6 +248,13 @@ export function Portal() {
             {dados.estrategiaParaAprovar && (
               <CardEstrategia
                 estrategia={dados.estrategiaParaAprovar}
+                codigo={codigo ?? ''}
+                aoMudar={() => setVersao((v) => v + 1)}
+              />
+            )}
+            {dados.pesquisasPendentes.length > 0 && (
+              <CardPesquisas
+                pesquisas={dados.pesquisasPendentes}
                 codigo={codigo ?? ''}
                 aoMudar={() => setVersao((v) => v + 1)}
               />
@@ -944,6 +956,99 @@ function CardEstrategia({
         </div>
       </div>
     </Card>
+  );
+}
+
+// Card de pesquisas do portal — o cliente responde nota (0-10) + comentário (l.44-46).
+function CardPesquisas({
+  pesquisas,
+  codigo,
+  aoMudar,
+}: {
+  pesquisas: PortalData['pesquisasPendentes'];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  return (
+    <Card>
+      <TituloCard>Pesquisas</TituloCard>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+        {pesquisas.map((p) => (
+          <ItemPesquisa key={p.id} pesquisa={p} codigo={codigo} aoMudar={aoMudar} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ItemPesquisa({
+  pesquisa,
+  codigo,
+  aoMudar,
+}: {
+  pesquisa: PortalData['pesquisasPendentes'][number];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const [nota, setNota] = useState('9');
+  const [comentario, setComentario] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function responder() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/pesquisas/${pesquisa.id}/responder`, {
+        nota: Number(nota),
+        comentario: comentario.trim() || undefined,
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível enviar sua resposta. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div style={{ border: '1px solid var(--borda)', borderRadius: 12, padding: 16, background: 'var(--superficie-2)' }}>
+      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>{pesquisa.titulo}</div>
+      {pesquisa.descricao && (
+        <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 6, whiteSpace: 'pre-wrap' }}>{pesquisa.descricao}</p>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Sua nota (0 a 10):</span>
+        <select
+          value={nota}
+          onChange={(e) => setNota(e.target.value)}
+          disabled={enviando}
+          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--borda)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 13 }}
+        >
+          {Array.from({ length: 11 }, (_, i) => (
+            <option key={i} value={String(i)}>{i}</option>
+          ))}
+        </select>
+      </div>
+      <textarea
+        value={comentario}
+        onChange={(e) => setComentario(e.target.value)}
+        placeholder="Comentário (opcional)…"
+        rows={2}
+        disabled={enviando}
+        style={{ width: '100%', marginTop: 10, padding: 10, borderRadius: 8, border: '1px solid var(--borda)', background: 'var(--superficie)', color: 'var(--texto)', resize: 'vertical', fontSize: 13 }}
+      />
+      {erro && <p style={{ fontSize: 12.5, color: '#ef4444', marginTop: 6 }}>{erro}</p>}
+      <div style={{ marginTop: 12 }}>
+        <button
+          type="button"
+          onClick={responder}
+          disabled={enviando}
+          style={{ fontSize: 13, fontWeight: 700, padding: '9px 16px', borderRadius: 10, border: 'none', background: '#10b981', color: '#fff', cursor: enviando ? 'default' : 'pointer' }}
+        >
+          {enviando ? 'Enviando…' : 'Enviar resposta'}
+        </button>
+      </div>
+    </div>
   );
 }
 

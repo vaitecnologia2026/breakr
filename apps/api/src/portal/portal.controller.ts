@@ -83,4 +83,15 @@ export class PortalController {
   ) {
     return this.portal.solicitarAjusteEstrategia(codigo, id, dto);
   }
+
+  // POST /portal/:codigo/pesquisas/:id/responder — cliente responde uma pesquisa (l.46).
+  @Post(':codigo/pesquisas/:id/responder')
+  responderPesquisa(
+    @Param('codigo') codigo: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('nota') nota?: number,
+    @Body('comentario') comentario?: string,
+  ) {
+    return this.portal.responderPesquisa(codigo, id, { nota, comentario });
+  }
 }

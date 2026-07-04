@@ -93,6 +93,13 @@ export class PortalService {
     const fraseMotivacional =
       typeof paramsPortal.portalFrase === 'string' ? paramsPortal.portalFrase : null;
 
+    // Pesquisas ativas que este cliente ainda nao respondeu (req. l.44-46).
+    const pesquisasPendentes = await this.prisma.pesquisa.findMany({
+      where: { ativa: true, respostas: { none: { clienteId: cliente.id } } },
+      select: { id: true, titulo: true, descricao: true },
+      orderBy: { criadoEm: 'desc' },
+    });
+
     return {
       cliente: {
         nomeFantasia: cliente.nomeFantasia,
@@ -172,6 +179,8 @@ export class PortalService {
             descricao: cliente.estrategias[0].descricao,
           }
         : null,
+      // Pesquisas do portal pendentes de resposta (req. l.44-46).
+      pesquisasPendentes,
     };
   }
 
@@ -414,5 +423,42 @@ export class PortalService {
       link: '/estrategia',
     });
     return atualizada;
+  }
+
+  // Cliente responde uma pesquisa pelo portal (req. l.46). Idempotente por
+  // (pesquisa, cliente) — upsert evita duplicar se reenviar.
+  async responderPesquisa(
+    codigo: string,
+    pesquisaId: string,
+    dados: { nota?: number; comentario?: string },
+  ) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { codigoUnico: codigo },
+      select: { id: true },
+    });
+    if (!cliente) throw new NotFoundException('Portal nao encontrado');
+    const pesquisa = await this.prisma.pesquisa.findUnique({
+      where: { id: pesquisaId },
+      select: { id: true, ativa: true },
+    });
+    if (!pesquisa || !pesquisa.ativa) {
+      throw new NotFoundException('Pesquisa nao disponivel');
+    }
+    if (
+      dados.nota !== undefined &&
+      (!Number.isInteger(dados.nota) || dados.nota < 0 || dados.nota > 10)
+    ) {
+      throw new BadRequestException('Nota deve ser um inteiro de 0 a 10.');
+    }
+    return this.prisma.respostaPesquisa.upsert({
+      where: { pesquisaId_clienteId: { pesquisaId, clienteId: cliente.id } },
+      create: {
+        pesquisaId,
+        clienteId: cliente.id,
+        nota: dados.nota,
+        comentario: dados.comentario,
+      },
+      update: { nota: dados.nota, comentario: dados.comentario },
+    });
   }
 }
