@@ -49,6 +49,9 @@ import { AgendarModule } from './agendar/agendar.module';
 import { MedalhasModule } from './medalhas/medalhas.module';
 import { PainelDesignerModule } from './painel-designer/painel-designer.module';
 import { EstrategiaModule } from './estrategia/estrategia.module';
+import { CentroCustoModule } from './centro-custo/centro-custo.module';
+import { NpsClienteModule } from './nps-cliente/nps-cliente.module';
+import { PesquisasModule } from './pesquisas/pesquisas.module';
 
 @Module({
   imports: [
@@ -130,6 +133,11 @@ import { EstrategiaModule } from './estrategia/estrategia.module';
     PainelDesignerModule,
     // Aprovacao de estrategia pelo cliente (B6).
     EstrategiaModule,
+    // Doc10: centro de custo (l.469-476), NPS de cliente (l.196-198/544-547),
+    // pesquisas/surveys do portal (l.44-46).
+    CentroCustoModule,
+    NpsClienteModule,
+    PesquisasModule,
   ],
 })
 export class AppModule {}

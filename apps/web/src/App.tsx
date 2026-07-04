@@ -49,6 +49,10 @@ import { Planos } from './pages/Planos';
 import { AvaliarAtendimento } from './pages/AvaliarAtendimento';
 import { PainelDesigner } from './pages/PainelDesigner';
 import { Estrategia } from './pages/Estrategia';
+import { CentroCusto } from './pages/CentroCusto';
+import { NpsCliente } from './pages/NpsCliente';
+import { BancoTalentos } from './pages/BancoTalentos';
+import { Pesquisas } from './pages/Pesquisas';
 
 export function App() {
   if (SISTEMA_BLOQUEADO) return <Bloqueio />;
@@ -82,6 +86,10 @@ export function App() {
         <Route path="conteudos" element={<Conteudos />} />
         <Route path="painel-designer" element={<PainelDesigner />} />
         <Route path="estrategia" element={<Estrategia />} />
+        <Route path="centro-custo" element={<CentroCusto />} />
+        <Route path="nps-cliente" element={<NpsCliente />} />
+        <Route path="banco-talentos" element={<BancoTalentos />} />
+        <Route path="pesquisas" element={<Pesquisas />} />
         <Route path="qualidade" element={<Qualidade />} />
         <Route path="trafego" element={<Trafego />} />
         <Route path="squads" element={<Squads />} />
