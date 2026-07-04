@@ -58,6 +58,21 @@ export class TrafegoService {
   }
 
   async criar(dto: CriarCampanhaDto): Promise<Campanha> {
+    // Squad obrigatorio (req. l.363): a campanha herda o squad do cliente e um squad
+    // ausente/errado quebra todas as automacoes vinculadas. Bloqueia a criacao se o
+    // cliente ainda nao tiver squad definido — "tem que dar para blindar".
+    const clienteSquad = await this.prisma.cliente.findUnique({
+      where: { id: dto.clienteId },
+      select: { squadId: true },
+    });
+    if (!clienteSquad) throw new NotFoundException('Cliente nao encontrado');
+    if (!clienteSquad.squadId) {
+      throw new BadRequestException(
+        'Cliente sem squad definido. Defina o squad do cliente antes de criar campanhas: ' +
+          'o squad e obrigatorio e um squad incorreto quebra as automacoes vinculadas.',
+      );
+    }
+
     // Orcamento inteligente: bloqueia criar campanha que estoure o teto mensal do
     // cliente. So valida quando ha teto definido e orcamento diario informado.
     if (dto.orcamentoDiario !== undefined) {
