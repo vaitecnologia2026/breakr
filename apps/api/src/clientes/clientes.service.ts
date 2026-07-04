@@ -42,7 +42,7 @@ export class ClientesService {
   criar(dto: CriarClienteDto): Promise<Cliente> {
     return this.prisma.cliente.create({
       data: {
-        nomeFantasia: dto.nomeFantasia,
+        nomeFantasia: this.padronizarNome(dto.nomeFantasia),
         cnpj: dto.cnpj,
         tag: dto.tag,
         email: dto.email,
@@ -61,7 +61,8 @@ export class ClientesService {
     return this.prisma.cliente.update({
       where: { id },
       data: {
-        nomeFantasia: dto.nomeFantasia,
+        nomeFantasia:
+          dto.nomeFantasia !== undefined ? this.padronizarNome(dto.nomeFantasia) : undefined,
         cnpj: dto.cnpj,
         tag: dto.tag,
         email: dto.email,
@@ -72,5 +73,17 @@ export class ClientesService {
         linkAreaMembros: dto.linkAreaMembros,
       },
     });
+  }
+
+  // Padroniza o nome do cliente em title case (primeira letra de cada palavra em
+  // maiuscula) — req. l.55: o cliente padroniza manualmente e "tem horror de letra
+  // minuscula"; o sistema faz isso automaticamente. Preserva o restante de cada
+  // palavra para nao destruir siglas/acronimos ja em maiuscula (ex.: "JD Burger").
+  private padronizarNome(nome: string): string {
+    return nome
+      .trim()
+      .split(/\s+/)
+      .map((p) => (p.length > 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p))
+      .join(' ');
   }
 }
