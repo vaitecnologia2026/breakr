@@ -102,4 +102,41 @@ export class RhService {
       },
     });
   }
+
+  // Banco de talentos (req. l.426-433): pool reutilizavel de TODOS os candidatos
+  // (independente da vaga), filtravel por perfil DISC, tag e texto (nome/email) —
+  // ex.: consultar antes de abrir vaga ("estrategista -> perfil C + A").
+  bancoTalentos(filtro?: {
+    perfilDisc?: string;
+    tag?: string;
+    q?: string;
+  }): Promise<Candidato[]> {
+    const where: Prisma.CandidatoWhereInput = {};
+    if (filtro?.perfilDisc) {
+      where.perfilDisc = { contains: filtro.perfilDisc, mode: 'insensitive' };
+    }
+    if (filtro?.tag) {
+      where.tags = { contains: filtro.tag, mode: 'insensitive' };
+    }
+    if (filtro?.q) {
+      where.OR = [
+        { nome: { contains: filtro.q, mode: 'insensitive' } },
+        { email: { contains: filtro.q, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.candidato.findMany({
+      where,
+      include: { vaga: { select: { titulo: true } } },
+      orderBy: { criadoEm: 'desc' },
+    });
+  }
+
+  // Atualiza as tags do candidato no banco de talentos (ex.: "forte", "reavaliacao").
+  async atualizarTags(id: string, tags?: string): Promise<Candidato> {
+    const candidato = await this.prisma.candidato.findUnique({ where: { id } });
+    if (!candidato) {
+      throw new NotFoundException('Candidato nao encontrado');
+    }
+    return this.prisma.candidato.update({ where: { id }, data: { tags } });
+  }
 }

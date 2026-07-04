@@ -67,4 +67,27 @@ export class RhController {
   ) {
     return this.rhService.moverStatusCandidato(id, dto.status);
   }
+
+  // GET /rh/banco-talentos — pool reutilizavel de candidatos (filtros opcionais:
+  // perfilDisc, tag, q). Qualquer autenticado consulta antes de abrir vaga (l.432).
+  @Get('banco-talentos')
+  bancoTalentos(
+    @Query('perfilDisc') perfilDisc?: string,
+    @Query('tag') tag?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.rhService.bancoTalentos({ perfilDisc, tag, q });
+  }
+
+  // PATCH /rh/candidatos/:id/tags — atualiza as tags do banco de talentos
+  // (ex.: "forte", "reavaliacao") — Admin/Superadmin.
+  @Patch('candidatos/:id/tags')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  atualizarTags(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('tags') tags?: string,
+  ) {
+    return this.rhService.atualizarTags(id, tags);
+  }
 }
