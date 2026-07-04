@@ -7,8 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FuncaoSquad, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
 
 // Config singleton — mesma linha usada por IntegracoesConfigService/PortalConfigService.
@@ -19,6 +21,7 @@ export class PortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly codigoUnicoSvc: CodigoUnicoService,
+    private readonly notificacoes: NotificacoesService,
   ) {}
 
   async obterPorCodigo(codigo: string) {
@@ -256,14 +259,15 @@ export class PortalService {
   ) {
     await this.conteudoDoCliente(codigo, conteudoId);
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.conteudo.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.conteudo.update({
         where: { id: conteudoId },
         data: {
           status: StatusConteudo.PRODUCAO,
           comentarioCliente: dados.comentario,
           reworkCount: { increment: 1 },
         },
+        include: { cliente: { select: { nomeFantasia: true } } },
       });
 
       await tx.reworkLog.create({
@@ -276,8 +280,18 @@ export class PortalService {
         },
       });
 
-      return updated;
+      return u;
     });
+
+    // O comentario/ajuste do cliente chega ao CS como notificacao (req. l.184).
+    await this.notificacoes.notificarPorCargo(Cargo.CS, {
+      titulo: 'Cliente pediu ajuste em criativo',
+      mensagem: `${updated.cliente?.nomeFantasia ?? 'Cliente'} solicitou ajuste em "${updated.titulo}": ${dados.comentario}`,
+      tipo: 'ALERTA',
+      link: '/conteudos',
+    });
+
+    return updated;
   }
 
   // Cliente solicita uma nova peca de conteudo pelo portal — entra como IDEIA
@@ -355,14 +369,25 @@ export class PortalService {
     dados: { comentario?: string },
   ) {
     await this.estrategiaDoCliente(codigo, estrategiaId);
-    return this.prisma.estrategia.update({
+    const atualizada = await this.prisma.estrategia.update({
       where: { id: estrategiaId },
       data: {
         status: StatusEstrategia.APROVADA,
         comentarioCliente: dados.comentario,
         respondidaEm: new Date(),
       },
+      include: { cliente: { select: { nomeFantasia: true } } },
     });
+    // O CS acompanha a aprovacao pelo ticket/notificacao (req. l.209).
+    await this.notificacoes.notificarPorCargo(Cargo.CS, {
+      titulo: 'Estrategia aprovada pelo cliente',
+      mensagem:
+        `${atualizada.cliente?.nomeFantasia ?? 'Cliente'} aprovou a estrategia "${atualizada.titulo}".` +
+        (dados.comentario ? ` Comentario: ${dados.comentario}` : ''),
+      tipo: 'SUCESSO',
+      link: '/estrategia',
+    });
+    return atualizada;
   }
 
   // Cliente pede ajuste na estrategia — volta para a estrategista.
@@ -372,13 +397,22 @@ export class PortalService {
     dados: { comentario: string },
   ) {
     await this.estrategiaDoCliente(codigo, estrategiaId);
-    return this.prisma.estrategia.update({
+    const atualizada = await this.prisma.estrategia.update({
       where: { id: estrategiaId },
       data: {
         status: StatusEstrategia.AJUSTE,
         comentarioCliente: dados.comentario,
         respondidaEm: new Date(),
       },
+      include: { cliente: { select: { nomeFantasia: true } } },
     });
+    // O comentario do cliente sobre a estrategia chega ao CS (req. l.209).
+    await this.notificacoes.notificarPorCargo(Cargo.CS, {
+      titulo: 'Cliente pediu ajuste na estrategia',
+      mensagem: `${atualizada.cliente?.nomeFantasia ?? 'Cliente'} solicitou ajuste na estrategia "${atualizada.titulo}": ${dados.comentario}`,
+      tipo: 'ALERTA',
+      link: '/estrategia',
+    });
+    return atualizada;
   }
 }
