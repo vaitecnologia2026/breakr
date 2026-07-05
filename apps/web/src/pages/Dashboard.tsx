@@ -115,7 +115,7 @@ function FavoritesBar() {
 
 export function Dashboard() {
   const { pathname } = useLocation();
-  const nomePagina = ROTA_NOME[pathname] ?? 'Breakr OS';
+  const nomePagina = ROTA_NOME[pathname] ?? 'Breakr';
   const menuMobile = useSidebarMobile();
 
   // Fecha o menu mobile ao trocar de página.
@@ -141,7 +141,7 @@ export function Dashboard() {
               </svg>
             </button>
             <div className="brk-topbar-breadcrumb">
-              <span className="brk-topbar-breadcrumb-root">Breakr OS</span>
+              <span className="brk-topbar-breadcrumb-root">Breakr</span>
               <span className="brk-topbar-sep">/</span>
               <span className="brk-topbar-breadcrumb-atual">{nomePagina}</span>
             </div>
