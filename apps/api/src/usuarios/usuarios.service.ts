@@ -93,6 +93,8 @@ export class UsuariosService {
     if (dto.cargo) dados.cargo = dto.cargo;
     if (dto.ativo !== undefined) dados.ativo = dto.ativo;
     if (dto.whatsapp !== undefined) dados.whatsapp = dto.whatsapp;
+    // Nova senha (opcional): so re-hash quando enviada — ausente/vazia mantem a atual.
+    if (dto.senha) dados.senhaHash = await bcrypt.hash(dto.senha, 10);
     const usuario = await this.prisma.usuario.update({ where: { id }, data: dados });
     return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp };
   }

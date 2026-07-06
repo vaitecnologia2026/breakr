@@ -121,9 +121,13 @@ export function Equipe() {
   async function salvar() {
     if (editando) {
       if (!form.nome.trim()) { setErroCriar('Informe o nome.'); return; }
+      // Nova senha é opcional na edição; se preenchida, exige mínimo de 8 caracteres.
+      if (form.senha.trim() && form.senha.trim().length < 8) {
+        setErroCriar('A nova senha deve ter no mínimo 8 caracteres.'); return;
+      }
       setSalvando(true); setErroCriar(null);
       try {
-        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo, whatsapp: form.whatsapp.trim() || undefined });
+        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo, whatsapp: form.whatsapp.trim() || undefined, ...(form.senha.trim() ? { senha: form.senha.trim() } : {}) });
         await carregar();
         fecharModal();
         setSucesso('Usuário atualizado.');
@@ -280,15 +284,13 @@ export function Equipe() {
             disabled={!!editando}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
-          {!editando && (
-            <Campo
-              rotulo="Senha inicial"
-              type="password"
-              placeholder="Mínimo 8 caracteres"
-              value={form.senha}
-              onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
-            />
-          )}
+          <Campo
+            rotulo={editando ? 'Nova senha' : 'Senha inicial'}
+            type="password"
+            placeholder={editando ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'}
+            value={form.senha}
+            onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
+          />
           <CampoSelect
             rotulo="Cargo"
             value={form.cargo}

@@ -22,4 +22,12 @@ export class AtualizarUsuarioDto {
   @IsString()
   @MaxLength(30)
   whatsapp?: string;
+
+  // Nova senha (opcional). Ausente/vazia = mantem a senha atual. Mesmas regras da
+  // criacao: minimo 8 caracteres e maximo 72 bytes (limite do bcrypt).
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  senha?: string;
 }
