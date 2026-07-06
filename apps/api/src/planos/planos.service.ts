@@ -1,5 +1,5 @@
 // Servico de planos — master-data do nucleo.
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Plano, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CriarPlanoDto } from './dto/criar-plano.dto';
@@ -24,35 +24,49 @@ export class PlanosService {
   }
 
   // Cria um plano.
-  criar(dto: CriarPlanoDto): Promise<Plano> {
-    return this.prisma.plano.create({
-      data: {
-        nome: dto.nome,
-        valor: new Prisma.Decimal(dto.valor),
-        ...(dto.ciclo !== undefined && { ciclo: dto.ciclo }),
-        ...(dto.tiposProjeto !== undefined && { tiposProjeto: dto.tiposProjeto }),
-        ...(dto.entregaveis !== undefined && {
-          entregaveis: dto.entregaveis as Prisma.InputJsonValue,
-        }),
-      },
-    });
+  async criar(dto: CriarPlanoDto): Promise<Plano> {
+    try {
+      return await this.prisma.plano.create({
+        data: {
+          nome: dto.nome,
+          valor: new Prisma.Decimal(dto.valor),
+          ...(dto.ciclo !== undefined && { ciclo: dto.ciclo }),
+          ...(dto.tiposProjeto !== undefined && { tiposProjeto: dto.tiposProjeto }),
+          ...(dto.entregaveis !== undefined && {
+            entregaveis: dto.entregaveis as Prisma.InputJsonValue,
+          }),
+        },
+      });
+    } catch (erro) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
+        throw new ConflictException('Ja existe um plano com esse nome');
+      }
+      throw erro;
+    }
   }
 
   // Atualiza campos do plano (so os enviados).
   async atualizar(id: string, dto: AtualizarPlanoDto): Promise<Plano> {
     await this.buscarPorId(id);
-    return this.prisma.plano.update({
-      where: { id },
-      data: {
-        ...(dto.nome !== undefined && { nome: dto.nome }),
-        ...(dto.valor !== undefined && { valor: new Prisma.Decimal(dto.valor) }),
-        ...(dto.ciclo !== undefined && { ciclo: dto.ciclo }),
-        ...(dto.tiposProjeto !== undefined && { tiposProjeto: dto.tiposProjeto }),
-        ...(dto.entregaveis !== undefined && {
-          entregaveis: dto.entregaveis as Prisma.InputJsonValue,
-        }),
-        ...(dto.ativo !== undefined && { ativo: dto.ativo }),
-      },
-    });
+    try {
+      return await this.prisma.plano.update({
+        where: { id },
+        data: {
+          ...(dto.nome !== undefined && { nome: dto.nome }),
+          ...(dto.valor !== undefined && { valor: new Prisma.Decimal(dto.valor) }),
+          ...(dto.ciclo !== undefined && { ciclo: dto.ciclo }),
+          ...(dto.tiposProjeto !== undefined && { tiposProjeto: dto.tiposProjeto }),
+          ...(dto.entregaveis !== undefined && {
+            entregaveis: dto.entregaveis as Prisma.InputJsonValue,
+          }),
+          ...(dto.ativo !== undefined && { ativo: dto.ativo }),
+        },
+      });
+    } catch (erro) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
+        throw new ConflictException('Ja existe um plano com esse nome');
+      }
+      throw erro;
+    }
   }
 }

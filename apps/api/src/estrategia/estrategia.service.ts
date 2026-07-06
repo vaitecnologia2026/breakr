@@ -66,6 +66,14 @@ export class EstrategiaService {
   // Envia a estrategia ao cliente (passa a aparecer no portal para aprovacao).
   async enviar(id: string) {
     const e = await this.obter(id);
+    // Nao reenviar uma estrategia ja aprovada pelo cliente: reverter para ENVIADA
+    // re-bloquearia a producao de conteudo (garantirEstrategiaAprovada) e a faria
+    // reaparecer no portal, desfazendo silenciosamente uma aprovacao concluida (B6).
+    if (e.status === StatusEstrategia.APROVADA) {
+      throw new BadRequestException(
+        'Estrategia ja aprovada pelo cliente; nao pode ser reenviada.',
+      );
+    }
     const atualizada = await this.prisma.estrategia.update({
       where: { id },
       data: { status: StatusEstrategia.ENVIADA, enviadaEm: new Date() },
