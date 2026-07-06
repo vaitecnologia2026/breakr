@@ -13,7 +13,7 @@ import { AdicionarMembroDto } from './dto/adicionar-membro.dto';
 const INCLUDE_MEMBROS = {
   membros: {
     include: {
-      usuario: { select: { id: true, nome: true, cargo: true } },
+      usuario: { select: { id: true, nome: true, cargo: true, whatsapp: true } },
     },
   },
   clientes: {
@@ -46,7 +46,7 @@ export class SquadsService {
     }
     const squad = await this.prisma.squad.findUnique({
       where: { id: cliente.squadId },
-      include: { membros: { include: { usuario: { select: { id: true, nome: true, cargo: true } } } } },
+      include: { membros: { include: { usuario: { select: { id: true, nome: true, cargo: true, whatsapp: true } } } } },
     });
     if (!squad) {
       return { squad: null, membros: [] };

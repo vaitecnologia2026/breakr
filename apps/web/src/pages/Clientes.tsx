@@ -251,6 +251,17 @@ function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente |
   async function enviar(e: FormEvent) {
     e.preventDefault();
     if (!valido || salvando) return;
+    // Plano obrigatorio antes de confirmar a producao (req. l.54): sem plano nao
+    // deixa mover o cliente para producao (Onboard/Ativo/Renovacao) — o plano define
+    // os projetos a criar e o valor da fatura.
+    if (
+      edicao &&
+      [ClienteStatus.ONBOARD, ClienteStatus.ATIVO, ClienteStatus.RENOVACAO].includes(status) &&
+      !planoId
+    ) {
+      setErroMsg('Selecione o plano do cliente antes de confirmar a produção (o plano define os projetos e o valor da fatura).');
+      return;
+    }
     setSalvando(true);
     setErroMsg(null);
     const corpo: Record<string, unknown> = {

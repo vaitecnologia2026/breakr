@@ -1,5 +1,5 @@
 // Servico de clientes — master-data do nucleo.
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cliente } from '@prisma/client';
 import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -57,7 +57,23 @@ export class ClientesService {
 
   // Atualiza campos do cliente (so os enviados).
   async atualizar(id: string, dto: AtualizarClienteDto): Promise<Cliente> {
-    await this.buscarPorId(id);
+    const atual = await this.buscarPorId(id);
+    // Plano obrigatorio antes de confirmar a producao (req. l.54): mover o cliente
+    // para producao (ONBOARD/ATIVO/RENOVACAO) exige plano definido — ele determina
+    // os projetos a criar e o valor da fatura. Na criacao o plano pode ficar em aberto.
+    const STATUS_PRODUCAO: ClienteStatus[] = [
+      ClienteStatus.ONBOARD,
+      ClienteStatus.ATIVO,
+      ClienteStatus.RENOVACAO,
+    ];
+    if (dto.status && STATUS_PRODUCAO.includes(dto.status)) {
+      const planoEfetivo = dto.planoId ?? atual.planoId;
+      if (!planoEfetivo) {
+        throw new BadRequestException(
+          'Selecione o plano do cliente antes de confirmar a producao (o plano define os projetos e o valor da fatura).',
+        );
+      }
+    }
     return this.prisma.cliente.update({
       where: { id },
       data: {

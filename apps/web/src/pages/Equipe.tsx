@@ -18,6 +18,8 @@ interface Usuario {
   cargo: Cargo;
   ativo: boolean;
   criadoEm: string;
+  // Número de WhatsApp usado pelo n8n nos disparos (req. l.140).
+  whatsapp?: string | null;
 }
 
 const CARGOS: { value: Cargo; label: string }[] = [
@@ -60,7 +62,7 @@ export function Equipe() {
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', cargo: 'CS' as Cargo });
+  const [form, setForm] = useState({ nome: '', email: '', senha: '', cargo: 'CS' as Cargo, whatsapp: '' });
 
   async function carregar() {
     setCarregando(true); setErro(false);
@@ -86,10 +88,10 @@ export function Equipe() {
     }
     setSalvando(true); setErroCriar(null);
     try {
-      await api.post('/usuarios', form);
+      await api.post('/usuarios', { ...form, whatsapp: form.whatsapp.trim() || undefined });
       await carregar();
       setModalNovo(false);
-      setForm({ nome: '', email: '', senha: '', cargo: 'CS' });
+      setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '' });
       setSucesso('Usuário criado com sucesso.');
       setTimeout(() => setSucesso(null), 4000);
     } catch (e: unknown) {
@@ -100,7 +102,7 @@ export function Equipe() {
 
   function abrirEdicao(u: Usuario) {
     setEditando(u);
-    setForm({ nome: u.nome, email: u.email, senha: '', cargo: u.cargo });
+    setForm({ nome: u.nome, email: u.email, senha: '', cargo: u.cargo, whatsapp: u.whatsapp ?? '' });
     setErroCriar(null);
     setModalNovo(true);
   }
@@ -108,7 +110,7 @@ export function Equipe() {
   function fecharModal() {
     setModalNovo(false);
     setEditando(null);
-    setForm({ nome: '', email: '', senha: '', cargo: 'CS' });
+    setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '' });
   }
 
   // Salva criação OU edição (PATCH só nome/cargo — e-mail e senha não mudam aqui).
@@ -117,7 +119,7 @@ export function Equipe() {
       if (!form.nome.trim()) { setErroCriar('Informe o nome.'); return; }
       setSalvando(true); setErroCriar(null);
       try {
-        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo });
+        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo, whatsapp: form.whatsapp.trim() || undefined });
         await carregar();
         fecharModal();
         setSucesso('Usuário atualizado.');
@@ -212,6 +214,7 @@ export function Equipe() {
                       <div>
                         <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{u.nome}</div>
                         <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{u.email}</div>
+                        {u.whatsapp && <div style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>WhatsApp: {u.whatsapp}</div>}
                       </div>
                     </div>
                   </Td>
@@ -291,6 +294,12 @@ export function Equipe() {
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
           </CampoSelect>
+          <Campo
+            rotulo="WhatsApp (para disparos)"
+            placeholder="(11) 99999-9999 — opcional"
+            value={form.whatsapp}
+            onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+          />
         </Modal>
       )}
     </>

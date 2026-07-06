@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { FuncaoSquad } from '@breakr/shared';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
+import { useAuth } from '../lib/auth';
 import {
   PaginaShell,
   BotaoPrimario,
@@ -27,7 +28,15 @@ import {
 interface MembroSquad {
   id: string;
   funcao: FuncaoSquad;
-  usuario: { id: string; nome: string; cargo: string };
+  usuario: { id: string; nome: string; cargo: string; whatsapp?: string | null };
+}
+
+// Usuário disponível para vincular ao squad (picker de "adicionar membro").
+interface UsuarioOpcao {
+  id: string;
+  nome: string;
+  cargo: string;
+  whatsapp?: string | null;
 }
 
 interface Squad {
@@ -86,6 +95,9 @@ export function Squads() {
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [busca, setBusca] = useState('');
+  const { usuario } = useAuth();
+  const ehAdmin = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
+  const [usuarios, setUsuarios] = useState<UsuarioOpcao[]>([]);
 
   async function carregar() {
     setCarregando(true);
@@ -103,6 +115,8 @@ export function Squads() {
 
   useEffect(() => {
     carregar();
+    // Lista de usuários para o picker de "adicionar membro" (só admin acessa /usuarios).
+    api.get<UsuarioOpcao[]>('/usuarios').then(({ data }) => setUsuarios(data)).catch(() => setUsuarios([]));
   }, []);
 
   const q = busca.toLowerCase().trim();
@@ -160,7 +174,7 @@ export function Squads() {
           }}
         >
           {filtrados.map((s) => (
-            <CardSquad key={s.id} squad={s} aoAtualizar={carregar} />
+            <CardSquad key={s.id} squad={s} aoAtualizar={carregar} usuarios={usuarios} ehAdmin={ehAdmin} />
           ))}
         </div>
       )}
@@ -180,10 +194,38 @@ export function Squads() {
 
 /* ------------------------------ Card ------------------------------ */
 
-function CardSquad({ squad, aoAtualizar }: { squad: Squad; aoAtualizar: () => void }) {
+function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; aoAtualizar: () => void; usuarios: UsuarioOpcao[]; ehAdmin: boolean }) {
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState(squad.nome);
   const [salvando, setSalvando] = useState(false);
+  const [novoUsuario, setNovoUsuario] = useState('');
+  const [novaFuncao, setNovaFuncao] = useState<FuncaoSquad>(FuncaoSquad.CS);
+  const [addSalvando, setAddSalvando] = useState(false);
+  const [addErro, setAddErro] = useState<string | null>(null);
+
+  // Vincula um usuário ao squad (função + WhatsApp/ID vêm do próprio usuário) — req. l.140.
+  async function adicionarMembro() {
+    if (!novoUsuario || addSalvando) return;
+    setAddSalvando(true);
+    setAddErro(null);
+    try {
+      await api.post(`/squads/${squad.id}/membros`, { usuarioId: novoUsuario, funcao: novaFuncao });
+      setNovoUsuario('');
+      aoAtualizar();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setAddErro(msg ?? 'Não foi possível adicionar o membro.');
+    } finally {
+      setAddSalvando(false);
+    }
+  }
+
+  async function removerMembro(membroId: string) {
+    try {
+      await api.delete(`/squads/${squad.id}/membros/${membroId}`);
+      aoAtualizar();
+    } catch { /* silencioso */ }
+  }
 
   async function salvarNome() {
     if (!nome.trim() || salvando) return;
@@ -305,23 +347,72 @@ function CardSquad({ squad, aoAtualizar }: { squad: Squad; aoAtualizar: () => vo
                   gap: 10,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 13.5,
-                    color: 'var(--texto-suave)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {m.usuario.nome}
-                </span>
-                <ChipFuncao funcao={m.funcao} />
+                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span
+                    style={{
+                      fontSize: 13.5,
+                      color: 'var(--texto-suave)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {m.usuario.nome}
+                  </span>
+                  <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {m.usuario.whatsapp ? `WhatsApp: ${m.usuario.whatsapp} · ` : ''}ID: {m.usuario.id}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <ChipFuncao funcao={m.funcao} />
+                  {ehAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => removerMembro(m.id)}
+                      title="Remover membro"
+                      aria-label="Remover membro"
+                      style={{ background: 'none', border: 'none', color: 'var(--texto-fraco)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {ehAdmin && (
+        <div style={{ borderTop: '1px solid var(--borda)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--texto-fraco)', textTransform: 'uppercase' }}>
+            Adicionar membro
+          </span>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <select
+              className="brk-input"
+              value={novoUsuario}
+              onChange={(e) => setNovoUsuario(e.target.value)}
+              style={{ flex: '1 1 140px', minWidth: 0, fontSize: 12.5, padding: '6px 8px' }}
+            >
+              <option value="">Selecione o usuário…</option>
+              {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+            </select>
+            <select
+              className="brk-input"
+              value={novaFuncao}
+              onChange={(e) => setNovaFuncao(e.target.value as FuncaoSquad)}
+              style={{ flex: '0 1 140px', fontSize: 12.5, padding: '6px 8px' }}
+            >
+              {Object.values(FuncaoSquad).map((f) => <option key={f} value={f}>{FUNCOES[f]?.rotulo ?? f}</option>)}
+            </select>
+            <BotaoPrimario onClick={adicionarMembro} disabled={!novoUsuario || addSalvando}>
+              {addSalvando ? '…' : '+ Add'}
+            </BotaoPrimario>
+          </div>
+          {addErro && <MensagemErro texto={addErro} />}
+        </div>
+      )}
     </article>
   );
 }

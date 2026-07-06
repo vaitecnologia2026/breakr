@@ -24,6 +24,8 @@ interface Curso {
   descricao: string | null;
   url: string;
   plataforma: string | null;
+  // Tipo de acesso ao curso (req. l.466): link público, login compartilhado, voucher.
+  tipoAcesso?: string | null;
 }
 
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
@@ -50,6 +52,7 @@ export function Educacional() {
   const [descricao, setDescricao] = useState('');
   const [url, setUrl] = useState('');
   const [plataforma, setPlataforma] = useState('');
+  const [tipoAcesso, setTipoAcesso] = useState('');
   const [salvando, setSalvando] = useState(false);
 
   async function carregar() {
@@ -79,8 +82,9 @@ export function Educacional() {
         descricao: descricao.trim() || undefined,
         url: url.trim(),
         plataforma: plataforma.trim() || undefined,
+        tipoAcesso: tipoAcesso.trim() || undefined,
       });
-      setTitulo(''); setDescricao(''); setUrl(''); setPlataforma('');
+      setTitulo(''); setDescricao(''); setUrl(''); setPlataforma(''); setTipoAcesso('');
       carregar();
     } finally {
       setSalvando(false);
@@ -104,6 +108,7 @@ export function Educacional() {
             <div><label style={rotulo}>Título</label>{inp({ value: titulo, onChange: (e) => setTitulo(e.target.value), placeholder: 'Tráfego avançado' })}</div>
             <div><label style={rotulo}>URL</label>{inp({ value: url, onChange: (e) => setUrl(e.target.value), placeholder: 'https://hotmart.com/...' })}</div>
             <div><label style={rotulo}>Plataforma</label>{inp({ value: plataforma, onChange: (e) => setPlataforma(e.target.value), placeholder: 'Hotmart' })}</div>
+            <div><label style={rotulo}>Tipo de acesso</label>{inp({ value: tipoAcesso, onChange: (e) => setTipoAcesso(e.target.value), placeholder: 'Link público, login compartilhado, voucher…' })}</div>
             <div><label style={rotulo}>Descrição</label>{inp({ value: descricao, onChange: (e) => setDescricao(e.target.value) })}</div>
             <div>
               <BotaoPrimario onClick={adicionar} disabled={salvando || !titulo.trim() || !url.trim()}>
@@ -124,6 +129,7 @@ export function Educacional() {
                 {c.plataforma && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--cinza-vapor)', textTransform: 'uppercase' }}>{c.plataforma}</span>}
                 <span style={{ fontSize: 15, fontWeight: 700 }}>{c.titulo}</span>
                 {c.descricao && <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>{c.descricao}</span>}
+                {c.tipoAcesso && <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--amarelo-fagulha)' }}>Acesso: {c.tipoAcesso}</span>}
                 <a href={c.url} target="_blank" rel="noopener noreferrer" className="brk-gradient-bg" style={{ marginTop: 4, alignSelf: 'flex-start', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>
                   Acessar curso →
                 </a>

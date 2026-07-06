@@ -1,5 +1,5 @@
 // DTO de criacao de usuario (validado em runtime pelo ValidationPipe global).
-import { IsEmail, IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Cargo } from '@prisma/client';
 
 export class CriarUsuarioDto {
@@ -19,4 +19,10 @@ export class CriarUsuarioDto {
 
   @IsEnum(Cargo)
   cargo!: Cargo;
+
+  // Numero de WhatsApp (opcional) usado pelo n8n nos disparos (req. l.140).
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  whatsapp?: string;
 }

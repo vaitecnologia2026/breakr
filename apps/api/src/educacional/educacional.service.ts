@@ -22,6 +22,7 @@ export class EducacionalService {
         descricao: dto.descricao,
         url: dto.url,
         plataforma: dto.plataforma,
+        tipoAcesso: dto.tipoAcesso,
       },
     });
   }

@@ -16,4 +16,10 @@ export class AtualizarUsuarioDto {
   @IsOptional()
   @IsBoolean()
   ativo?: boolean;
+
+  // Numero de WhatsApp (opcional) usado pelo n8n nos disparos (req. l.140).
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  whatsapp?: string;
 }

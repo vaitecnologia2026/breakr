@@ -80,6 +80,9 @@ model Usuario {
   senhaHash String   @map("senha_hash")
   cargo     Cargo
   telefone  String?
+  // Numero de WhatsApp usado pelo n8n nos disparos (req. l.140) — cadastrado
+  // via tela de Equipe/Squads, sem editar codigo.
+  whatsapp  String?
   fotoUrl   String?  @map("foto_url")
   // Notas pessoais do colaborador (scratchpad do painel do designer) — B8 (l.407-415).
   notasPessoais String? @map("notas_pessoais")
@@ -1403,6 +1406,9 @@ model CursoEducacional {
   descricao  String?
   url        String
   plataforma String?
+  // Tipo de acesso ao curso (req. l.466): ex. link publico, login compartilhado,
+  // voucher individual. O dono ja tem os cursos comprados e compartilha o acesso.
+  tipoAcesso String?  @map("tipo_acesso")
   ativo      Boolean  @default(true)
   criadoEm   DateTime @default(now()) @map("criado_em")
 

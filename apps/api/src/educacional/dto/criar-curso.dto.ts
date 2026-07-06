@@ -20,4 +20,10 @@ export class CriarCursoDto {
   @IsString()
   @MaxLength(60)
   plataforma?: string;
+
+  // Tipo de acesso ao curso (req. l.466): ex. link publico, login compartilhado, voucher.
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  tipoAcesso?: string;
 }

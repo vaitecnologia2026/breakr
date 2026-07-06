@@ -13,6 +13,7 @@ import { AtualizarUsuarioDto } from './dto/atualizar-usuario.dto';
 export interface UsuarioListado extends UsuarioPublico {
   ativo: boolean;
   criadoEm: Date;
+  whatsapp: string | null;
 }
 
 // Cargos com poder administrativo: so um SUPERADMIN pode conceder ou alterar.
@@ -43,6 +44,7 @@ export class UsuariosService {
       cargo: u.cargo as Cargo,
       ativo: u.ativo,
       criadoEm: u.criadoEm,
+      whatsapp: u.whatsapp,
     }));
   }
 
@@ -55,9 +57,9 @@ export class UsuariosService {
     if (existe) throw new ConflictException('E-mail ja cadastrado');
     const senhaHash = await bcrypt.hash(dto.senha, 10);
     const usuario = await this.prisma.usuario.create({
-      data: { nome: dto.nome, email: dto.email, senhaHash, cargo: dto.cargo, ativo: true },
+      data: { nome: dto.nome, email: dto.email, senhaHash, cargo: dto.cargo, ativo: true, whatsapp: dto.whatsapp },
     });
-    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm };
+    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp };
   }
 
   async atualizar(
@@ -90,7 +92,8 @@ export class UsuariosService {
     if (dto.nome) dados.nome = dto.nome;
     if (dto.cargo) dados.cargo = dto.cargo;
     if (dto.ativo !== undefined) dados.ativo = dto.ativo;
+    if (dto.whatsapp !== undefined) dados.whatsapp = dto.whatsapp;
     const usuario = await this.prisma.usuario.update({ where: { id }, data: dados });
-    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm };
+    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp };
   }
 }
