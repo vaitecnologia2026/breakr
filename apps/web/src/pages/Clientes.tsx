@@ -280,8 +280,12 @@ function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente |
         await api.post('/clientes', corpo);
       }
       onCriado();
-    } catch {
-      setErroMsg(`Falha ao ${edicao ? 'salvar' : 'cadastrar'} o cliente. Verifique os dados e tente de novo.`);
+    } catch (err: unknown) {
+      // Mostra a mensagem real do backend (ex.: validação do CNPJ/e-mail) em vez de
+      // um texto genérico, para o erro ser acionável. class-validator retorna array.
+      const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+      const texto = Array.isArray(msg) ? msg.join(' ') : msg;
+      setErroMsg(texto || `Falha ao ${edicao ? 'salvar' : 'cadastrar'} o cliente. Verifique os dados e tente de novo.`);
       setSalvando(false);
     }
   }
