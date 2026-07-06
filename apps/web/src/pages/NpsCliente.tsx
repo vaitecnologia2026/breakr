@@ -43,8 +43,17 @@ export function NpsCliente() {
       setHistorico(h.data);
       setResumo(r.data);
       setClientes(c.data);
-    } catch {
-      setErro('Não foi possível carregar o NPS.');
+    } catch (e: unknown) {
+      // Mostra o motivo real (ex.: 403 sem permissão) em vez de um texto genérico.
+      const resp = (e as { response?: { status?: number; data?: { message?: string | string[] } } })?.response;
+      const msg = Array.isArray(resp?.data?.message) ? resp?.data?.message.join(' ') : resp?.data?.message;
+      setErro(
+        resp?.status === 403
+          ? 'Sem permissão para ver o NPS (disponível para CS, Admin e Super Admin).'
+          : msg
+            ? `Não foi possível carregar o NPS: ${msg}`
+            : 'Não foi possível carregar o NPS.',
+      );
     } finally {
       setCarregando(false);
     }

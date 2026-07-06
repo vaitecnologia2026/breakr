@@ -1055,7 +1055,6 @@ function ItemPesquisa({
 // Renderiza a mídia anexada à peça: imagem, vídeo ou (fallback) link externo (B5).
 function MidiaPeca({ url }: { url: string }) {
   const lower = url.toLowerCase();
-  const ehImagem = /\.(png|jpe?g|gif|webp|svg|avif)(\?|$)/.test(lower);
   const ehVideo = /\.(mp4|webm|mov|m4v|ogv)(\?|$)/.test(lower);
   const box = {
     marginTop: 10,
@@ -1063,17 +1062,6 @@ function MidiaPeca({ url }: { url: string }) {
     overflow: 'hidden',
     border: '1px solid var(--borda)',
   } as const;
-  if (ehImagem) {
-    return (
-      <div style={box}>
-        <img
-          src={url}
-          alt="Prévia da peça"
-          style={{ display: 'block', width: '100%', maxHeight: 360, objectFit: 'contain', background: 'var(--superficie-3)' }}
-        />
-      </div>
-    );
-  }
   if (ehVideo) {
     return (
       <div style={box}>
@@ -1081,15 +1069,17 @@ function MidiaPeca({ url }: { url: string }) {
       </div>
     );
   }
+  // Padrão: trata como imagem. Cobre URLs de imagem SEM extensão de arquivo
+  // (ex.: CDNs como picsum, thumbnails do Drive), que antes caíam no link e não
+  // exibiam a prévia. Se a URL não for uma imagem, o navegador mostra o alt/quebra.
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--texto-suave)', textDecoration: 'underline' }}
-    >
-      Ver mídia anexada ↗
-    </a>
+    <div style={box}>
+      <img
+        src={url}
+        alt="Prévia da peça"
+        style={{ display: 'block', width: '100%', maxHeight: 360, objectFit: 'contain', background: 'var(--superficie-3)' }}
+      />
+    </div>
   );
 }
 

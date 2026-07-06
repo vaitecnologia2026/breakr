@@ -206,6 +206,13 @@ export class ConteudosService {
     // B6: o handoff para design leva a peça a PRODUCAO — exige estratégia aprovada.
     await this.garantirEstrategiaAprovada(conteudo.clienteId);
     const designer = await this.membroDoSquad(conteudo.clienteId, FuncaoSquad.DESIGNER);
+    // Sem designer no squad do cliente, a peca iria para PRODUCAO sem responsavel e
+    // nunca apareceria no painel de nenhum designer. Bloqueia com orientacao clara.
+    if (!designer) {
+      throw new BadRequestException(
+        'O squad do cliente nao tem um Designer atribuido. Adicione um Designer ao squad (tela Squads) antes de encaminhar a peca para design.',
+      );
+    }
 
     await this.prisma.conteudo.update({
       where: { id },
