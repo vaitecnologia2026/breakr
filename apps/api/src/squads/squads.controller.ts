@@ -53,6 +53,15 @@ export class SquadsController {
     return this.squadsService.atualizar(id, dto.nome);
   }
 
+  // DELETE /squads/:id — exclui o squad (Admin/Superadmin).
+  @Delete(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  excluir(@Param('id', ParseUUIDPipe) id: string) {
+    return this.squadsService.excluir(id);
+  }
+
   // POST /squads/:id/membros — vincula usuario ao squad (Admin/Superadmin).
   @Post(':id/membros')
   @UseGuards(CargosGuard)

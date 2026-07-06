@@ -134,6 +134,19 @@ export class SquadsService {
     }
   }
 
+  // Exclui um squad. Bloqueia se houver clientes vinculados (evita desatribuir
+  // clientes silenciosamente). Os membros (SquadMembro) caem por cascade (schema).
+  async excluir(id: string): Promise<void> {
+    await this.garantirSquad(id);
+    const clientes = await this.prisma.cliente.count({ where: { squadId: id } });
+    if (clientes > 0) {
+      throw new ConflictException(
+        'Este squad tem clientes vinculados. Reatribua os clientes antes de excluir.',
+      );
+    }
+    await this.prisma.squad.delete({ where: { id } });
+  }
+
   // Vincula um usuario ao squad com uma funcao.
   // Regras: 1 funcao por squad e 1 usuario por squad (@@unique).
   async adicionarMembro(

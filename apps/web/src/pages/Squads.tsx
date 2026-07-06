@@ -202,6 +202,8 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
   const [novaFuncao, setNovaFuncao] = useState<FuncaoSquad>(FuncaoSquad.CS);
   const [addSalvando, setAddSalvando] = useState(false);
   const [addErro, setAddErro] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExcluir, setErroExcluir] = useState<string | null>(null);
 
   // Vincula um usuário ao squad (função + WhatsApp/ID vêm do próprio usuário) — req. l.140.
   async function adicionarMembro() {
@@ -225,6 +227,23 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
       await api.delete(`/squads/${squad.id}/membros/${membroId}`);
       aoAtualizar();
     } catch { /* silencioso */ }
+  }
+
+  // Exclui o squad (Admin/Superadmin). Confirma antes; o backend bloqueia se houver
+  // clientes vinculados, retornando a mensagem exibida ao usuário.
+  async function excluirSquad() {
+    if (excluindo) return;
+    if (!window.confirm(`Excluir o squad "${squad.nome}"? Esta ação não pode ser desfeita.`)) return;
+    setExcluindo(true);
+    setErroExcluir(null);
+    try {
+      await api.delete(`/squads/${squad.id}`);
+      aoAtualizar();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setErroExcluir(msg ?? 'Não foi possível excluir o squad.');
+      setExcluindo(false);
+    }
   }
 
   async function salvarNome() {
@@ -320,8 +339,33 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
             </div>
           </div>
         </div>
-        <BadgeAtivo ativo={squad.ativo} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <BadgeAtivo ativo={squad.ativo} />
+          {ehAdmin && !editando && (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditando(true)}
+                title="Editar (renomear) o squad"
+                style={{ background: 'none', border: '1px solid var(--borda)', color: 'var(--texto-suave)', cursor: 'pointer', fontSize: 12, fontWeight: 700, borderRadius: 8, padding: '4px 10px' }}
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={excluirSquad}
+                disabled={excluindo}
+                title="Excluir o squad"
+                style={{ background: 'none', border: '1px solid rgba(226,115,138,.5)', color: '#e2738a', cursor: excluindo ? 'default' : 'pointer', fontSize: 12, fontWeight: 700, borderRadius: 8, padding: '4px 10px' }}
+              >
+                {excluindo ? '…' : 'Excluir'}
+              </button>
+            </>
+          )}
+        </div>
       </header>
+
+      {erroExcluir && <MensagemErro texto={erroExcluir} />}
 
       <div style={{ borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
         {squad.membros.length === 0 ? (
