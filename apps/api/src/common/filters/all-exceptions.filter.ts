@@ -38,6 +38,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `${req.method} ${req.url} → ${status}`,
         (exception as Error)?.stack,
       );
+    } else if (status >= 400) {
+      // Loga tambem os 4xx (validacao/permissao/nao-encontrado) como aviso, para
+      // diagnosticar falhas de teste sem vazar stack ao cliente. Aditivo: nao muda
+      // a resposta enviada, so registra no servidor.
+      const detalhe = Array.isArray(message) ? message.join('; ') : message;
+      this.logger.warn(`${req.method} ${req.url} → ${status}: ${detalhe}`);
     }
 
     res.status(status).json({
