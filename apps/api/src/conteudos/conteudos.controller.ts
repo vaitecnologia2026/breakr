@@ -1,5 +1,6 @@
 // Controller do funil de producao de conteudo (M16).
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -8,8 +9,16 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { extname, join } from 'path';
+import { randomUUID } from 'crypto';
+import type { Request } from 'express';
 import { StatusConteudo } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CargosGuard } from '../common/rbac/cargos.guard';
@@ -32,6 +41,23 @@ const TIME_CONTEUDO = [
   Cargo.DESIGNER,
   Cargo.EDITOR_VIDEO,
 ] as const;
+
+// Limite de upload de midia: 20 MB.
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+// Diretorio de uploads (mesmo do main.ts): env ou apps/api/uploads.
+const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), 'uploads');
+// Documentos aceitos alem de image/* e video/* (pdf, word, excel, ppt, txt, csv).
+const TIPOS_DOC_PERMITIDOS = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+];
 
 @Controller('conteudos')
 @UseGuards(JwtAuthGuard)
@@ -140,5 +166,53 @@ export class ConteudosController {
     @Body() dto: AtualizarMidiaDto,
   ) {
     return this.conteudosService.atualizarMidia(id, dto.midiaUrl);
+  }
+
+  // POST /conteudos/:id/midia/upload — upload de arquivo de midia (imagem, video
+  // ou documento) ate 20 MB. Alternativa ao anexo por link (PATCH .../midia).
+  // O arquivo e salvo em disco e servido em /uploads; a URL publica vira a midiaUrl.
+  @Post(':id/midia/upload')
+  @UseGuards(CargosGuard)
+  @Cargos(
+    Cargo.SUPERADMIN,
+    Cargo.ADMIN,
+    Cargo.ESTRATEGISTA,
+    Cargo.CS,
+    Cargo.COPYWRITER,
+    Cargo.DESIGNER,
+    Cargo.EDITOR_VIDEO,
+  )
+  @UseInterceptors(
+    FileInterceptor('arquivo', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
+  )
+  uploadMidia(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile()
+    arquivo:
+      | { originalname: string; mimetype: string; size: number; buffer: Buffer }
+      | undefined,
+    @Req() req: Request,
+  ) {
+    if (!arquivo) {
+      throw new BadRequestException('Nenhum arquivo enviado (campo "arquivo").');
+    }
+    const permitido =
+      arquivo.mimetype.startsWith('image/') ||
+      arquivo.mimetype.startsWith('video/') ||
+      TIPOS_DOC_PERMITIDOS.includes(arquivo.mimetype);
+    if (!permitido) {
+      throw new BadRequestException(
+        'Tipo de arquivo nao permitido. Envie imagem, video ou documento (pdf, doc, xls, ppt, txt, csv).',
+      );
+    }
+
+    if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true });
+    const ext = extname(arquivo.originalname).toLowerCase().slice(0, 12);
+    const nomeArquivo = `${randomUUID()}${ext}`;
+    writeFileSync(join(UPLOAD_DIR, nomeArquivo), arquivo.buffer);
+
+    const base = `${req.protocol}://${req.get('host')}`;
+    const url = `${base}/uploads/${nomeArquivo}`;
+    return this.conteudosService.atualizarMidia(id, url);
   }
 }

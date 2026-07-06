@@ -1,19 +1,38 @@
 // Bootstrap da API Breakr OS (NestJS).
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
+  // Confia no proxy (Caddy) para protocolo/host reais (X-Forwarded-*) — usado ao
+  // montar a URL publica de arquivos enviados.
+  app.set('trust proxy', true);
+
   // Headers de segurança HTTP. CSP desligado (API JSON, não serve HTML; o front
-  // é servido pela Vercel) para não interferir no consumo cross-origin.
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // é servido pela Vercel). CORP "cross-origin" permite que o front (Vercel) exiba
+  // as midias servidas por esta API (imagens/videos anexados as pecas).
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+
+  // Uploads de midia (conteudo): diretorio local servido estaticamente em /uploads.
+  // Persiste entre deploys (fica em apps/api/uploads, fora do que o deploy sobrescreve).
+  const uploadDir = process.env.UPLOAD_DIR ?? join(process.cwd(), 'uploads');
+  if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+  app.useStaticAssets(uploadDir, { prefix: '/uploads/' });
 
   // Tratamento global de exceções — resposta consistente, sem vazar stack.
   app.useGlobalFilters(new AllExceptionsFilter());

@@ -442,6 +442,8 @@ function CardConteudo({
   // Editor inline da URL da mídia (imagem/vídeo) que o cliente vê na aprovação (B5).
   const [editMidia, setEditMidia] = useState(false);
   const [midia, setMidia] = useState(conteudo.midiaUrl ?? '');
+  // Upload de arquivo (imagem/vídeo/documento) — alternativa ao anexo por link.
+  const [enviandoArq, setEnviandoArq] = useState(false);
 
   async function mover(novo: StatusConteudo) {
     if (movendo || novo === conteudo.status) return;
@@ -482,6 +484,31 @@ function CardConteudo({
     } catch {
       aoErroAcao('Não foi possível salvar a mídia.');
       setMovendo(false);
+    }
+  }
+
+  // Upload de arquivo de mídia (imagem/vídeo/documento) até 20 MB — alternativa ao
+  // anexo por link. Envia multipart para o backend, que salva e devolve a peça.
+  async function enviarArquivo(file: File) {
+    if (enviandoArq || movendo) return;
+    if (file.size > 20 * 1024 * 1024) {
+      aoErroAcao('Arquivo maior que 20 MB. Escolha um arquivo menor.');
+      return;
+    }
+    setEnviandoArq(true);
+    aoErroAcao(null);
+    try {
+      const form = new FormData();
+      form.append('arquivo', file);
+      await api.post(`/conteudos/${conteudo.id}/midia/upload`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      aoAtualizar();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      aoErroAcao(msg ?? 'Não foi possível enviar o arquivo.');
+    } finally {
+      setEnviandoArq(false);
     }
   }
 
@@ -572,6 +599,17 @@ function CardConteudo({
 
       {editMidia ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--texto-fraco)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {enviandoArq ? 'Enviando arquivo…' : 'Enviar arquivo (até 20 MB — imagem, vídeo ou documento)'}
+            <input
+              type="file"
+              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+              disabled={movendo || enviandoArq}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarArquivo(f); e.currentTarget.value = ''; }}
+              style={{ fontSize: 12 }}
+            />
+          </label>
+          <span style={{ fontSize: 11, color: 'var(--texto-fraco)', textAlign: 'center' }}>ou importe por link:</span>
           <input
             className="brk-input"
             type="url"
