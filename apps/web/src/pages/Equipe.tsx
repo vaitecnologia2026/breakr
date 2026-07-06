@@ -88,8 +88,12 @@ export function Equipe() {
     }
     setSalvando(true); setErroCriar(null);
     try {
-      await api.post('/usuarios', { ...form, whatsapp: form.whatsapp.trim() || undefined });
+      const { data: novo } = await api.post<Usuario>('/usuarios', { ...form, whatsapp: form.whatsapp.trim() || undefined });
       await carregar();
+      // Realtime: garante que o usuário recém-criado apareça na hora, mesmo que o
+      // refetch acima retorne uma resposta em cache/defasada. A guarda por id evita
+      // duplicar quando o carregar() já trouxe o novo usuário.
+      setLista((l) => (l.some((u) => u.id === novo.id) ? l : [novo, ...l]));
       setModalNovo(false);
       setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '' });
       setSucesso('Usuário criado com sucesso.');
