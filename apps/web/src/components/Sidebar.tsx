@@ -163,6 +163,55 @@ const GRUPO_ADMIN: NavGroup = {
 
 const TODOS_ITENS: NavItem[] = GRUPOS.flatMap((g) => g.items);
 
+// ─── Status de teste por tela (bolinha ao lado do item) ───────────────────────
+// 'ok' verde = testado e funcional; 'erro' vermelho = tem erro a ajustar.
+// Telas não listadas caem em 'na' (amarelo = não testado). Base: suíte E2E que
+// passa em produção (verde) + achados do qa-explorador (vermelho).
+type StatusTeste = 'ok' | 'na' | 'erro';
+
+const STATUS_TESTE: Record<string, StatusTeste> = {
+  '/clientes': 'ok',
+  '/planos': 'ok',
+  '/squads': 'ok',
+  '/equipe': 'ok',
+  '/conteudos': 'ok',
+  '/estrategia': 'ok',
+  '/chat': 'ok',
+  '/atendimento': 'ok',
+  '/': 'erro',            // Dashboard: "Pecas" sem cedilha (achado do qa-explorador)
+  '/nps-cliente': 'erro', // NPS: "1 respostas" (pluralização incorreta)
+};
+
+const COR_STATUS: Record<StatusTeste, string> = {
+  ok: '#2ecc71',
+  na: '#ffb44d',
+  erro: '#e2738a',
+};
+
+const ROTULO_STATUS: Record<StatusTeste, string> = {
+  ok: 'Testado e funcional',
+  na: 'Não testado',
+  erro: 'Tem erro — precisa ajustar',
+};
+
+function PontoStatusTeste({ para }: { para: string }) {
+  const status: StatusTeste = STATUS_TESTE[para] ?? 'na';
+  return (
+    <span
+      title={ROTULO_STATUS[status]}
+      style={{
+        display: 'inline-block',
+        width: 8,
+        height: 8,
+        borderRadius: 999,
+        background: COR_STATUS[status],
+        marginRight: 6,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
 // ─── Chaves de persistência ───────────────────────────────────────────────────
 
 const COLLAPSED_KEY = 'brk.sidebar.collapsed';
@@ -387,7 +436,7 @@ function SidebarLink({
         title={rotulo}
       >
         <span className="brk-sidebar-icon" aria-hidden="true">{icone}</span>
-        <span className="brk-sidebar-item-label">{rotulo}</span>
+        <span className="brk-sidebar-item-label"><PontoStatusTeste para={para} />{rotulo}</span>
       </NavLink>
       {onToggleFav && (
         <button
