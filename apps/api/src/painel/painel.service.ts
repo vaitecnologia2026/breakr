@@ -128,7 +128,7 @@ export class PainelService {
       acoes.push({ chave: 'faturas-pendentes', label: 'Cobrancas pendentes', count: faturasPendentes, link: '/cobrancas', tom: 'info' });
     }
     if (conteudosParaAprovar) {
-      acoes.push({ chave: 'conteudo-aprovacao', label: 'Pecas aguardando o cliente', count: conteudosParaAprovar, link: '/conteudos', tom: 'info' });
+      acoes.push({ chave: 'conteudo-aprovacao', label: 'Peças aguardando o cliente', count: conteudosParaAprovar, link: '/conteudos', tom: 'info' });
     }
     if (conteudosSlaRisco) {
       acoes.push({ chave: 'sla-risco', label: 'Pecas sem atividade +72h (SLA)', count: conteudosSlaRisco, link: '/conteudos', tom: 'erro' });
