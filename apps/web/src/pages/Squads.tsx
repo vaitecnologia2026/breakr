@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { FuncaoSquad } from '@breakr/shared';
+import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { useAuth } from '../lib/auth';
@@ -27,7 +27,7 @@ import {
 
 interface MembroSquad {
   id: string;
-  funcao: FuncaoSquad;
+  funcao: string;
   usuario: { id: string; nome: string; cargo: string; whatsapp?: string | null };
 }
 
@@ -48,13 +48,18 @@ interface Squad {
 }
 
 // Rótulo amigável + cor de acento por função no squad.
-const FUNCOES: Record<FuncaoSquad, { rotulo: string; cor: string }> = {
+const FUNCOES: Record<string, { rotulo: string; cor: string }> = {
   [FuncaoSquad.CS]: { rotulo: 'CS', cor: '#2ecc71' },
   [FuncaoSquad.ESTRATEGISTA]: { rotulo: 'Estrategista', cor: '#ff9406' },
   [FuncaoSquad.COPYWRITER]: { rotulo: 'Copywriter', cor: '#ca3f17' },
   [FuncaoSquad.DESIGNER]: { rotulo: 'Designer', cor: '#b06cf0' },
   [FuncaoSquad.EDITOR_VIDEO]: { rotulo: 'Editor de vídeo', cor: '#4aa3f0' },
   [FuncaoSquad.GESTOR_TRAFEGO]: { rotulo: 'Tráfego', cor: '#f0c34a' },
+  [Cargo.COMERCIAL]: { rotulo: 'Comercial', cor: '#4aa3f0' },
+  [Cargo.FINANCEIRO]: { rotulo: 'Financeiro', cor: '#2ecc71' },
+  [Cargo.JURIDICO]: { rotulo: 'Jurídico', cor: '#b06cf0' },
+  [Cargo.ADMIN]: { rotulo: 'Admin', cor: '#e2738a' },
+  [Cargo.SUPERADMIN]: { rotulo: 'Superadmin', cor: '#e2738a' },
 };
 
 const MOCK_SQUADS: Squad[] = [
@@ -199,7 +204,7 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
   const [nome, setNome] = useState(squad.nome);
   const [salvando, setSalvando] = useState(false);
   const [novoUsuario, setNovoUsuario] = useState('');
-  const [novaFuncao, setNovaFuncao] = useState<FuncaoSquad>(FuncaoSquad.CS);
+  const [novaFuncao, setNovaFuncao] = useState<Cargo>(Cargo.CS);
   const [addSalvando, setAddSalvando] = useState(false);
   const [addErro, setAddErro] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState(false);
@@ -445,10 +450,10 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
             <select
               className="brk-input"
               value={novaFuncao}
-              onChange={(e) => setNovaFuncao(e.target.value as FuncaoSquad)}
+              onChange={(e) => setNovaFuncao(e.target.value as Cargo)}
               style={{ flex: '0 1 140px', fontSize: 12.5, padding: '6px 8px' }}
             >
-              {Object.values(FuncaoSquad).map((f) => <option key={f} value={f}>{FUNCOES[f]?.rotulo ?? f}</option>)}
+              {Object.values(Cargo).map((f) => <option key={f} value={f}>{FUNCOES[f]?.rotulo ?? f}</option>)}
             </select>
             <BotaoPrimario onClick={adicionarMembro} disabled={!novoUsuario || addSalvando}>
               {addSalvando ? '…' : '+ Add'}
@@ -461,7 +466,7 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
   );
 }
 
-function ChipFuncao({ funcao }: { funcao: FuncaoSquad }) {
+function ChipFuncao({ funcao }: { funcao: string }) {
   const cfg = FUNCOES[funcao] ?? { rotulo: funcao, cor: 'var(--texto-fraco)' };
   return (
     <span

@@ -2,8 +2,7 @@
 // um `tipo` string; uma regra lista as acoes que executa. Extensivel: registrar
 // uma acao nova = adicionar uma entrada no catalogo (sem mexer no dispatcher).
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { FuncaoSquad } from '@prisma/client';
-import { Cargo } from '@breakr/shared';
+import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { dataIsoSaoPaulo } from '../../common/data.util';
 import { NotificacoesService } from '../../notificacoes/notificacoes.service';
