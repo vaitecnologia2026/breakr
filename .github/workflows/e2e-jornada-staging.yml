@@ -1,0 +1,114 @@
+name: E2E Jornada (staging efêmero)
+
+# Sobe um ambiente EFÊMERO dentro do runner (Postgres + API + Web buildado),
+# semeia o banco e roda a JORNADA COMPLETA (@jornada) — a operação inteira como
+# um humano: plano → usuários → squad → cliente → estratégia → portal aprova →
+# conteúdo → mídia → design → aprovação → portal aprova a peça → NPS.
+#
+# Roda contra o app efêmero (localhost), NUNCA contra produção — então pode
+# gravar à vontade; o banco é descartado ao fim do job.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'e2e/tests/jornada-completa.spec.ts'
+      - '.github/workflows/e2e-jornada-staging.yml'
+
+jobs:
+  jornada:
+    name: Jornada completa (efêmero)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: breakr
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/breakr?schema=public
+      JWT_SECRET: ci-secret-e2e-jornada
+      PORT: '3000'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependências (monorepo)
+        run: npm ci
+
+      - name: Prisma generate + migrate + seed (admin@breakr.com / admin123)
+        run: |
+          npm run db:generate
+          # migrate deploy agora reproduz o schema COMPLETO: a migration
+          # 20260707000000_sync_schema cobre a defasagem que existia (ex.: coluna
+          # usuario.whatsapp, tabelas estrategia/nps_cliente/pesquisa etc.).
+          npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+          npm run db:seed
+
+      - name: Build shared + API
+        run: |
+          npm run build --workspace @breakr/shared
+          npm run build --workspace @breakr/api
+
+      - name: Build Web (apontando para a API local)
+        run: npm run build --workspace @breakr/web
+        env:
+          VITE_API_URL: http://localhost:3000
+
+      - name: Subir API (background)
+        run: nohup node apps/api/dist/main.js > api.log 2>&1 &
+
+      - name: Subir Web buildado (background, porta 5173)
+        run: nohup npx vite preview --port 5173 --strictPort > ../../web.log 2>&1 &
+        working-directory: apps/web
+
+      - name: Esperar API e Web ficarem de pé
+        run: npx --yes wait-on http://localhost:3000/health http://localhost:5173 -t 90000
+
+      - name: Instalar Playwright (e2e)
+        working-directory: e2e
+        run: npm install
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Instalar navegador (Chromium + libs)
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar a JORNADA COMPLETA
+        working-directory: e2e
+        run: npx playwright test jornada --project=setup --project=autenticado
+        env:
+          BASE_URL: http://localhost:5173
+          BREAKR_USUARIO: admin@breakr.com
+          BREAKR_SENHA: admin123
+
+      - name: Logs do servidor (se falhar)
+        if: failure()
+        run: |
+          echo "===== api.log ====="; tail -n 120 api.log || true
+          echo "===== web.log ====="; tail -n 120 web.log || true
+
+      - name: Publicar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jornada-report
+          path: e2e/playwright-report
+          retention-days: 14

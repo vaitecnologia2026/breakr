@@ -1,0 +1,70 @@
+name: E2E Produção (Playwright)
+
+# Testes ponta a ponta que simulam um usuário real no navegador, rodando contra
+# o ambiente de PRODUÇÃO. Espelham o CHECKLIST-TESTES-BREAKR.html.
+#
+# • push/PR e agenda diária → só testes de LEITURA (@leitura): seguros, não gravam.
+# • acionamento manual (workflow_dispatch) → pode incluir os testes de ESCRITA
+#   (@escrita), que gravam no banco de produção. Ficam de fora do automático de
+#   propósito, para não poluir a base a cada push.
+#
+# Secrets necessários no repositório (Settings → Secrets and variables → Actions):
+#   BREAKR_USUARIO, BREAKR_SENHA, BREAKR_PORTAL_CODIGO
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'e2e/**'
+      - '.github/workflows/e2e-producao.yml'
+  schedule:
+    - cron: '0 9 * * *' # 06:00 (BRT) todos os dias — monitora produção
+  workflow_dispatch:
+    inputs:
+      incluir_escrita:
+        description: 'Rodar também os testes de ESCRITA (gravam no banco de produção)'
+        type: boolean
+        default: false
+
+jobs:
+  e2e:
+    name: Playwright em produção
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+    env:
+      BASE_URL: https://breakr.vaitecnologia.com.br
+      BREAKR_USUARIO: ${{ secrets.BREAKR_USUARIO }}
+      BREAKR_SENHA: ${{ secrets.BREAKR_SENHA }}
+      BREAKR_PORTAL_CODIGO: ${{ secrets.BREAKR_PORTAL_CODIGO }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Instala as deps sem baixar o browser aqui (o passo abaixo baixa com as libs do SO).
+      - name: Instalar dependências
+        run: npm install
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Instalar navegador (Chromium + libs)
+        run: npx playwright install --with-deps chromium
+
+      - name: Testes de LEITURA (sempre)
+        run: npx playwright test --grep @leitura --project=setup --project=autenticado --project=anonimo --project=portal-mobile
+
+      - name: Testes de ESCRITA (só manual, se marcado)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.incluir_escrita }}
+        run: npx playwright test --grep @escrita --project=setup --project=autenticado
+
+      - name: Publicar relatório (sempre)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 14

@@ -329,9 +329,9 @@ function Coluna({
   const meta = STATUS_META[status];
   return (
     <div
+      className="brk-kanban-col"
       style={{
         flex: '0 0 auto',
-        width: 240,
         background: 'var(--superficie)',
         border: '1px solid var(--borda)',
         borderRadius: 16,
