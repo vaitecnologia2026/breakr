@@ -52,10 +52,13 @@ jobs:
       - name: Instalar dependências (monorepo)
         run: npm ci
 
-      - name: Prisma generate + migrate + seed (admin@breakr.com / admin123)
+      - name: Prisma generate + sincroniza schema + seed (admin@breakr.com / admin123)
         run: |
           npm run db:generate
-          npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+          # db push (não migrate deploy): as migrations commitadas estão defasadas
+          # do schema.prisma (ex.: coluna usuario.whatsapp). Para o banco EFÊMERO,
+          # sincronizamos direto do schema, garantindo todas as colunas atuais.
+          npx prisma db push --schema=apps/api/prisma/schema.prisma --skip-generate --accept-data-loss
           npm run db:seed
 
       - name: Build shared + API
