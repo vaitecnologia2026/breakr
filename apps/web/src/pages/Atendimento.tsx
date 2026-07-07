@@ -10,11 +10,12 @@ import {
   type FormEvent,
 } from 'react';
 import { api } from '../lib/api';
+import { AtendimentoVaiCrm } from './AtendimentoVaiCrm';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Status = 'PENDENTE' | 'ATENDENDO' | 'RESOLVIDO';
-type TabInbox = 'ATIVOS' | 'PENDENTES' | 'GRUPOS';
+type TabInbox = 'ATIVOS' | 'PENDENTES' | 'GRUPOS' | 'VAICRM';
 
 interface TemplateGrupo {
   id: string;
@@ -394,6 +395,11 @@ export function Atendimento() {
   if (carregando) return <EstadoCarregando />;
   if (erro) return <EstadoErro mensagem={erro} onRetry={carregarInbox} />;
 
+  // Aba VAI CRM (integração externa) — view própria e isolada; não afeta o inbox local.
+  if (tabAtiva === 'VAICRM') {
+    return <AtendimentoVaiCrm onVoltar={() => setTabAtiva('ATIVOS')} />;
+  }
+
   return (
     <div style={{ display: 'flex', margin: '-28px -32px', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
 
@@ -516,6 +522,7 @@ export function Atendimento() {
               { key: 'ATIVOS' as TabInbox, label: 'Ativos', count: inbox.atendendo.length, icon: '🎧' },
               { key: 'PENDENTES' as TabInbox, label: 'Pendentes', count: inbox.pendente.length, icon: '⏱' },
               { key: 'GRUPOS' as TabInbox, label: 'Grupos', count: TEMPLATES_GRUPO.length, icon: '💬' },
+              { key: 'VAICRM' as TabInbox, label: 'VAI CRM', count: 0, icon: '🔗' },
             ]).map((tab) => {
               const ativa = tabAtiva === tab.key;
               return (

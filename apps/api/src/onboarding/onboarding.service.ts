@@ -12,12 +12,15 @@ import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
 
 // Etapas padrao do onboarding (ordem fixa do checklist gamificado).
+// Alinhadas aos 6 processos do fluxo real de onboarding (workflow n8n
+// "Liberar Onboarding Apos Pagamento" / checklist 6.5).
 const ETAPAS_PADRAO: Array<{ ordem: number; titulo: string }> = [
-  { ordem: 1, titulo: 'Preencher briefing da marca' },
-  { ordem: 2, titulo: 'Enviar acessos (Instagram, Meta, site)' },
-  { ordem: 3, titulo: 'Aprovar identidade e tom de voz' },
-  { ordem: 4, titulo: 'Reunião de kickoff com o squad' },
-  { ordem: 5, titulo: 'Definir metas e orçamento do mês' },
+  { ordem: 1, titulo: 'Alinhamento de expectativa (ligação)' },
+  { ordem: 2, titulo: 'Briefing (Meet)' },
+  { ordem: 3, titulo: 'Coleta de acessos (Meet)' },
+  { ordem: 4, titulo: 'Cadastro no Hub' },
+  { ordem: 5, titulo: 'Produção de materiais' },
+  { ordem: 6, titulo: 'Instalar integrações' },
 ];
 
 @Injectable()
