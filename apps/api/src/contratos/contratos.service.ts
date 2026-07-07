@@ -120,7 +120,7 @@ export class ContratosService {
       nomeDocumento: `Contrato ${contrato.codigoUnico} — ${contrato.cliente.nomeFantasia}`,
       pdfBase64: pdfBuffer.toString('base64'),
       signatarios: [
-        { nome: contrato.cliente.nomeFantasia, email: 'contato@cliente.com' },
+        { nome: contrato.cliente.nomeFantasia, email: contrato.cliente.email ?? 'contato@cliente.com' },
       ],
     });
 
