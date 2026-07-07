@@ -12,6 +12,6 @@ import { GeminiProvider } from './provedores/gemini.provider';
 @Module({
   controllers: [IaController],
   providers: [IaConfigService, IaService, IaAssistenteService, IntegracoesConfigService, PortalConfigService, OpenAiProvider, AnthropicProvider, GeminiProvider],
-  exports: [IaService],
+  exports: [IaService, IntegracoesConfigService],
 })
 export class IaModule {}
