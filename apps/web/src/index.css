@@ -914,6 +914,14 @@ input, textarea, select { font-family: inherit; }
 .brk-kanban-col { width: 240px; }
 @media (max-width: 640px) { .brk-kanban-col { width: 85vw; } }
 
+/* A faixa de rolagem do kanban usa a largura real disponível (viewport menos a
+   sidebar e o padding lateral), em vez de ficar presa ao max-width de 1400px do
+   .brk-content — evita colunas cortadas com espaço vazio em telas ultrawide.
+   Só a partir de 641px; no celular mantém a largura padrão da coluna (85vw). */
+@media (min-width: 641px) {
+  .brk-kanban-scroll { width: calc(100vw - var(--sidebar-w) - 64px); }
+}
+
 /* ── Topbar dentro do layout ── */
 .brk-topbar-version {
   font-size: 10.5px; color: var(--texto-fraco);
