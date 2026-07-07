@@ -34,10 +34,10 @@ export class ContratosController {
     return this.contratosService.obter(id);
   }
 
-  // POST /contratos — cria (Comercial/CS/Admin/Superadmin).
+  // POST /contratos — cria (Comercial/CS/Juridico/Admin/Superadmin).
   @Post()
   @UseGuards(CargosGuard)
-  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS, Cargo.JURIDICO)
   criar(@Body() dto: CriarContratoDto) {
     return this.contratosService.criar(dto);
   }
