@@ -6,8 +6,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FuncaoSquad, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
-import { Cargo } from '@breakr/shared';
+import { StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';

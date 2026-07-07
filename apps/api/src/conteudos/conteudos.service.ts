@@ -4,8 +4,8 @@
 // criacao/transicao dispara o motor; ao ir para APROVACAO_CLIENTE o CS e
 // notificado para acompanhar a aprovacao no portal.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Conteudo, FuncaoSquad, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
-import { Cargo } from '@breakr/shared';
+import { Conteudo, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { EngineService } from '../automacao/engine.service';
