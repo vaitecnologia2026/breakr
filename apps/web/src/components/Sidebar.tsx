@@ -161,6 +161,19 @@ const GRUPO_ADMIN: NavGroup = {
   ],
 };
 
+// Grupo da Área administrativa — visível para Jurídico (e Admin/Superadmin).
+const GRUPO_ADMINISTRATIVO: NavGroup = {
+  label: 'Área administrativa',
+  icone: <IcoBriefcase />,
+  collapsible: true,
+  items: [
+    { para: '/contratos',  rotulo: 'Contratos',  icone: <IcoFileText /> },
+    { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoStar /> },
+    { para: '/captacao',   rotulo: 'Captação',   icone: <IcoFileText /> },
+    { para: '/ouvidoria',  rotulo: 'Ouvidoria',  icone: <IcoFileText /> },
+  ],
+};
+
 const TODOS_ITENS: NavItem[] = GRUPOS.flatMap((g) => g.items);
 
 // ─── Status de teste por tela (bolinha ao lado do item) ───────────────────────
@@ -230,6 +243,7 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
   const { usuario, logout } = useAuth();
   const { favoritos, toggleFav } = useFavoritos();
   const isAdmin = usuario?.cargo === 'ADMIN' || usuario?.cargo === 'SUPERADMIN';
+  const isJuridico = usuario?.cargo === 'JURIDICO';
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; }
@@ -312,6 +326,13 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
                 onToggleFav={(item) => toggleFavItem(item)}
               />
             ))}
+            {(isAdmin || isJuridico) && (
+              <NavGrupo
+                {...GRUPO_ADMINISTRATIVO}
+                favoritos={favoritos}
+                onToggleFav={(item) => toggleFavItem(item)}
+              />
+            )}
             {isAdmin && (
               <NavGrupo
                 {...GRUPO_ADMIN}
