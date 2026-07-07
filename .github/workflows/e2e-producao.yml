@@ -43,7 +43,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       # Instala as deps sem baixar o browser aqui (o passo abaixo baixa com as libs do SO).
       - name: Instalar dependências

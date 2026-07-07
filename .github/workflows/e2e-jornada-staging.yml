@@ -46,19 +46,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Instalar dependências (monorepo)
         run: npm ci
 
-      - name: Prisma generate + sincroniza schema + seed (admin@breakr.com / admin123)
+      - name: Prisma generate + migrate + seed (admin@breakr.com / admin123)
         run: |
           npm run db:generate
-          # db push (não migrate deploy): as migrations commitadas estão defasadas
-          # do schema.prisma (ex.: coluna usuario.whatsapp). Para o banco EFÊMERO,
-          # sincronizamos direto do schema, garantindo todas as colunas atuais.
-          npx prisma db push --schema=apps/api/prisma/schema.prisma --skip-generate --accept-data-loss
+          # migrate deploy agora reproduz o schema COMPLETO: a migration
+          # 20260707000000_sync_schema cobre a defasagem que existia (ex.: coluna
+          # usuario.whatsapp, tabelas estrategia/nps_cliente/pesquisa etc.).
+          npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
           npm run db:seed
 
       - name: Build shared + API
