@@ -294,6 +294,7 @@ function Kanban({
 
   return (
     <div
+      className="brk-kanban-scroll"
       style={{
         display: 'flex',
         gap: 14,
