@@ -8,6 +8,8 @@ interface IntegracaoEntry {
   apiKey?: string | null;
   sandbox?: boolean;
   instancia?: string | null;
+  email?: string | null;
+  senha?: string | null;
 }
 
 interface Integracoes {
@@ -15,6 +17,7 @@ interface Integracoes {
   speed: IntegracaoEntry;
   autentique: IntegracaoEntry;
   whatsapp: IntegracaoEntry;
+  vaicrm: IntegracaoEntry;
 }
 
 interface IntegracoesPublicas {
@@ -22,6 +25,7 @@ interface IntegracoesPublicas {
   speed: { temChave: boolean; preview: string | null };
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
+  vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
 }
 
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
@@ -44,6 +48,7 @@ export class IntegracoesConfigService {
       speed: integ.speed ?? {},
       autentique: integ.autentique ?? {},
       whatsapp: integ.whatsapp ?? {},
+      vaicrm: integ.vaicrm ?? {},
     };
   }
 
@@ -54,6 +59,23 @@ export class IntegracoesConfigService {
       speed: { temChave: !!integ.speed.apiKey, preview: this.mascarar(integ.speed.apiKey) },
       autentique: { temChave: !!integ.autentique.apiKey, preview: this.mascarar(integ.autentique.apiKey) },
       whatsapp: { temToken: !!integ.whatsapp.apiKey, preview: this.mascarar(integ.whatsapp.apiKey), instancia: integ.whatsapp.instancia ?? null },
+      vaicrm: {
+        temToken: !!integ.vaicrm.apiKey,
+        preview: this.mascarar(integ.vaicrm.apiKey),
+        email: integ.vaicrm.email ?? null,
+        temSenha: !!integ.vaicrm.senha,
+        configurado: !!integ.vaicrm.apiKey || !!(integ.vaicrm.email && integ.vaicrm.senha),
+      },
+    };
+  }
+
+  // Uso interno (VaiCrmService): credenciais BRUTAS do VAI CRM (nunca expostas por controller).
+  async obterVaiCrmRaw(): Promise<{ apiToken: string | null; email: string | null; senha: string | null }> {
+    const integ = await this.lerParametros();
+    return {
+      apiToken: integ.vaicrm.apiKey ?? null,
+      email: integ.vaicrm.email ?? null,
+      senha: integ.vaicrm.senha ?? null,
     };
   }
 
@@ -64,6 +86,9 @@ export class IntegracoesConfigService {
     autentiqueToken?: string;
     whatsappToken?: string;
     whatsappInstancia?: string;
+    vaicrmToken?: string;
+    vaicrmEmail?: string;
+    vaicrmSenha?: string;
   }): Promise<IntegracoesPublicas> {
     const integ = await this.lerParametros();
     const limpavel = (v: string | undefined, atual: string | null | undefined) =>
@@ -76,6 +101,11 @@ export class IntegracoesConfigService {
       whatsapp: {
         apiKey: limpavel(dto.whatsappToken, integ.whatsapp.apiKey),
         instancia: limpavel(dto.whatsappInstancia, integ.whatsapp.instancia),
+      },
+      vaicrm: {
+        apiKey: limpavel(dto.vaicrmToken, integ.vaicrm.apiKey),
+        email: limpavel(dto.vaicrmEmail, integ.vaicrm.email),
+        senha: limpavel(dto.vaicrmSenha, integ.vaicrm.senha),
       },
     };
 

@@ -4,16 +4,27 @@
 // Ele apenas consome os chats/mensagens do VAI CRM para exibi-los dentro da
 // tela de Atendimento do Breakr, numa aba própria ("VAI CRM").
 //
-// Autenticação (por variáveis de ambiente — nenhum segredo fica no código):
-//   VAICRM_API_URL       (opcional) base da API. Padrão: https://api.vaicrm.com.br
-//   VAICRM_API_TOKEN     (opcional) API Token permanente ("vai_..."). Se presente, é usado direto.
-//   VAICRM_EMAIL         (opcional) e-mail para login (fallback quando não há API Token).
-//   VAICRM_PASSWORD      (opcional) senha para login.
-// Basta configurar o API Token OU o par e-mail/senha.
+// Credenciais (prioridade: Configurações → Integrações no banco; fallback: env):
+//   1) Configurações → Integrações → "VAI CRM": Token da API OU e-mail/senha.
+//   2) Fallback por variáveis de ambiente (compat com deploy anterior):
+//      VAICRM_API_URL   (opcional) base da API. Padrão: https://api.vaicrm.com.br
+//      VAICRM_API_TOKEN (opcional) API Token permanente ("vai_..."). Se presente, é usado direto.
+//      VAICRM_EMAIL     (opcional) e-mail para login (fallback quando não há API Token).
+//      VAICRM_PASSWORD  (opcional) senha para login.
+// Basta configurar o API Token OU o par e-mail/senha (por um dos dois meios).
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { IntegracoesConfigService } from '../ia/integracoes-config.service';
 
 interface LoginResp {
   access_token?: string;
+}
+
+// Credenciais já resolvidas (banco com prioridade, env como fallback).
+interface VaiCrmCfg {
+  baseUrl: string;
+  apiToken: string | null;
+  email: string | null;
+  senha: string | null;
 }
 
 @Injectable()
@@ -24,33 +35,44 @@ export class VaiCrmService {
   private jwt: string | null = null;
   private jwtExpiraEm = 0; // epoch ms
 
-  private get baseUrl(): string {
-    return (process.env.VAICRM_API_URL ?? 'https://api.vaicrm.com.br').replace(/\/+$/, '');
-  }
+  constructor(private readonly integ: IntegracoesConfigService) {}
 
-  private get apiToken(): string | null {
-    const t = process.env.VAICRM_API_TOKEN?.trim();
-    return t ? t : null;
-  }
-
-  private get credenciais(): { email: string; senha: string } | null {
-    const email = process.env.VAICRM_EMAIL?.trim();
-    const senha = process.env.VAICRM_PASSWORD;
-    if (email && senha) return { email, senha };
-    return null;
+  // Resolve as credenciais: o que estiver salvo em Configurações → Integrações
+  // tem prioridade; se o banco não tiver nada configurado, cai no .env (compat).
+  private async carregar(): Promise<VaiCrmCfg> {
+    const baseUrl = (process.env.VAICRM_API_URL ?? 'https://api.vaicrm.com.br').replace(/\/+$/, '');
+    const db = await this.integ.obterVaiCrmRaw();
+    const dbConfigurado = !!db.apiToken || !!(db.email && db.senha);
+    if (dbConfigurado) {
+      return { baseUrl, apiToken: db.apiToken, email: db.email, senha: db.senha };
+    }
+    const envToken = process.env.VAICRM_API_TOKEN?.trim();
+    const envEmail = process.env.VAICRM_EMAIL?.trim();
+    const envSenha = process.env.VAICRM_PASSWORD;
+    return {
+      baseUrl,
+      apiToken: envToken ? envToken : null,
+      email: envEmail ? envEmail : null,
+      senha: envSenha ? envSenha : null,
+    };
   }
 
   // A integração está utilizável se houver API Token OU par e-mail/senha.
-  isConfigured(): boolean {
-    return !!this.apiToken || !!this.credenciais;
+  private temCredenciais(cfg: VaiCrmCfg): boolean {
+    return !!cfg.apiToken || !!(cfg.email && cfg.senha);
+  }
+
+  async isConfigured(): Promise<boolean> {
+    return this.temCredenciais(await this.carregar());
   }
 
   // Status seguro para o frontend (nunca devolve segredos).
-  status() {
+  async status() {
+    const cfg = await this.carregar();
     return {
-      configurado: this.isConfigured(),
-      metodo: this.apiToken ? 'api_token' : this.credenciais ? 'login' : null,
-      baseUrl: this.baseUrl,
+      configurado: this.temCredenciais(cfg),
+      metodo: cfg.apiToken ? 'api_token' : cfg.email && cfg.senha ? 'login' : null,
+      baseUrl: cfg.baseUrl,
     };
   }
 
@@ -67,20 +89,19 @@ export class VaiCrmService {
     return 0;
   }
 
-  private async login(): Promise<string> {
-    const cred = this.credenciais;
-    if (!cred) {
+  private async login(cfg: VaiCrmCfg): Promise<string> {
+    if (!(cfg.email && cfg.senha)) {
       throw new HttpException(
-        'Integração VAI CRM não configurada (defina VAICRM_API_TOKEN ou VAICRM_EMAIL/VAICRM_PASSWORD).',
+        'Integração VAI CRM não configurada (defina o Token OU e-mail/senha em Configurações → Integrações).',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
     let res: Response;
     try {
-      res = await fetch(`${this.baseUrl}/auth/login`, {
+      res = await fetch(`${cfg.baseUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cred.email, password: cred.senha }),
+        body: JSON.stringify({ email: cfg.email, password: cfg.senha }),
       });
     } catch (e) {
       this.logger.warn(`login fetch falhou: ${(e as Error).message}`);
@@ -99,23 +120,24 @@ export class VaiCrmService {
   }
 
   // Retorna o header Authorization apropriado, renovando o JWT se preciso.
-  private async authHeader(forcarRelogin = false): Promise<string> {
-    if (this.apiToken) return `Bearer ${this.apiToken}`;
+  private async authHeader(cfg: VaiCrmCfg, forcarRelogin = false): Promise<string> {
+    if (cfg.apiToken) return `Bearer ${cfg.apiToken}`;
     if (forcarRelogin || !this.jwt || Date.now() >= this.jwtExpiraEm) {
-      await this.login();
+      await this.login(cfg);
     }
     return `Bearer ${this.jwt}`;
   }
 
   // Requisição genérica à API do VAI CRM. Em 401 (token JWT expirado), tenta 1 relogin.
   private async req<T>(method: string, path: string, body?: unknown): Promise<T> {
-    if (!this.isConfigured()) {
+    const cfg = await this.carregar();
+    if (!this.temCredenciais(cfg)) {
       throw new HttpException(
         'Integração VAI CRM não configurada.',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-    const url = `${this.baseUrl}${path}`;
+    const url = `${cfg.baseUrl}${path}`;
     const fazer = async (auth: string): Promise<Response> =>
       fetch(url, {
         method,
@@ -128,10 +150,10 @@ export class VaiCrmService {
 
     let res: Response;
     try {
-      res = await fazer(await this.authHeader());
+      res = await fazer(await this.authHeader(cfg));
       // JWT expirado no meio do caminho: renova uma vez (não se usa API Token).
-      if (res.status === 401 && !this.apiToken) {
-        res = await fazer(await this.authHeader(true));
+      if (res.status === 401 && !cfg.apiToken) {
+        res = await fazer(await this.authHeader(cfg, true));
       }
     } catch (e) {
       this.logger.warn(`req ${method} ${path} falhou: ${(e as Error).message}`);

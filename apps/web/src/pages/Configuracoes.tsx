@@ -17,6 +17,7 @@ interface ConfigIntegracoes {
   speed: { temChave: boolean; preview: string | null };
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
+  vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
 }
 
 /* ── Aba IA ── */
@@ -172,6 +173,7 @@ function AbaIntegracoes() {
     asaasApiKey: '', asaasSandbox: false,
     speedApiKey: '', autentiqueToken: '',
     whatsappToken: '', whatsappInstancia: '',
+    vaicrmToken: '', vaicrmEmail: '', vaicrmSenha: '',
   });
   const [salvando, setSalvando] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
@@ -181,7 +183,7 @@ function AbaIntegracoes() {
     try {
       const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
       setConfig(data);
-      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '' });
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '' });
     } catch { setErroCarga('Erro ao carregar integrações.'); }
     finally { setCarregando(false); }
   }
@@ -197,6 +199,9 @@ function AbaIntegracoes() {
         ...(form.autentiqueToken && { autentiqueToken: form.autentiqueToken }),
         ...(form.whatsappToken && { whatsappToken: form.whatsappToken }),
         ...(form.whatsappInstancia && { whatsappInstancia: form.whatsappInstancia }),
+        ...(form.vaicrmToken && { vaicrmToken: form.vaicrmToken }),
+        ...(form.vaicrmEmail && { vaicrmEmail: form.vaicrmEmail }),
+        ...(form.vaicrmSenha && { vaicrmSenha: form.vaicrmSenha }),
       });
       await carregar();
       setFeedback({ tipo: 'sucesso', msg: 'Integrações salvas com sucesso.' });
@@ -279,6 +284,36 @@ function AbaIntegracoes() {
         </>
       ),
     },
+    {
+      chave: 'vaicrm',
+      nome: 'VAI CRM — Atendimento',
+      descricao: 'Chats e mensagens do VAI CRM na aba "VAI CRM" do Atendimento. Configure o Token da API OU o e-mail/senha.',
+      campos: (
+        <>
+          <Campo
+            rotulo="Token da API VAI CRM"
+            type="password" autoComplete="off"
+            placeholder={config?.vaicrm.temToken ? 'Cole para substituir' : 'vai_… (opcional se usar e-mail/senha)'}
+            value={form.vaicrmToken}
+            onChange={(e) => setForm((f) => ({ ...f, vaicrmToken: e.target.value }))}
+          />
+          <Campo
+            rotulo="E-mail (login)"
+            autoComplete="off"
+            placeholder="usuario@empresa.com"
+            value={form.vaicrmEmail}
+            onChange={(e) => setForm((f) => ({ ...f, vaicrmEmail: e.target.value }))}
+          />
+          <Campo
+            rotulo="Senha (login)"
+            type="password" autoComplete="off"
+            placeholder={config?.vaicrm.temSenha ? 'Cole para substituir' : 'Senha do login VAI CRM'}
+            value={form.vaicrmSenha}
+            onChange={(e) => setForm((f) => ({ ...f, vaicrmSenha: e.target.value }))}
+          />
+        </>
+      ),
+    },
   ];
 
   return (
@@ -293,7 +328,8 @@ function AbaIntegracoes() {
       {INTEGRACOES.map(({ chave, nome, descricao, campos }) => {
         const status = config?.[chave];
         const conectado = ('temChave' in (status ?? {}) ? (status as { temChave: boolean }).temChave : false)
-          || ('temToken' in (status ?? {}) ? (status as { temToken: boolean }).temToken : false);
+          || ('temToken' in (status ?? {}) ? (status as { temToken: boolean }).temToken : false)
+          || ('configurado' in (status ?? {}) ? (status as { configurado: boolean }).configurado : false);
         const preview = ('preview' in (status ?? {}) ? (status as { preview: string | null }).preview : null);
         return (
           <div key={chave} className="brk-card brk-card-p">
