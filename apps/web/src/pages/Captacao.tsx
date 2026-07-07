@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 /**
  * Formulário PÚBLICO de captação de dados (jurídico). O cliente preenche após o
@@ -35,6 +37,8 @@ const rotuloStyle: React.CSSProperties = {
 };
 
 export function Captacao() {
+  const { autenticado } = useAuth();
+  const navigate = useNavigate();
   const [planos, setPlanos] = useState<PlanoOpt[]>([]);
   const [nomeFantasia, setNomeFantasia] = useState('');
   const [cnpj, setCnpj] = useState('');
@@ -87,6 +91,28 @@ export function Captacao() {
   return (
     <main style={{ minHeight: '100vh', background: 'var(--preto-fumaca)', padding: '48px 20px' }}>
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        {autenticado && (
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'transparent',
+              border: '1px solid var(--borda-forte)',
+              borderRadius: 10,
+              padding: '7px 12px',
+              color: 'var(--texto-suave)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginBottom: 18,
+            }}
+          >
+            ← Voltar ao painel
+          </button>
+        )}
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>
           Bem-vindo à <span className="brk-gradient-text">Breakr</span>
         </h1>
