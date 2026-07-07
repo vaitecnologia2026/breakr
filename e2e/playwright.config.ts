@@ -9,6 +9,9 @@ carregarEnv();
 // URL alvo: produção por padrão; aponte para local com BASE_URL=http://localhost:5173.
 const BASE_URL = process.env.BASE_URL ?? 'https://breakr.vaitecnologia.com.br';
 
+// URL da API (rota @api de contrato REST). Produção por padrão; local em dev.
+const API_URL = process.env.API_URL ?? 'https://api-breakr.vaitecnologia.com.br';
+
 export default defineConfig({
   testDir: './tests',
   // Um item de cada vez por padrão: os fluxos de escrita compartilham o mesmo
@@ -49,7 +52,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/admin.json',
       },
-      testIgnore: [/global\.setup\.ts/, /portal\.spec\.ts/],
+      testIgnore: [/global\.setup\.ts/, /portal\.spec\.ts/, /api[\\/].*\.spec\.ts/],
     },
 
     // 3) Specs anônimos (portal do cliente / tela de login) — sem sessão.
@@ -64,6 +67,13 @@ export default defineConfig({
       name: 'portal-mobile',
       use: { ...devices['Pixel 7'] },
       testMatch: [/portal\.spec\.ts/],
+    },
+
+    // 5) API — contrato REST direto (sem navegador). baseURL = API_URL.
+    {
+      name: 'api',
+      testMatch: [/api[\\/].*\.spec\.ts/],
+      use: { baseURL: API_URL },
     },
   ],
 });
