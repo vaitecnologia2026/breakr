@@ -178,8 +178,8 @@ const STATUS_TESTE: Record<string, StatusTeste> = {
   '/estrategia': 'ok',
   '/chat': 'ok',
   '/atendimento': 'ok',
-  '/': 'erro',            // Dashboard: "Pecas" sem cedilha (achado do qa-explorador)
-  '/nps-cliente': 'erro', // NPS: "1 respostas" (pluralização incorreta)
+  '/': 'ok',            // Dashboard: "Peças" corrigido (era "Pecas" sem cedilha)
+  '/nps-cliente': 'ok', // NPS: pluralização "resposta(s)" corrigida (era "1 respostas")
 };
 
 const COR_STATUS: Record<StatusTeste, string> = {

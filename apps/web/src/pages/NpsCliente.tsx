@@ -144,7 +144,7 @@ export function NpsCliente() {
               <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>{s.squad}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: corNota(s.media) }}>{s.media}</div>
               <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
-                {s.total} respostas · {s.detratores} detratores
+                {s.total} resposta{s.total !== 1 ? 's' : ''} · {s.detratores} detratores
               </div>
             </div>
           ))}
