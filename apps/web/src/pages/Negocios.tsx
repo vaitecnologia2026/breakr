@@ -4,7 +4,7 @@
 // API nem altera estruturas existentes.
 import type { ReactNode } from 'react';
 import { PaginaShell } from '../components/primitivos';
-import { Card, Badge } from '../components/ui';
+import { Badge } from '../components/ui';
 
 interface Deal {
   titulo: string;
@@ -83,31 +83,6 @@ export function Negocios() {
           { titulo: 'Sergius Pasteis | Fispal', contato: 'Vinicius Sborchia', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: '7d' } },
         ]} />
       </div>
-
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700 }}>Seletor de funil — 5 pipelines</h3>
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--texto-fraco)' }}>+ Novo Pipeline</span>
-        </div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-          <Chip ativo>✓ Prospecção</Chip>
-          <Chip>Inbound</Chip>
-          <Chip>Social Selling</Chip>
-          <Chip>Negociação</Chip>
-          <Chip>Prospecção | Júlia</Chip>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 12 }}>
-          <div><b>Prospecção</b> (49) — Entrada de Leads <b>28</b> · Tentando contato <b>6</b> · Contato c/ empresa <b>2</b> · Contato c/ decisor <b>7</b> · Reunião Agendada <b>6</b></div>
-          <div><b>Prospecção | Júlia</b> — Entrada de Leads <b>38</b> · Tentando contato <b>15</b> · Contato c/ decisor <b>5</b> · Reunião agendada <b>3</b></div>
-          <div><b>Social Selling</b> — MQL Cadastrado <b>37</b> · Tentando contato <b>2</b> · Contato realizado · Conversa Significativa · Reunião Agendada · Ganho</div>
-          <div><b>Inbound</b> — Formulário Preenchido · Qualificado pelo formulário · Tentando contato · Contato realizado · Reunião Agendada · Ganho</div>
-          <div style={{ gridColumn: '1 / -1' }}><b>Negociação</b> — Apresentar proposta <b>5</b> (R$ 26.300) · Negociação <b>2</b> (R$ 23.350) · Contrato <b>2</b> (R$ 13.050) · Pagamento <b>1</b> (R$ 6.000)</div>
-        </div>
-        <div style={{ height: 1, background: 'var(--borda)', margin: '10px 0' }} />
-        <div style={{ color: 'var(--texto-fraco)', fontSize: 11 }}>
-          Filtros: Ativos / Ganhos / Perdidos · Visão grade (Kanban) ou lista · Cada card mostra contato, empresa, valor e status da atividade (Sem atividade / Atrasada + dias).
-        </div>
-      </Card>
     </PaginaShell>
   );
 }
