@@ -19,6 +19,11 @@ import { Trafego } from './pages/Trafego';
 import Qualidade from './pages/Qualidade';
 import { Projetos } from './pages/Projetos';
 import { Comercial } from './pages/Comercial';
+import { MeuPainel } from './pages/MeuPainel';
+import { Negocios } from './pages/Negocios';
+import { Contatos } from './pages/Contatos';
+import { Atividades } from './pages/Atividades';
+import { Metricas } from './pages/Metricas';
 import { Recrutamento } from './pages/Recrutamento';
 import { Compras } from './pages/Compras';
 import { Desenvolvimento } from './pages/Desenvolvimento';
@@ -76,6 +81,11 @@ export function App() {
       >
         <Route index element={<Inicio />} />
         <Route path="comercial" element={<Comercial />} />
+        <Route path="meu-painel" element={<MeuPainel />} />
+        <Route path="negocios" element={<Negocios />} />
+        <Route path="contatos" element={<Contatos />} />
+        <Route path="atividades" element={<Atividades />} />
+        <Route path="metricas" element={<Metricas />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="onboarding" element={<Onboarding />} />
         <Route path="contratos" element={<Contratos />} />

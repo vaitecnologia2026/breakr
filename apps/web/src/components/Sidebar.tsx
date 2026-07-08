@@ -94,6 +94,11 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
+      { para: '/meu-painel', rotulo: 'Meu Painel', icone: <IcoHome /> },
+      { para: '/negocios',   rotulo: 'Negócios',   icone: <IcoBriefcase /> },
+      { para: '/contatos',   rotulo: 'Contatos',   icone: <IcoUsers /> },
+      { para: '/atividades', rotulo: 'Atividades', icone: <IcoFileText /> },
+      { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
       { para: '/clientes',   rotulo: 'Clientes',   icone: <IcoUsers /> },
       { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoStar /> },
       { para: '/medalhas',   rotulo: 'Medalhas',   icone: <IcoStar /> },
