@@ -89,7 +89,7 @@ const GRUPOS: NavGroup[] = [
     ],
   },
   {
-    label: 'Pipeline',
+    label: 'Comercial',
     icone: <IcoUsers />,
     collapsible: true,
     items: [
@@ -156,7 +156,6 @@ const GRUPO_ADMIN: NavGroup = {
   icone: <IcoUserCheck />,
   collapsible: true,
   items: [
-    { para: '/equipe',        rotulo: 'Equipe',        icone: <IcoUserCheck /> },
     { para: '/configuracoes', rotulo: 'Configurações', icone: <IcoSettings /> },
   ],
 };
@@ -171,6 +170,7 @@ const GRUPO_ADMINISTRATIVO: NavGroup = {
     { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoStar /> },
     { para: '/captacao',   rotulo: 'Captação',   icone: <IcoFileText /> },
     { para: '/ouvidoria',  rotulo: 'Ouvidoria',  icone: <IcoFileText /> },
+    { para: '/equipe',     rotulo: 'Equipe',     icone: <IcoUserCheck /> },
   ],
 };
 
@@ -255,7 +255,18 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
     try { localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0'); } catch { /* noop */ }
   }
 
-  const todosItens = [...TODOS_ITENS, ...(isAdmin ? GRUPO_ADMIN.items : [])];
+  // Lista plana p/ modo colapsado e favoritos. Inclui os grupos administrativos
+  // visíveis ao usuário e deduplica por rota (Equipe/Captação vivem só nesses
+  // grupos; Contratos/Onboarding/Ouvidoria já aparecem nos grupos principais).
+  const todosItens = Array.from(
+    new Map(
+      [
+        ...TODOS_ITENS,
+        ...(isAdmin || isJuridico ? GRUPO_ADMINISTRATIVO.items : []),
+        ...(isAdmin ? GRUPO_ADMIN.items : []),
+      ].map((item) => [item.para, item]),
+    ).values(),
+  );
 
   function toggleFavItem(item: NavItem) {
     toggleFav({ para: item.para, rotulo: item.rotulo });
