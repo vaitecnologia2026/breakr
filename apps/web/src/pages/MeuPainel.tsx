@@ -6,6 +6,18 @@ import type { ReactNode } from 'react';
 import { PaginaShell } from '../components/primitivos';
 import { Card, Badge } from '../components/ui';
 
+// Ícones de linha (mesmo padrão SVG monocromático dos demais ícones do app).
+function Ico({ children }: { children: ReactNode }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+const IcoTelefone = () => <Ico><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Ico>;
+const IcoChat = () => <Ico><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/></Ico>;
+
 function Kpi({ rotulo, valor, hint, cor }: { rotulo: string; valor: string; hint?: string; cor?: string }) {
   return (
     <Card>
@@ -38,10 +50,10 @@ function ItemDeal({ titulo, contexto, tag }: { titulo: string; contexto: string;
   );
 }
 
-function ItemAtividade({ icone, titulo, meta, tag }: { icone: string; titulo: string; meta: string; tag: ReactNode }) {
+function ItemAtividade({ icone, titulo, meta, tag }: { icone: ReactNode; titulo: string; meta: string; tag: ReactNode }) {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, background: 'var(--superficie-2)' }}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--superficie-4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>{icone}</div>
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--superficie-4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', color: 'var(--texto-suave)' }}>{icone}</div>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 600, fontSize: 12.5 }}>{titulo}</div>
         <div style={{ fontSize: 11.5, marginTop: 4, color: 'var(--amarelo-fagulha)' }}>{meta}</div>
@@ -67,9 +79,9 @@ export function MeuPainel() {
           <ItemDeal titulo="Sergius Pasteis | Fispal" contexto="Reunião Agendada · Sergius Pasteis Irmaos Sborchia LTDA" tag={<Badge cor="amarelo">7 dias parado</Badge>} />
         </Painel>
         <Painel titulo="Atividades de Hoje" extra="Ver todas">
-          <ItemAtividade icone="📞" titulo="10:10 · tentativa de contato via ligação" meta="KI PIZZA TEUTÔNIA" tag={<Badge cor="neutro">Ligação</Badge>} />
-          <ItemAtividade icone="📞" titulo="11:00 · tentativa de contato via ligação" meta="Top Fabuloso | FISPAL" tag={<Badge cor="neutro">Ligação</Badge>} />
-          <ItemAtividade icone="💬" titulo="12:00 · tentativa de agendar reunião" meta="E Tenho Ditto Pizzaria - Bento Gonçalves" tag={<Badge cor="neutro">WhatsApp</Badge>} />
+          <ItemAtividade icone={<IcoTelefone />} titulo="10:10 · tentativa de contato via ligação" meta="KI PIZZA TEUTÔNIA" tag={<Badge cor="neutro">Ligação</Badge>} />
+          <ItemAtividade icone={<IcoTelefone />} titulo="11:00 · tentativa de contato via ligação" meta="Top Fabuloso | FISPAL" tag={<Badge cor="neutro">Ligação</Badge>} />
+          <ItemAtividade icone={<IcoChat />} titulo="12:00 · tentativa de agendar reunião" meta="E Tenho Ditto Pizzaria - Bento Gonçalves" tag={<Badge cor="neutro">WhatsApp</Badge>} />
         </Painel>
       </div>
 
