@@ -104,7 +104,7 @@ export function Metas() {
       {ehLideranca && (
         <Card>
           <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Nova meta</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
             <div><label style={rotulo}>Título</label><input className="brk-input" style={{ width: '100%' }} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Dobrar a carteira" /></div>
             <div>
               <label style={rotulo}>Período</label>

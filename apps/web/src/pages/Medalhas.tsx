@@ -87,7 +87,7 @@ export function Medalhas() {
     <PaginaShell titulo="Medalhas" subtitulo="Gamificação do portal do cliente.">
       <Card>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Nova medalha</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
           <div><label style={rotulo}>Ícone (emoji)</label><input className="brk-input" style={{ width: '100%' }} value={icone} onChange={(e) => setIcone(e.target.value)} maxLength={4} /></div>
           <div><label style={rotulo}>Título</label><input className="brk-input" style={{ width: '100%' }} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Onboarding concluído" /></div>
           <div><label style={rotulo}>Descrição</label><input className="brk-input" style={{ width: '100%' }} value={descricao} onChange={(e) => setDescricao(e.target.value)} /></div>
@@ -97,7 +97,7 @@ export function Medalhas() {
 
       <Card>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Conceder a um cliente</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, alignItems: 'end' }}>
           <CampoSelect rotulo="Medalha" value={medalhaSel} onChange={(e) => setMedalhaSel(e.target.value)}>
             <option value="">Selecione…</option>
             {medalhas.map((m) => <option key={m.id} value={m.id}>{m.icone} {m.titulo}</option>)}

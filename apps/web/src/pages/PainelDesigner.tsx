@@ -148,7 +148,7 @@ export function PainelDesigner() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
+      <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
         {/* Inbox por prioridade */}
         <section className="brk-card brk-card-p">
           <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Fila por prioridade</h2>

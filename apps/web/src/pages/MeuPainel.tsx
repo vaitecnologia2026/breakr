@@ -108,14 +108,14 @@ export function MeuPainel() {
 
   return (
     <PaginaShell titulo="Meu Painel" subtitulo="Visão geral do vendedor — pipeline, atividades e etapas">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="brk-rgrid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <Kpi rotulo="Total em Pipeline" valor={brl(totalPipeline)} hint={`${abertos.length} negócios abertos`} />
         <Kpi rotulo="Ganhos" valor={brl(valorGanhos)} hint={`${ganhos.length} negócios fechados`} cor="var(--verde)" />
         <Kpi rotulo="Taxa de Conversão" valor={`${taxa}%`} hint="negócios ganhos/fechados" />
         <Kpi rotulo="Atividades Hoje" valor={String(ativHoje.length)} hint="pendentes" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="brk-rgrid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <Painel titulo={<>⚠️ Negócios parados <Badge cor="neutro">{parados.length} negócios</Badge></>}>
           {parados.length === 0 ? (
             <div style={{ color: 'var(--texto-fraco)', fontSize: 12.5 }}>Nenhum negócio parado.</div>
@@ -155,7 +155,7 @@ export function MeuPainel() {
         </div>
       </Painel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+      <div className="brk-rgrid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
         <Kpi rotulo="Ganhos" valor={String(ganhos.length)} cor="var(--verde)" />
         <Kpi rotulo="Perdidos" valor={String(perdidos.length)} cor="var(--vermelho)" />
       </div>

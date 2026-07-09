@@ -122,7 +122,7 @@ export function Agenda() {
           </ul>
         )}
         {podeAgendarSala ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
             <div><label style={rotulo}>Título</label><input className="brk-input" style={{ width: '100%' }} value={salaTitulo} onChange={(e) => setSalaTitulo(e.target.value)} placeholder="Reunião com cliente X" /></div>
             <div><label style={rotulo}>Início</label><input className="brk-input" style={{ width: '100%' }} type="datetime-local" value={salaInicio} onChange={(e) => setSalaInicio(e.target.value)} /></div>
             <div><label style={rotulo}>Fim</label><input className="brk-input" style={{ width: '100%' }} type="datetime-local" value={salaFim} onChange={(e) => setSalaFim(e.target.value)} /></div>

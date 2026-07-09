@@ -125,7 +125,7 @@ export function Documentos() {
         <>
           <Card>
             <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Enviar documento (RH)</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
               <div>
                 <label style={rotulo}>Colaborador</label>
                 <select className="brk-input" style={{ width: '100%' }} value={colaboradorId} onChange={(e) => setColaboradorId(e.target.value)}>

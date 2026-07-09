@@ -337,7 +337,7 @@ function GradeCampanhas({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
         gap: 16,
         alignItems: 'start',
       }}
@@ -627,6 +627,7 @@ function GradeMetricas({ campanha }: { campanha: Campanha }) {
   ];
   return (
     <div
+      className="brk-rgrid-3"
       style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
