@@ -4,10 +4,17 @@
 // responsável, empresa, valor e a próxima ATIVIDADE do negócio (lida do endpoint
 // existente /comercial/atividades — sem alterar o backend). Estados de
 // carregando/erro/vazio no padrão das demais telas. Em modo demo, usa mock.
+//
+// COLUNAS PERSONALIZÁVEIS: o usuário pode adicionar, editar (renomear/remapear) e
+// excluir colunas. A configuração fica no navegador (localStorage) — NÃO altera o
+// backend. Cada coluna é uma VISÃO sobre um status validado do funil; por isso o
+// drag-and-drop e o PATCH de status permanecem idênticos. Como há 6 status, há no
+// máximo 6 colunas funcionais (cada etapa em uma coluna).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { PaginaShell, EstadoCarregando, EstadoErro, MensagemErro } from '../components/primitivos';
+import { Modal, Campo, CampoSelect, Btn } from '../components/ui';
 
 type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
 
@@ -35,19 +42,45 @@ interface Atividade {
   lead?: { id: string } | null;
 }
 
-// Rótulos das etapas conforme o wireframe (RD Station). Apenas VISUAL: cada
-// coluna continua mapeada ao status validado do backend (o valor `status` não
-// muda), então o drag-and-drop e o PATCH permanecem idênticos. Ganho/Perdido
-// são mantidos (funcionalidade existente) — não constam no wireframe pois lá
-// ficam fora do filtro "Ativos".
-const COLUNAS: { status: StatusLead; titulo: string }[] = [
-  { status: 'NOVO', titulo: 'Entrada de Leads' },
-  { status: 'CONTATADO', titulo: 'Tentando contato' },
-  { status: 'QUALIFICADO', titulo: 'Contato realizado' },
-  { status: 'PROPOSTA', titulo: 'Contato com decisor' },
-  { status: 'GANHO', titulo: 'Ganho' },
-  { status: 'PERDIDO', titulo: 'Perdido' },
-];
+// Todos os status validados do funil (backend). A ordem define o padrão.
+const TODOS_STATUS: StatusLead[] = ['NOVO', 'CONTATADO', 'QUALIFICADO', 'PROPOSTA', 'GANHO', 'PERDIDO'];
+
+// Rótulos padrão das etapas conforme o wireframe (RD Station). São apenas o rótulo
+// inicial de cada coluna; o valor `status` liga a coluna ao funil do backend.
+const STATUS_LABEL_PADRAO: Record<StatusLead, string> = {
+  NOVO: 'Entrada de Leads',
+  CONTATADO: 'Tentando contato',
+  QUALIFICADO: 'Contato realizado',
+  PROPOSTA: 'Contato com decisor',
+  GANHO: 'Ganho',
+  PERDIDO: 'Perdido',
+};
+
+// Configuração de uma coluna: um status do funil + um rótulo editável.
+interface ColunaCfg {
+  status: StatusLead;
+  titulo: string;
+}
+
+const COLUNAS_PADRAO: ColunaCfg[] = TODOS_STATUS.map((s) => ({ status: s, titulo: STATUS_LABEL_PADRAO[s] }));
+
+// Persistência local da configuração das colunas (por navegador; não toca no backend).
+const LS_COLUNAS = 'brk-negocios-colunas';
+
+function carregarColunasSalvas(): ColunaCfg[] {
+  try {
+    const raw = localStorage.getItem(LS_COLUNAS);
+    if (!raw) return COLUNAS_PADRAO;
+    const arr = JSON.parse(raw) as unknown;
+    if (!Array.isArray(arr)) return COLUNAS_PADRAO;
+    const valido = arr.filter(
+      (c): c is ColunaCfg => !!c && typeof (c as ColunaCfg).titulo === 'string' && TODOS_STATUS.includes((c as ColunaCfg).status),
+    );
+    return valido.length ? valido : COLUNAS_PADRAO;
+  } catch {
+    return COLUNAS_PADRAO;
+  }
+}
 
 const MOCK_LEADS: Lead[] = [
   { id: 'm1', nome: 'Guria Doceira', empresa: 'Guria Doceira Ltda', email: null, telefone: null, origem: 'Inbound', status: 'NOVO', valorEstimado: null, atualizadoEm: '2026-07-03T12:00:00Z', responsavel: { nome: 'Gustavo Costa' } },
@@ -123,15 +156,32 @@ function Ico({ children }: { children: ReactNode }) {
 const IcoPessoa = () => <Ico><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></Ico>;
 const IcoEmpresa = () => <Ico><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" /><path d="M9 9h.01M9 12h.01M9 15h.01M15 9h.01M15 12h.01M15 15h.01" /></Ico>;
 const IcoAlerta = () => <Ico><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></Ico>;
+const IcoEditar = () => <Ico><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></Ico>;
+const IcoLixeira = () => <Ico><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></Ico>;
+
+// Estado do editor de coluna (modal de adicionar/editar).
+interface EditorColuna {
+  modo: 'add' | 'edit';
+  status: StatusLead;
+  titulo: string;
+  alvo?: StatusLead; // status original da coluna sendo editada
+}
 
 export function Negocios() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [atividades, setAtividades] = useState<Atividade[]>([]);
+  const [colunas, setColunas] = useState<ColunaCfg[]>(() => carregarColunasSalvas());
+  const [editor, setEditor] = useState<EditorColuna | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const arrastando = useRef<string | null>(null);
   const [alvo, setAlvo] = useState<StatusLead | null>(null);
+
+  // Persiste a configuração das colunas no navegador a cada mudança.
+  useEffect(() => {
+    try { localStorage.setItem(LS_COLUNAS, JSON.stringify(colunas)); } catch { /* ignora */ }
+  }, [colunas]);
 
   async function carregar() {
     setCarregando(true);
@@ -176,6 +226,43 @@ export function Negocios() {
     }
   }
 
+  // ── Gerência de colunas (adicionar / editar / excluir / restaurar) ───────────
+  const statusDisponiveis = TODOS_STATUS.filter((s) => !colunas.some((c) => c.status === s));
+
+  // Status oferecidos no seletor do editor: os livres + (ao editar) o próprio.
+  function opcoesStatusEditor(): StatusLead[] {
+    const usados = new Set(colunas.map((c) => c.status));
+    if (editor?.modo === 'edit' && editor.alvo) usados.delete(editor.alvo);
+    return TODOS_STATUS.filter((s) => !usados.has(s));
+  }
+
+  function abrirAdicionar() {
+    if (statusDisponiveis.length === 0) return;
+    const s = statusDisponiveis[0];
+    setEditor({ modo: 'add', status: s, titulo: STATUS_LABEL_PADRAO[s] });
+  }
+
+  function abrirEditar(col: ColunaCfg) {
+    setEditor({ modo: 'edit', status: col.status, titulo: col.titulo, alvo: col.status });
+  }
+
+  function salvarEditor() {
+    if (!editor) return;
+    const titulo = editor.titulo.trim();
+    if (!titulo) return;
+    if (editor.modo === 'add') {
+      setColunas((cs) => (cs.some((c) => c.status === editor.status) ? cs : [...cs, { status: editor.status, titulo }]));
+    } else {
+      setColunas((cs) => cs.map((c) => (c.status === editor.alvo ? { status: editor.status, titulo } : c)));
+    }
+    setEditor(null);
+  }
+
+  function excluirColuna(status: StatusLead) {
+    if (!window.confirm('Excluir esta coluna? Os negócios com este status deixarão de aparecer no quadro (não serão apagados).')) return;
+    setColunas((cs) => cs.filter((c) => c.status !== status));
+  }
+
   const total = leads.length;
 
   return (
@@ -187,9 +274,15 @@ export function Negocios() {
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
-          <div style={{ fontSize: 12.5, color: 'var(--texto-suave)', fontWeight: 600 }}>{total} negócios</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 12.5, color: 'var(--texto-suave)', fontWeight: 600 }}>{total} negócios</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Btn variante="secondary" tamanho="sm" onClick={abrirAdicionar} disabled={statusDisponiveis.length === 0}>+ Coluna</Btn>
+              <Btn variante="secondary" tamanho="sm" onClick={() => setColunas(COLUNAS_PADRAO)}>Restaurar colunas</Btn>
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
-            {COLUNAS.map((col) => {
+            {colunas.map((col) => {
               const doStatus = leads.filter((l) => l.status === col.status);
               const soma = doStatus.reduce((acc, l) => acc + (l.valorEstimado ? Number(l.valorEstimado) : 0), 0);
               return (
@@ -204,11 +297,15 @@ export function Negocios() {
                     transition: 'border-color 0.12s ease', display: 'flex', flexDirection: 'column',
                   }}
                 >
-                  {/* Cabeçalho da coluna: etapa + contagem, e soma de valores abaixo. */}
+                  {/* Cabeçalho da coluna: etapa + contagem, ações (editar/excluir) e soma abaixo. */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.titulo}</span>
                       <span style={{ background: 'var(--superficie-4)', borderRadius: 999, fontSize: 10.5, fontWeight: 700, padding: '1px 7px', color: 'var(--texto-suave)', flex: '0 0 auto' }}>{doStatus.length}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto' }}>
+                      <button type="button" title="Editar coluna" onClick={() => abrirEditar(col)} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: 'pointer' }}><IcoEditar /></button>
+                      <button type="button" title="Excluir coluna" onClick={() => excluirColuna(col.status)} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: 'pointer' }}><IcoLixeira /></button>
                     </div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginTop: 2, marginBottom: 10 }}>{formatValor(String(soma))}</div>
@@ -280,6 +377,25 @@ export function Negocios() {
             })}
           </div>
         </>
+      )}
+
+      {/* Modal de adicionar / editar coluna. */}
+      {editor && (
+        <Modal
+          titulo={editor.modo === 'add' ? 'Nova coluna' : 'Editar coluna'}
+          onFechar={() => setEditor(null)}
+          rodape={<><Btn variante="secondary" onClick={() => setEditor(null)}>Cancelar</Btn><Btn variante="primary" onClick={salvarEditor} disabled={!editor.titulo.trim()}>Salvar</Btn></>}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Campo rotulo="Nome da coluna" value={editor.titulo} onChange={(e) => setEditor((ed) => (ed ? { ...ed, titulo: e.target.value } : ed))} placeholder="Ex.: Reunião agendada" autoFocus />
+            <CampoSelect rotulo="Etapa do funil" value={editor.status} onChange={(e) => setEditor((ed) => (ed ? { ...ed, status: e.target.value as StatusLead } : ed))}>
+              {opcoesStatusEditor().map((s) => <option key={s} value={s}>{STATUS_LABEL_PADRAO[s]}</option>)}
+            </CampoSelect>
+            <p style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
+              A etapa liga a coluna ao funil do backend — ao arrastar um card para cá, o negócio recebe esse status. Cada etapa só pode estar em uma coluna.
+            </p>
+          </div>
+        </Modal>
       )}
     </PaginaShell>
   );
