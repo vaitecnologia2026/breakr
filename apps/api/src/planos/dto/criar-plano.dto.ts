@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -34,4 +35,10 @@ export class CriarPlanoDto {
   // Estrutura livre de entregaveis (JSON).
   @IsOptional()
   entregaveis?: unknown;
+
+  // Ids dos produtos que compoem este plano (vinculo N:N).
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  produtoIds?: string[];
 }

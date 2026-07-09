@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -40,4 +41,10 @@ export class AtualizarPlanoDto {
   @IsOptional()
   @IsBoolean()
   ativo?: boolean;
+
+  // Ids dos produtos que compoem este plano (substitui o vinculo N:N quando enviado).
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  produtoIds?: string[];
 }

@@ -9,14 +9,20 @@ import { AtualizarPlanoDto } from './dto/atualizar-plano.dto';
 export class PlanosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Lista todos os planos (ordem alfabetica).
+  // Lista todos os planos (ordem alfabetica), com os produtos que os compoem.
   listar(): Promise<Plano[]> {
-    return this.prisma.plano.findMany({ orderBy: { nome: 'asc' } });
+    return this.prisma.plano.findMany({
+      orderBy: { nome: 'asc' },
+      include: { produtos: { include: { produto: true } } },
+    });
   }
 
-  // Busca um plano pelo id.
+  // Busca um plano pelo id (com os produtos que o compoem).
   async buscarPorId(id: string): Promise<Plano> {
-    const plano = await this.prisma.plano.findUnique({ where: { id } });
+    const plano = await this.prisma.plano.findUnique({
+      where: { id },
+      include: { produtos: { include: { produto: true } } },
+    });
     if (!plano) {
       throw new NotFoundException('Plano nao encontrado');
     }
@@ -35,7 +41,11 @@ export class PlanosService {
           ...(dto.entregaveis !== undefined && {
             entregaveis: dto.entregaveis as Prisma.InputJsonValue,
           }),
+          ...(dto.produtoIds !== undefined && {
+            produtos: { create: dto.produtoIds.map((produtoId) => ({ produtoId })) },
+          }),
         },
+        include: { produtos: { include: { produto: true } } },
       });
     } catch (erro) {
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
@@ -60,7 +70,14 @@ export class PlanosService {
             entregaveis: dto.entregaveis as Prisma.InputJsonValue,
           }),
           ...(dto.ativo !== undefined && { ativo: dto.ativo }),
+          ...(dto.produtoIds !== undefined && {
+            produtos: {
+              deleteMany: {},
+              create: dto.produtoIds.map((produtoId) => ({ produtoId })),
+            },
+          }),
         },
+        include: { produtos: { include: { produto: true } } },
       });
     } catch (erro) {
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
