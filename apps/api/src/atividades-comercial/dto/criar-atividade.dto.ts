@@ -17,6 +17,15 @@ export class CriarAtividadeDto {
   vencimento?: string;
 
   @IsOptional()
+  @IsISO8601()
+  horaFim?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notas?: string;
+
+  @IsOptional()
   @IsUUID()
   leadId?: string;
 
