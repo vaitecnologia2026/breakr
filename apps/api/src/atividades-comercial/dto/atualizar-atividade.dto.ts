@@ -31,6 +31,11 @@ export class AtualizarAtividadeDto {
   notas?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  contato?: string;
+
+  @IsOptional()
   @IsUUID()
   leadId?: string;
 

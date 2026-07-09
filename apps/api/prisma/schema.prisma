@@ -654,6 +654,7 @@ model AtividadeComercial {
   vencimento   DateTime?       @map("vencimento")
   horaFim      DateTime?       @map("hora_fim")
   notas        String?         @map("notas")
+  contato      String?         @map("contato")
   criadoEm     DateTime        @default(now()) @map("criado_em")
   atualizadoEm DateTime        @updatedAt @map("atualizado_em")
 
