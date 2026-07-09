@@ -1,0 +1,26 @@
+import { IsEnum, IsISO8601, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { TipoAtividade } from '@prisma/client';
+
+// Payload para criar uma atividade comercial (tela "Atividades" do CRM).
+export class CriarAtividadeDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  titulo!: string;
+
+  @IsOptional()
+  @IsEnum(TipoAtividade)
+  tipo?: TipoAtividade;
+
+  @IsOptional()
+  @IsISO8601()
+  vencimento?: string;
+
+  @IsOptional()
+  @IsUUID()
+  leadId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  responsavelId?: string;
+}

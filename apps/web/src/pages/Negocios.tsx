@@ -1,150 +1,165 @@
-// Tela "Negócios" (CRM Comercial) — pipeline em Kanban por funil.
-// Baseada no wireframe DMhub CRM (tela 2), reproduzida com o design system atual
-// do Breakr. Os cards podem ser arrastados entre as colunas (drag-and-drop nativo,
-// sem dependência externa); o estado do quadro é local (não persiste em API).
-import { useRef, useState, type ReactNode } from 'react';
-import { PaginaShell } from '../components/primitivos';
+// Tela "Negócios" (CRM Comercial) — pipeline em Kanban por etapa, ligado ao
+// backend real de Leads (/comercial/leads). Os cards podem ser arrastados entre
+// as colunas; ao soltar, o status do lead é persistido via PATCH. Estados de
+// carregando/erro/vazio no padrão das demais telas. Em modo demo, usa mock.
+import { useEffect, useRef, useState } from 'react';
+import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
+import { PaginaShell, EstadoCarregando, EstadoErro, PainelVazio, MensagemErro } from '../components/primitivos';
 import { Badge } from '../components/ui';
 
-interface Deal {
+type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
+
+interface Lead {
   id: string;
-  titulo: string;
-  contato?: string;
-  valor: string;
-  tag?: { cor: 'vermelho' | 'amarelo' | 'neutro'; texto: string };
+  nome: string;
+  empresa: string | null;
+  email: string | null;
+  telefone: string | null;
+  origem: string | null;
+  status: StatusLead;
+  valorEstimado: string | null;
+  atualizadoEm: string;
+  responsavel?: { nome: string } | null;
+  cliente?: { nomeFantasia: string } | null;
 }
 
-interface Coluna {
-  titulo: string;
-  count: number;
-  total: string;
-  resto?: string;
-  deals: Deal[];
-}
-
-const COLUNAS_INICIAIS: Coluna[] = [
-  {
-    titulo: 'Entrada de Leads', count: 28, total: 'R$ 0', resto: '+ 24 negócios…',
-    deals: [
-      { id: 'd1', titulo: 'Guria Doceira!', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: 'Sem atividade · 5d' } },
-      { id: 'd2', titulo: 'Confeitaria Sabor Caseiro', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: 'Sem atividade · 5d' } },
-      { id: 'd3', titulo: 'Mangiare Massas Artesanais Scs', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: 'Sem atividade · 5d' } },
-      { id: 'd4', titulo: 'Borriello', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: 'Sem atividade · 5d' } },
-    ],
-  },
-  {
-    titulo: 'Tentando contato', count: 6, total: 'R$ 0',
-    deals: [
-      { id: 'd5', titulo: 'Pizzayou', contato: 'Jeferson Luis Gerhardt · Pizzayou Ltda', valor: 'R$ 0,00', tag: { cor: 'vermelho', texto: 'Atrasada · 1d' } },
-      { id: 'd6', titulo: 'Pizzaria Bonacina', contato: 'Sandro Bonacina · Bonacina Pizzaria Ltda', valor: 'R$ 0,00', tag: { cor: 'vermelho', texto: 'Atrasada · 1d' } },
-      { id: 'd7', titulo: 'Chef Davi Restaurante', contato: 'Davi G. H. Rodrigues', valor: 'R$ 0,00', tag: { cor: 'vermelho', texto: 'Atrasada · 2d' } },
-    ],
-  },
-  {
-    titulo: 'Contato c/ empresa', count: 2, total: 'R$ 0',
-    deals: [
-      { id: 'd8', titulo: 'Fornalha Pizzaria', contato: 'Daniela Souza Cuervo', valor: 'R$ 0,00', tag: { cor: 'vermelho', texto: 'Atrasada · 0d' } },
-      { id: 'd9', titulo: 'Brolese Solo Pizzaria', contato: 'Cesar Brolese', valor: 'R$ 0,00', tag: { cor: 'vermelho', texto: 'Atrasada · 0d' } },
-    ],
-  },
-  {
-    titulo: 'Contato c/ decisor', count: 7, total: 'R$ 0',
-    deals: [
-      { id: 'd10', titulo: 'Jota Xiseria', contato: 'Rubem Vieira Gomes Filho', valor: 'R$ 0,00', tag: { cor: 'vermelho', texto: 'Atrasada · 2d' } },
-      { id: 'd11', titulo: 'Isma Pastéis | Lajeado', contato: 'Ismael R Bruch', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: '26d' } },
-    ],
-  },
-  {
-    titulo: 'Reunião Agendada', count: 6, total: 'R$ 0',
-    deals: [
-      { id: 'd12', titulo: 'Bolonhê | Fispal', contato: 'Cláudio · Bolonhê Lasanhas', valor: 'R$ 0,00' },
-      { id: 'd13', titulo: 'Sergius Pasteis | Fispal', contato: 'Vinicius Sborchia', valor: 'R$ 0,00', tag: { cor: 'amarelo', texto: '7d' } },
-    ],
-  },
+const COLUNAS: { status: StatusLead; titulo: string }[] = [
+  { status: 'NOVO', titulo: 'Novo' },
+  { status: 'CONTATADO', titulo: 'Contatado' },
+  { status: 'QUALIFICADO', titulo: 'Qualificado' },
+  { status: 'PROPOSTA', titulo: 'Proposta' },
+  { status: 'GANHO', titulo: 'Ganho' },
+  { status: 'PERDIDO', titulo: 'Perdido' },
 ];
 
-function Chip({ children, ativo }: { children: ReactNode; ativo?: boolean }) {
-  return (
-    <span style={{
-      border: '1px solid var(--borda)', borderRadius: 8, padding: '6px 11px', fontSize: 12,
-      color: ativo ? '#fff' : 'var(--texto-suave)', background: ativo ? 'var(--amarelo-fagulha)' : 'var(--superficie-2)',
-      borderColor: ativo ? 'var(--amarelo-fagulha)' : 'var(--borda)', display: 'inline-flex', gap: 6, alignItems: 'center',
-    }}>{children}</span>
-  );
+const MOCK_LEADS: Lead[] = [
+  { id: 'm1', nome: 'Guria Doceira', empresa: 'Guria Doceira Ltda', email: null, telefone: null, origem: 'Inbound', status: 'NOVO', valorEstimado: null, atualizadoEm: '2026-07-03T12:00:00Z', responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm2', nome: 'Pizzayou', empresa: 'Pizzayou Ltda', email: null, telefone: null, origem: 'Scraping', status: 'CONTATADO', valorEstimado: null, atualizadoEm: '2026-07-06T12:00:00Z', responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm3', nome: 'Fornalha Pizzaria', empresa: null, email: null, telefone: null, origem: null, status: 'QUALIFICADO', valorEstimado: '4150', atualizadoEm: '2026-07-06T12:00:00Z', responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm4', nome: 'Bolonhê', empresa: 'Bolonhê Lasanhas', email: null, telefone: null, origem: null, status: 'PROPOSTA', valorEstimado: '8000', atualizadoEm: '2026-07-06T12:00:00Z', responsavel: { nome: 'Gustavo Costa' } },
+];
+
+function formatValor(v: string | null): string {
+  const n = v ? Number(v) : 0;
+  return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function diasDesde(iso: string): number {
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
 }
 
 export function Negocios() {
-  const [colunas, setColunas] = useState<Coluna[]>(COLUNAS_INICIAIS);
-  // Origem do arraste (índice da coluna + índice do card). Ref: não precisa
-  // re-renderizar ao iniciar o arraste.
-  const arrastando = useRef<{ col: number; deal: number } | null>(null);
-  const [alvo, setAlvo] = useState<number | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const arrastando = useRef<string | null>(null);
+  const [alvo, setAlvo] = useState<StatusLead | null>(null);
 
-  function aoSoltar(destino: number) {
-    const origem = arrastando.current;
-    arrastando.current = null;
-    setAlvo(null);
-    if (!origem || origem.col === destino) return;
-    setColunas((cols) => {
-      const novo = cols.map((c) => ({ ...c, deals: [...c.deals] }));
-      const [movido] = novo[origem.col].deals.splice(origem.deal, 1);
-      if (!movido) return cols;
-      novo[destino].deals.push(movido);
-      novo[origem.col].count = Math.max(0, novo[origem.col].count - 1);
-      novo[destino].count = novo[destino].count + 1;
-      return novo;
-    });
+  async function carregar() {
+    setCarregando(true);
+    setErro(null);
+    try {
+      const { data } = await api.get<Lead[]>('/comercial/leads');
+      setLeads(comDemo(data, MOCK_LEADS));
+    } catch {
+      setLeads(mockSeDemo(MOCK_LEADS));
+    } finally {
+      setCarregando(false);
+    }
   }
 
-  return (
-    <PaginaShell titulo="Negócios" subtitulo="Pipeline Kanban por funil — arraste os cards entre as colunas">
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Chip>▾ Prospecção</Chip>
-        <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>49 negócios</span>
-        <Chip>▦ / ☰</Chip>
-        <Chip>👁 Ativos ▾</Chip>
-        <div style={{ flex: 1 }} />
-        <Badge cor="amarelo">+ Novo Negócio</Badge>
-      </div>
+  useEffect(() => {
+    carregar();
+  }, []);
 
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-        {colunas.map((coluna, ci) => (
-          <div
-            key={coluna.titulo}
-            onDragOver={(e) => { e.preventDefault(); if (alvo !== ci) setAlvo(ci); }}
-            onDragLeave={(e) => { if (e.currentTarget === e.target) setAlvo((a) => (a === ci ? null : a)); }}
-            onDrop={() => aoSoltar(ci)}
-            style={{
-              flex: '0 0 240px', background: 'var(--superficie-2)', borderRadius: 12, padding: 10,
-              border: `1px solid ${alvo === ci ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`,
-              transition: 'border-color 0.12s ease',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: 12.5 }}>
-              <span>{coluna.titulo}</span>
-              <span style={{ background: 'var(--superficie-4)', borderRadius: 999, fontSize: 10.5, padding: '1px 7px', color: 'var(--texto-suave)' }}>{coluna.count}</span>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginBottom: 8 }}>{coluna.total}</div>
-            {coluna.deals.map((d, di) => (
-              <div
-                key={d.id}
-                draggable
-                onDragStart={(e) => { arrastando.current = { col: ci, deal: di }; e.dataTransfer.effectAllowed = 'move'; }}
-                onDragEnd={() => { arrastando.current = null; setAlvo(null); }}
-                style={{ background: 'var(--superficie-3)', border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, cursor: 'grab' }}
-              >
-                <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 4 }}>{d.titulo}</div>
-                {d.contato && <div style={{ color: 'var(--texto-fraco)', fontSize: 11, marginBottom: 6 }}>{d.contato}</div>}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                  <b>{d.valor}</b>
-                  {d.tag && <Badge cor={d.tag.cor}>{d.tag.texto}</Badge>}
+  async function aoSoltar(destino: StatusLead) {
+    const id = arrastando.current;
+    arrastando.current = null;
+    setAlvo(null);
+    if (!id) return;
+    const atual = leads.find((l) => l.id === id);
+    if (!atual || atual.status === destino) return;
+    setErroAcao(null);
+    // Atualização otimista; recarrega do servidor (que pode converter em cliente no GANHO).
+    setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, status: destino } : l)));
+    try {
+      await api.patch(`/comercial/leads/${id}/status`, { status: destino });
+      await carregar();
+    } catch {
+      setErroAcao('Não foi possível mover o negócio. Tente novamente.');
+      await carregar();
+    }
+  }
+
+  const total = leads.length;
+
+  return (
+    <PaginaShell titulo="Negócios" subtitulo="Pipeline Kanban — arraste os cards entre as etapas">
+      {carregando ? (
+        <EstadoCarregando />
+      ) : erro ? (
+        <EstadoErro mensagem={erro} onTentar={carregar} />
+      ) : total === 0 ? (
+        <PainelVazio titulo="Nenhum negócio ainda" descricao="Os leads do comercial aparecem aqui no funil." />
+      ) : (
+        <>
+          {erroAcao && <MensagemErro texto={erroAcao} />}
+          <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{total} negócios</div>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+            {COLUNAS.map((col) => {
+              const doStatus = leads.filter((l) => l.status === col.status);
+              const soma = doStatus.reduce((acc, l) => acc + (l.valorEstimado ? Number(l.valorEstimado) : 0), 0);
+              return (
+                <div
+                  key={col.status}
+                  onDragOver={(e) => { e.preventDefault(); if (alvo !== col.status) setAlvo(col.status); }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) setAlvo((a) => (a === col.status ? null : a)); }}
+                  onDrop={() => aoSoltar(col.status)}
+                  style={{
+                    flex: '0 0 240px', background: 'var(--superficie-2)', borderRadius: 12, padding: 10,
+                    border: `1px solid ${alvo === col.status ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`,
+                    transition: 'border-color 0.12s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: 12.5 }}>
+                    <span>{col.titulo}</span>
+                    <span style={{ background: 'var(--superficie-4)', borderRadius: 999, fontSize: 10.5, padding: '1px 7px', color: 'var(--texto-suave)' }}>{doStatus.length}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginBottom: 8 }}>{formatValor(String(soma))}</div>
+                  {doStatus.map((l) => {
+                    const dias = diasDesde(l.atualizadoEm);
+                    return (
+                      <div
+                        key={l.id}
+                        draggable
+                        onDragStart={(e) => { arrastando.current = l.id; e.dataTransfer.effectAllowed = 'move'; }}
+                        onDragEnd={() => { arrastando.current = null; setAlvo(null); }}
+                        style={{ background: 'var(--superficie-3)', border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, cursor: 'grab' }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 4 }}>{l.nome}</div>
+                        {(l.empresa || l.responsavel?.nome) && (
+                          <div style={{ color: 'var(--texto-fraco)', fontSize: 11, marginBottom: 6 }}>
+                            {[l.empresa, l.responsavel?.nome].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                          <b>{formatValor(l.valorEstimado)}</b>
+                          {l.status !== 'GANHO' && l.status !== 'PERDIDO' && (
+                            <Badge cor={dias >= 5 ? 'vermelho' : 'amarelo'}>{dias}d parado</Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            ))}
-            {coluna.resto && <div style={{ color: 'var(--texto-fraco)', fontSize: 11, textAlign: 'center' }}>{coluna.resto}</div>}
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </PaginaShell>
   );
 }

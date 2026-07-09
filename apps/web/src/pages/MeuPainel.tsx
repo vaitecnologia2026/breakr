@@ -1,22 +1,47 @@
-// Tela "Meu Painel" (CRM Comercial) — visão geral do vendedor.
-// Baseada no wireframe DMhub CRM (tela 1), reproduzida com o design system atual
-// do Breakr (PaginaShell / Card / Badge). Página de apresentação: os números são
-// os do wireframe (estáticos) — não consome API nem altera nenhuma estrutura.
-import type { ReactNode } from 'react';
-import { PaginaShell } from '../components/primitivos';
+// Tela "Meu Painel" (CRM Comercial) — visão do vendedor com dados REAIS:
+// KPIs e listas computados dos Leads (/comercial/leads) e das Atividades
+// (/comercial/atividades). Estados carregando/erro no padrão do app.
+import { useEffect, useState, type ReactNode } from 'react';
+import { api } from '../lib/api';
+import { comDemo, mockSeDemo } from '../lib/demo';
+import { PaginaShell, EstadoCarregando, EstadoErro } from '../components/primitivos';
 import { Card, Badge } from '../components/ui';
 
-// Ícones de linha (mesmo padrão SVG monocromático dos demais ícones do app).
-function Ico({ children }: { children: ReactNode }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
+type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
+
+interface Lead {
+  id: string; nome: string; empresa: string | null; status: StatusLead;
+  valorEstimado: string | null; atualizadoEm: string; responsavel?: { nome: string } | null;
 }
-const IcoTelefone = () => <Ico><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Ico>;
-const IcoChat = () => <Ico><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/></Ico>;
+interface Atividade {
+  id: string; titulo: string; tipo: string; status: 'PENDENTE' | 'CONCLUIDA';
+  vencimento: string | null; lead?: { nome: string } | null;
+}
+
+const MOCK_LEADS: Lead[] = [
+  { id: 'm1', nome: 'Guria Doceira', empresa: 'Guria Doceira Ltda', status: 'NOVO', valorEstimado: null, atualizadoEm: '2026-07-03T12:00:00Z' },
+  { id: 'm2', nome: 'Fornalha Pizzaria', empresa: null, status: 'QUALIFICADO', valorEstimado: '4150', atualizadoEm: '2026-06-12T12:00:00Z' },
+  { id: 'm3', nome: 'Bolonhê', empresa: 'Bolonhê Lasanhas', status: 'GANHO', valorEstimado: '8000', atualizadoEm: '2026-07-06T12:00:00Z' },
+];
+const MOCK_ATIV: Atividade[] = [
+  { id: 'a1', titulo: 'Ligação de contato', tipo: 'LIGACAO', status: 'PENDENTE', vencimento: new Date().toISOString(), lead: { nome: 'KI PIZZA TEUTÔNIA' } },
+];
+
+const ETAPAS: { status: StatusLead; rotulo: string }[] = [
+  { status: 'NOVO', rotulo: 'Novo' },
+  { status: 'CONTATADO', rotulo: 'Contatado' },
+  { status: 'QUALIFICADO', rotulo: 'Qualificado' },
+  { status: 'PROPOSTA', rotulo: 'Proposta' },
+  { status: 'GANHO', rotulo: 'Ganho' },
+  { status: 'PERDIDO', rotulo: 'Perdido' },
+];
+
+function brl(n: number): string {
+  return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function dias(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+}
 
 function Kpi({ rotulo, valor, hint, cor }: { rotulo: string; valor: string; hint?: string; cor?: string }) {
   return (
@@ -27,87 +52,112 @@ function Kpi({ rotulo, valor, hint, cor }: { rotulo: string; valor: string; hint
     </Card>
   );
 }
-
-function Painel({ titulo, extra, children }: { titulo: ReactNode; extra?: ReactNode; children: ReactNode }) {
+function Painel({ titulo, children }: { titulo: ReactNode; children: ReactNode }) {
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700 }}>{titulo}</h3>
-        {extra && <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--texto-fraco)' }}>{extra}</span>}
-      </div>
+      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{titulo}</h3>
       {children}
     </Card>
   );
 }
 
-function ItemDeal({ titulo, contexto, tag }: { titulo: string; contexto: string; tag: ReactNode }) {
-  return (
-    <div style={{ border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, background: 'var(--superficie-2)' }}>
-      <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 4 }}>{titulo}</div>
-      <div style={{ color: 'var(--texto-fraco)', fontSize: 11, marginBottom: 6 }}>{contexto}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>{tag}</div>
-    </div>
-  );
-}
-
-function ItemAtividade({ icone, titulo, meta, tag }: { icone: ReactNode; titulo: string; meta: string; tag: ReactNode }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, background: 'var(--superficie-2)' }}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--superficie-4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', color: 'var(--texto-suave)' }}>{icone}</div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: 12.5 }}>{titulo}</div>
-        <div style={{ fontSize: 11.5, marginTop: 4, color: 'var(--amarelo-fagulha)' }}>{meta}</div>
-      </div>
-      {tag}
-    </div>
-  );
-}
-
 export function MeuPainel() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [ativ, setAtiv] = useState<Atividade[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregar() {
+    setCarregando(true);
+    setErro(null);
+    try {
+      const { data } = await api.get<Lead[]>('/comercial/leads');
+      setLeads(comDemo(data, MOCK_LEADS));
+      api.get<Atividade[]>('/comercial/atividades')
+        .then(({ data: a }) => setAtiv(comDemo(a, MOCK_ATIV)))
+        .catch(() => setAtiv(mockSeDemo(MOCK_ATIV)));
+    } catch {
+      setLeads(mockSeDemo(MOCK_LEADS));
+      setAtiv(mockSeDemo(MOCK_ATIV));
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregar();
+  }, []);
+
+  if (carregando) {
+    return <PaginaShell titulo="Meu Painel" subtitulo="Visão geral do vendedor"><EstadoCarregando /></PaginaShell>;
+  }
+  if (erro) {
+    return <PaginaShell titulo="Meu Painel" subtitulo="Visão geral do vendedor"><EstadoErro mensagem={erro} onTentar={carregar} /></PaginaShell>;
+  }
+
+  const abertos = leads.filter((l) => l.status !== 'GANHO' && l.status !== 'PERDIDO');
+  const ganhos = leads.filter((l) => l.status === 'GANHO');
+  const perdidos = leads.filter((l) => l.status === 'PERDIDO');
+  const totalPipeline = abertos.reduce((s, l) => s + (l.valorEstimado ? Number(l.valorEstimado) : 0), 0);
+  const valorGanhos = ganhos.reduce((s, l) => s + (l.valorEstimado ? Number(l.valorEstimado) : 0), 0);
+  const fechados = ganhos.length + perdidos.length;
+  const taxa = fechados > 0 ? Math.round((ganhos.length / fechados) * 100) : 0;
+  const hoje = new Date();
+  const ativHoje = ativ.filter((a) => a.status === 'PENDENTE' && a.vencimento && new Date(a.vencimento).toDateString() === hoje.toDateString());
+  const parados = [...abertos].sort((a, b) => new Date(a.atualizadoEm).getTime() - new Date(b.atualizadoEm).getTime()).slice(0, 3);
+
   return (
-    <PaginaShell titulo="Meu Painel" subtitulo="Visão geral do vendedor — pipeline, atividades e ações rápidas">
+    <PaginaShell titulo="Meu Painel" subtitulo="Visão geral do vendedor — pipeline, atividades e etapas">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <Kpi rotulo="Total em Pipeline" valor="R$ 68.700,00" hint="159 negócios abertos" />
-        <Kpi rotulo="Ganhos no Mês" valor="R$ 10.840,00" hint="9 negócios fechados" cor="var(--verde)" />
-        <Kpi rotulo="Taxa de Conversão" valor="16%" hint="negócios fechados" />
-        <Kpi rotulo="Atividades Hoje" valor="4" hint="pendentes" />
+        <Kpi rotulo="Total em Pipeline" valor={brl(totalPipeline)} hint={`${abertos.length} negócios abertos`} />
+        <Kpi rotulo="Ganhos" valor={brl(valorGanhos)} hint={`${ganhos.length} negócios fechados`} cor="var(--verde)" />
+        <Kpi rotulo="Taxa de Conversão" valor={`${taxa}%`} hint="negócios ganhos/fechados" />
+        <Kpi rotulo="Atividades Hoje" valor={String(ativHoje.length)} hint="pendentes" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Painel titulo={<>⚠️ Negócios parados <Badge cor="neutro">2 negócios</Badge></>}>
-          <ItemDeal titulo="Isma Pastéis | Lajeado" contexto="Contato realizado com o decisor · Do Isma Pastéis" tag={<Badge cor="vermelho">26 dias parado</Badge>} />
-          <ItemDeal titulo="Sergius Pasteis | Fispal" contexto="Reunião Agendada · Sergius Pasteis Irmaos Sborchia LTDA" tag={<Badge cor="amarelo">7 dias parado</Badge>} />
+        <Painel titulo={<>⚠️ Negócios parados <Badge cor="neutro">{parados.length} negócios</Badge></>}>
+          {parados.length === 0 ? (
+            <div style={{ color: 'var(--texto-fraco)', fontSize: 12.5 }}>Nenhum negócio parado.</div>
+          ) : parados.map((l) => {
+            const d = dias(l.atualizadoEm);
+            return (
+              <div key={l.id} style={{ border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, background: 'var(--superficie-2)' }}>
+                <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 4 }}>{l.nome}</div>
+                <div style={{ color: 'var(--texto-fraco)', fontSize: 11, marginBottom: 6 }}>{l.empresa || '—'}</div>
+                <Badge cor={d >= 7 ? 'vermelho' : 'amarelo'}>{d} dias parado</Badge>
+              </div>
+            );
+          })}
         </Painel>
-        <Painel titulo="Atividades de Hoje" extra="Ver todas">
-          <ItemAtividade icone={<IcoTelefone />} titulo="10:10 · tentativa de contato via ligação" meta="KI PIZZA TEUTÔNIA" tag={<Badge cor="neutro">Ligação</Badge>} />
-          <ItemAtividade icone={<IcoTelefone />} titulo="11:00 · tentativa de contato via ligação" meta="Top Fabuloso | FISPAL" tag={<Badge cor="neutro">Ligação</Badge>} />
-          <ItemAtividade icone={<IcoChat />} titulo="12:00 · tentativa de agendar reunião" meta="E Tenho Ditto Pizzaria - Bento Gonçalves" tag={<Badge cor="neutro">WhatsApp</Badge>} />
+        <Painel titulo="Atividades de Hoje">
+          {ativHoje.length === 0 ? (
+            <div style={{ color: 'var(--texto-fraco)', fontSize: 12.5 }}>Sem atividades para hoje.</div>
+          ) : ativHoje.map((a) => (
+            <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: '1px solid var(--borda)', borderRadius: 10, padding: 10, marginBottom: 8, background: 'var(--superficie-2)' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 12.5 }}>{a.titulo}</div>
+                <div style={{ fontSize: 11.5, marginTop: 4, color: 'var(--amarelo-fagulha)' }}>{a.lead?.nome ?? '—'}</div>
+              </div>
+              <Badge cor="neutro">{a.tipo}</Badge>
+            </div>
+          ))}
         </Painel>
       </div>
 
       <Painel titulo="Negócios por Etapa">
-        <div style={{ fontSize: 12, marginBottom: 4 }}>
-          <div style={{ fontSize: 10, letterSpacing: 1, color: 'var(--texto-fraco)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Prospecção</div>
-          Entrada de Leads <b>28</b> · Tentando contato <b>6</b> · Contato empresa <b>2</b> · Contato decisor <b>7</b> · Reunião <b>6</b>
-        </div>
-        <div style={{ height: 1, background: 'var(--borda)', margin: '10px 0' }} />
-        <div style={{ fontSize: 12 }}>
-          <div style={{ fontSize: 10, letterSpacing: 1, color: 'var(--texto-fraco)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Negociação</div>
-          Apresentar proposta <b>5</b> · R$ 26.300 &nbsp;|&nbsp; Negociação <b>2</b> · R$ 23.350 &nbsp;|&nbsp; Contrato <b>2</b> · R$ 13.050 &nbsp;|&nbsp; Pagamento <b>1</b> · R$ 6.000
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12 }}>
+          {ETAPAS.map((e) => (
+            <div key={e.status}>
+              {e.rotulo} <b>{leads.filter((l) => l.status === e.status).length}</b>
+            </div>
+          ))}
         </div>
       </Painel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <Kpi rotulo="Este mês · Ganhos" valor="9" cor="var(--verde)" />
-        <Kpi rotulo="Este mês · Perdidos" valor="36" cor="var(--vermelho)" />
-        <Card>
-          <div style={{ color: 'var(--texto-fraco)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Ações Rápidas</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <Badge cor="neutro">+ Novo Negócio</Badge>
-            <Badge cor="neutro">+ Nova Atividade</Badge>
-            <Badge cor="neutro">📊 Ver Relatórios</Badge>
-          </div>
-        </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <Kpi rotulo="Ganhos" valor={String(ganhos.length)} cor="var(--verde)" />
+        <Kpi rotulo="Perdidos" valor={String(perdidos.length)} cor="var(--vermelho)" />
       </div>
     </PaginaShell>
   );
