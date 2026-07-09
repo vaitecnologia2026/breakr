@@ -156,7 +156,7 @@ export function Planos() {
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PaginaHeader
-        titulo="Planos"
+        titulo="Planos e Produtos"
         subtitulo="Planos comerciais e produtos oferecidos aos clientes"
         acoes={aba === 'planos'
           ? <Btn onClick={abrirNovo}>+ Novo plano</Btn>
