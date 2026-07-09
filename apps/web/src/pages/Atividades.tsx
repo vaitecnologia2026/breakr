@@ -30,6 +30,7 @@ interface Atividade {
   horaFim: string | null;
   notas: string | null;
   contato: string | null;
+  empresaNome: string | null;
   criadoEm: string;
   lead?: { id: string; nome: string; empresa: string | null } | null;
   responsavel?: { nome: string } | null;
@@ -44,6 +45,13 @@ interface LeadOpcao {
   empresa: string | null;
   email: string | null;
   telefone: string | null;
+}
+
+// Empresa vem do menu Contatos → Empresas (GET /clientes = entidade Cliente).
+// Diferente dos leads; por isso o picker do Negócio busca as duas fontes.
+interface ClienteOpcao {
+  id: string;
+  nomeFantasia: string;
 }
 
 // Tipo "visual" do wireframe (8 opções). O backend só tem 6 tipos, então
@@ -72,13 +80,18 @@ const ROTULO_TIPO: Record<TipoAtividade, string> = {
 };
 
 const MOCK_ATIVIDADES: Atividade[] = [
-  { id: 'm1', titulo: 'Tentativa de contato via ligação', tipo: 'LIGACAO', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, contato: null, criadoEm: new Date().toISOString(), lead: { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
-  { id: 'm2', titulo: 'Tentativa de agendar reunião', tipo: 'WHATSAPP', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, contato: null, criadoEm: new Date().toISOString(), lead: { id: 'l2', nome: 'Ditto Pizzaria', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm1', titulo: 'Tentativa de contato via ligação', tipo: 'LIGACAO', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, contato: null, empresaNome: null, criadoEm: new Date().toISOString(), lead: { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm2', titulo: 'Tentativa de agendar reunião', tipo: 'WHATSAPP', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, contato: null, empresaNome: null, criadoEm: new Date().toISOString(), lead: { id: 'l2', nome: 'Ditto Pizzaria', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
 ];
 
 const MOCK_LEADS: LeadOpcao[] = [
   { id: 'l1', nome: 'Sandro Bonacina', empresa: 'Bonacina Pizzaria', email: 'sandro@bonacina.com', telefone: '(51) 99999-0001' },
   { id: 'l2', nome: 'Karina Cioriano', empresa: 'Cyborg Lanches', email: 'karina@cyborg.com', telefone: '(51) 99999-0002' },
+];
+
+const MOCK_CLIENTES: ClienteOpcao[] = [
+  { id: 'e1', nomeFantasia: 'Bonacina Pizzaria e Lancheria LTDA' },
+  { id: 'e2', nomeFantasia: 'Santa Sushi Delivery' },
 ];
 
 // ── Ícones (padrão SVG monocromático do app) ──
@@ -223,6 +236,7 @@ export function Atividades() {
   const { usuario } = useAuth();
   const [lista, setLista] = useState<Atividade[]>([]);
   const [leads, setLeads] = useState<LeadOpcao[]>([]);
+  const [clientes, setClientes] = useState<ClienteOpcao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
@@ -241,8 +255,8 @@ export function Atividades() {
   const [salvando, setSalvando] = useState(false);
   const [form, setForm] = useState<{
     id?: string; tipoVisual: TipoVisual; titulo: string; data: string; horaInicio: string; horaFim: string;
-    leadId: string; buscaLead: string; notas: string; contato: string; responsavelId: string; marcarFeito: boolean;
-  }>({ id: undefined, tipoVisual: 'LIGACAO', titulo: '', data: '', horaInicio: '', horaFim: '', leadId: '', buscaLead: '', notas: '', contato: '', responsavelId: '', marcarFeito: false });
+    leadId: string; empresaNome: string; buscaLead: string; notas: string; contato: string; responsavelId: string; marcarFeito: boolean;
+  }>({ id: undefined, tipoVisual: 'LIGACAO', titulo: '', data: '', horaInicio: '', horaFim: '', leadId: '', empresaNome: '', buscaLead: '', notas: '', contato: '', responsavelId: '', marcarFeito: false });
 
   async function carregar() {
     setCarregando(true);
@@ -268,9 +282,21 @@ export function Atividades() {
     }
   }
 
+  // Carrega as Empresas (Clientes) para o seletor — mesma fonte do menu
+  // Contatos → Empresas (GET /clientes). Falha aqui não bloqueia a lista.
+  async function carregarClientes() {
+    try {
+      const { data } = await api.get<ClienteOpcao[]>('/clientes');
+      setClientes(comDemo(data, MOCK_CLIENTES));
+    } catch {
+      setClientes(mockSeDemo(MOCK_CLIENTES));
+    }
+  }
+
   useEffect(() => {
     carregar();
     carregarLeads();
+    carregarClientes();
   }, []);
 
   async function concluir(id: string) {
@@ -288,7 +314,7 @@ export function Atividades() {
     setForm({
       id: undefined, tipoVisual: 'LIGACAO', titulo: '',
       data: `${agora.getFullYear()}-${p2(agora.getMonth() + 1)}-${p2(agora.getDate())}`,
-      horaInicio: '', horaFim: '', leadId: '', buscaLead: '', notas: '', contato: '',
+      horaInicio: '', horaFim: '', leadId: '', empresaNome: '', buscaLead: '', notas: '', contato: '',
       responsavelId: usuario?.id ?? '', marcarFeito: false,
     });
     setModal('novo');
@@ -304,7 +330,8 @@ export function Atividades() {
       horaInicio: horaParaInput(a.vencimento),
       horaFim: horaParaInput(a.horaFim),
       leadId: a.lead?.id ?? '',
-      buscaLead: a.lead ? (a.lead.empresa ? `${a.lead.nome} · ${a.lead.empresa}` : a.lead.nome) : '',
+      empresaNome: a.empresaNome ?? '',
+      buscaLead: a.lead ? (a.lead.empresa ? `${a.lead.nome} · ${a.lead.empresa}` : a.lead.nome) : (a.empresaNome ?? ''),
       notas: a.notas ?? '',
       contato: a.contato ?? '',
       responsavelId: usuario?.id ?? '',
@@ -314,7 +341,7 @@ export function Atividades() {
   }
 
   async function salvar() {
-    if (!form.titulo.trim() || !form.leadId) return;
+    if (!form.titulo.trim() || (!form.leadId && !form.empresaNome)) return;
     setSalvando(true);
     setErroAcao(null);
     const vencimento = combinarISO(form.data, form.horaInicio || '00:00');
@@ -329,7 +356,8 @@ export function Atividades() {
           ...(horaFimIso ? { horaFim: horaFimIso } : {}),
           ...(form.notas.trim() ? { notas: form.notas.trim() } : {}),
           ...(form.contato.trim() ? { contato: form.contato.trim() } : {}),
-          leadId: form.leadId,
+          ...(form.leadId ? { leadId: form.leadId } : {}),
+          ...(form.empresaNome.trim() ? { empresaNome: form.empresaNome.trim() } : {}),
           ...(form.responsavelId ? { responsavelId: form.responsavelId } : {}),
         });
         if (form.marcarFeito && data?.id) {
@@ -343,7 +371,8 @@ export function Atividades() {
           ...(horaFimIso ? { horaFim: horaFimIso } : {}),
           notas: form.notas.trim(),
           contato: form.contato.trim(),
-          leadId: form.leadId,
+          empresaNome: form.empresaNome.trim() || null,
+          leadId: form.leadId || null,
         });
       }
       setModal(null);
@@ -416,6 +445,9 @@ export function Atividades() {
   const leadsFiltrados = form.buscaLead.trim()
     ? leads.filter((l) => `${l.nome} ${l.empresa ?? ''} ${l.email ?? ''} ${l.telefone ?? ''}`.toLowerCase().includes(form.buscaLead.trim().toLowerCase()))
     : leads;
+  const empresasFiltradas = form.buscaLead.trim()
+    ? clientes.filter((c) => c.nomeFantasia.toLowerCase().includes(form.buscaLead.trim().toLowerCase()))
+    : clientes;
 
   // Controles do cabeçalho (alternador de visão + filtros + novo).
   const toolbar = (
@@ -515,7 +547,7 @@ export function Atividades() {
                               <IcoCalendario tamanho={13} />{textoDataCard(a.vencimento)}
                             </span>
                           )}
-                          {a.lead?.nome && <span style={{ color: 'var(--amarelo-fagulha)', fontWeight: 500 }}>{a.lead.nome}</span>}
+                          {(a.lead?.nome || a.empresaNome) && <span style={{ color: 'var(--amarelo-fagulha)', fontWeight: 500 }}>{a.lead?.nome ?? a.empresaNome}</span>}
                           {a.lead?.empresa && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--texto-fraco)' }}><IcoEmpresa tamanho={13} />{a.lead.empresa}</span>}
                           {a.contato && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--texto-fraco)' }}><IcoUsuario tamanho={13} />{a.contato}</span>}
                           {a.responsavel?.nome && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--texto-fraco)' }}><IcoUsuario tamanho={13} />{a.responsavel.nome}{ehVoce ? ' (você)' : ''}</span>}
@@ -573,24 +605,34 @@ export function Atividades() {
             {/* Negócio */}
             <div className="brk-campo">
               <label className="brk-campo-label">Negócio *</label>
-              {form.leadId ? (
+              {(form.leadId || form.empresaNome) ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 12px', marginTop: 2, borderRadius: 8, border: '1px solid var(--amarelo-borda)', background: 'var(--amarelo-fundo)', color: 'var(--amarelo-fagulha)', fontSize: 13 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.buscaLead}</span>
-                  <button type="button" aria-label="Remover negócio" onClick={() => setForm((f) => ({ ...f, leadId: '', buscaLead: '' }))} style={{ border: 'none', background: 'transparent', color: 'var(--amarelo-fagulha)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+                  <button type="button" aria-label="Remover negócio" onClick={() => setForm((f) => ({ ...f, leadId: '', empresaNome: '', buscaLead: '' }))} style={{ border: 'none', background: 'transparent', color: 'var(--amarelo-fagulha)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
                 </div>
               ) : (
                 <>
                   <input className="brk-input" value={form.buscaLead} onChange={(e) => setForm((f) => ({ ...f, buscaLead: e.target.value }))} placeholder="Buscar pessoa ou empresa..." />
                   {form.buscaLead.trim() && (
                     <div style={{ marginTop: 4, maxHeight: 168, overflowY: 'auto', border: '1px solid var(--borda)', borderRadius: 8, background: 'var(--superficie-2)' }}>
-                      {leadsFiltrados.length === 0 ? (
+                      {leadsFiltrados.length === 0 && empresasFiltradas.length === 0 ? (
                         <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--texto-fraco)' }}>Nenhuma pessoa ou empresa encontrada.</div>
-                      ) : leadsFiltrados.slice(0, 20).map((l) => (
-                        <button key={l.id} type="button" onClick={() => setForm((f) => ({ ...f, leadId: l.id, buscaLead: l.empresa ? `${l.nome} · ${l.empresa}` : l.nome }))} style={{
-                          display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 12.5, border: 'none',
-                          borderBottom: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: 'pointer',
-                        }}><span style={{ fontWeight: 500, color: 'var(--texto)' }}>{l.nome}</span>{(l.empresa || l.email) && <span style={{ display: 'block', color: 'var(--texto-fraco)', fontSize: 11.5, marginTop: 1 }}>{[l.empresa, l.email].filter(Boolean).join(' · ')}</span>}</button>
-                      ))}
+                      ) : (
+                        <>
+                          {leadsFiltrados.slice(0, 20).map((l) => (
+                            <button key={`p-${l.id}`} type="button" onClick={() => setForm((f) => ({ ...f, leadId: l.id, empresaNome: '', buscaLead: l.empresa ? `${l.nome} · ${l.empresa}` : l.nome }))} style={{
+                              display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 12.5, border: 'none',
+                              borderBottom: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: 'pointer',
+                            }}><span style={{ fontWeight: 500, color: 'var(--texto)' }}>{l.nome}</span>{(l.empresa || l.email) && <span style={{ display: 'block', color: 'var(--texto-fraco)', fontSize: 11.5, marginTop: 1 }}>{[l.empresa, l.email].filter(Boolean).join(' · ')}</span>}</button>
+                          ))}
+                          {empresasFiltradas.slice(0, 20).map((c) => (
+                            <button key={`e-${c.id}`} type="button" onClick={() => setForm((f) => ({ ...f, empresaNome: c.nomeFantasia, leadId: '', buscaLead: c.nomeFantasia }))} style={{
+                              display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 12.5, border: 'none',
+                              borderBottom: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: 'pointer',
+                            }}><span style={{ color: 'var(--texto-fraco)', display: 'inline-flex', flex: '0 0 auto' }}><IcoEmpresa tamanho={14} /></span><span style={{ flex: 1, fontWeight: 500, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nomeFantasia}</span><span style={{ color: 'var(--texto-fraco)', fontSize: 11 }}>Empresa</span></button>
+                          ))}
+                        </>
+                      )}
                     </div>
                   )}
                 </>
@@ -624,7 +666,7 @@ export function Atividades() {
               </label>
             )}
 
-            <Btn variante="primary" onClick={salvar} disabled={salvando || !form.titulo.trim() || !form.leadId} style={{ width: '100%' }}>
+            <Btn variante="primary" onClick={salvar} disabled={salvando || !form.titulo.trim() || (!form.leadId && !form.empresaNome)} style={{ width: '100%' }}>
               {salvando ? 'Salvando…' : modal === 'editar' ? 'Salvar Alterações' : 'Salvar Atividade'}
             </Btn>
           </div>
