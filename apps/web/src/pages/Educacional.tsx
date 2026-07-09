@@ -122,7 +122,7 @@ export function Educacional() {
       {cursos.length === 0 ? (
         <PainelVazio titulo="Nenhum curso ainda" descricao="Os cursos disponibilizados aparecerão aqui." />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 12 }}>
           {cursos.map((c) => (
             <Card key={c.id}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -328,7 +328,7 @@ export function Inicio() {
                   {resumo.acoes.length}
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 12 }}>
                 {resumo.acoes.map((a) => {
                   const t = TOM_COR[a.tom];
                   return (
@@ -507,7 +507,7 @@ function MeuDiaSecao({ meuDia }: { meuDia: MeuDia }) {
           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-fraco)' }}>
             Minhas peças ({pecas.length})
           </span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 10 }}>
             {pecas.map((p) => (
               <Link
                 key={p.id}

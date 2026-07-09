@@ -122,7 +122,7 @@ export function Inventario() {
       {ehGestao && (
         <Card>
           <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Novo item</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
             <div><label style={rotulo}>Nome</label>{inp({ value: nome, onChange: (e) => setNome(e.target.value), placeholder: 'Notebook Dell' })}</div>
             <div><label style={rotulo}>Categoria</label>{inp({ value: categoria, onChange: (e) => setCategoria(e.target.value), placeholder: 'Equipamento' })}</div>
             <div><label style={rotulo}>Valor (R$)</label>{inp({ value: valor, onChange: (e) => setValor(e.target.value), placeholder: '4500' })}</div>

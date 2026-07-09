@@ -136,7 +136,7 @@ export function Financeiro() {
 
   return (
     <PaginaShell titulo="Financeiro" subtitulo="Painel consolidado — boletos, recebimentos e contas a pagar.">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 12 }}>
         <Indicador titulo="Recebido no mês" valor={brl(ind?.recebidoMes ?? 0)} />
         <Indicador titulo="A receber (7 dias)" valor={brl(ind?.aReceberSemana ?? 0)} />
         <Indicador titulo="A receber (total)" valor={brl(ind?.aReceberTotal ?? 0)} />
@@ -172,7 +172,7 @@ export function Financeiro() {
 
       <Card>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Contas a pagar</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginBottom: 12 }}>
           <div><label style={rotulo}>Descrição</label><input className="brk-input" style={{ width: '100%' }} value={desc} onChange={(e) => setDesc(e.target.value)} /></div>
           <div><label style={rotulo}>Categoria</label><input className="brk-input" style={{ width: '100%' }} value={cat} onChange={(e) => setCat(e.target.value)} placeholder="Marketing, Aluguel…" /></div>
           <div><label style={rotulo}>Valor (R$)</label><input className="brk-input" style={{ width: '100%' }} value={valor} onChange={(e) => setValor(e.target.value)} /></div>

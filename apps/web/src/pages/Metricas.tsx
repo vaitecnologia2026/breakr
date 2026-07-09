@@ -115,7 +115,7 @@ function MeuPainelView({ leads }: { leads: Lead[] }) {
   return (
     <>
       <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 12px' }}>Meu Painel</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="brk-rgrid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <Kpi rotulo="Novos Leads" valor={String(cont('NOVO'))} />
         <Kpi rotulo="Em contato/qualificação" valor={String(cont('CONTATADO') + cont('QUALIFICADO'))} />
         <Kpi rotulo="Em proposta" valor={String(cont('PROPOSTA'))} />
@@ -129,7 +129,7 @@ function MeuPainelView({ leads }: { leads: Lead[] }) {
           ))}
         </div>
       </Card>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div className="brk-rgrid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <Kpi rotulo="Ganhos" valor={String(ganhos)} cor="var(--verde)" />
         <Kpi rotulo="Perdidos" valor={String(perdidos)} cor="var(--vermelho)" />
         <Kpi rotulo="Taxa de conversão" valor={`${taxa}%`} />
@@ -267,7 +267,7 @@ export function Metricas() {
       ) : erro ? (
         <EstadoErro mensagem={erro} onTentar={carregar} />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) 1fr', gap: 16, alignItems: 'start' }}>
+        <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) 1fr', gap: 16, alignItems: 'start' }}>
           <Submenu sel={sel} onSel={setSel} />
           <div>{sel === null ? <MeuPainelView leads={leads} /> : <ReportView report={REPORTS[sel]} leads={leads} ativ={ativ} />}</div>
         </div>

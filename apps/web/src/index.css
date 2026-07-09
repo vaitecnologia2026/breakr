@@ -1536,3 +1536,40 @@ div:hover > .brk-avatar-hover-overlay { opacity: 1 !important; }
   .brk-modal { max-width: 100%; margin: 0; border-radius: var(--r-lg) var(--r-lg) 0 0; align-self: flex-end; }
   .brk-overlay { align-items: flex-end; padding: 0; }
 }
+
+/* ============================================================
+   Responsividade — reforço global (computador, tablet e celular)
+   Só adapta em telas menores; o layout desktop permanece igual.
+   ============================================================ */
+
+/* Correção de flexbox: deixa o conteúdo principal encolher em vez de forçar
+   rolagem horizontal quando uma página tem algo largo. Vale para TODAS as telas. */
+.brk-main { min-width: 0; max-width: 100%; }
+.brk-content { min-width: 0; }
+.brk-content img, .brk-content video { max-width: 100%; height: auto; }
+
+/* Grades inline que colapsam por breakpoint. O desktop mantém o
+   gridTemplateColumns definido no próprio elemento; aqui só reduzimos as
+   colunas em telas menores (tablet → 2 colunas, celular → 1 coluna). */
+@media (max-width: 1024px) {
+  .brk-rgrid-4, .brk-rgrid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  .brk-content { padding: 24px 22px; }
+}
+@media (max-width: 768px) {
+  .brk-rsplit { grid-template-columns: 1fr !important; }
+  /* Chat ocupa a tela inteira: alinhar a margem full-bleed ao padding mobile
+     (evita ~16px de estouro horizontal na tela do celular). */
+  .brk-chat-fullbleed { margin: -20px -16px; }
+  .brk-chat-canais { width: 168px; }
+  .brk-chat-area-desc { display: none; }
+}
+@media (max-width: 560px) {
+  .brk-rgrid-4, .brk-rgrid-3, .brk-rgrid-2 { grid-template-columns: 1fr !important; }
+  /* Tipografia grande reduz para caber no celular. */
+  .brk-kpi-valor { font-size: 30px; }
+  .brk-card-stat-valor { font-size: 26px; }
+  .brk-pagina-titulo { font-size: 20px; }
+  .brk-chat-canais { width: 132px; }
+}

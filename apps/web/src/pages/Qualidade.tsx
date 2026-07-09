@@ -552,7 +552,7 @@ function SecaoProdutividade() {
   return (
     <section>
       <SecaoTitulo>Produtividade da equipe</SecaoTitulo>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 16, marginTop: 12 }}>
         <ListaRework titulo="Refações por designer" linhas={rework?.porResponsavel ?? []} />
         <ListaRework titulo="Refações por squad" linhas={rework?.porSquad ?? []} />
         <Card>
