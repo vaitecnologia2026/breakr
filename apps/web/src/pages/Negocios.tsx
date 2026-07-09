@@ -35,11 +35,16 @@ interface Atividade {
   lead?: { id: string } | null;
 }
 
+// Rótulos das etapas conforme o wireframe (RD Station). Apenas VISUAL: cada
+// coluna continua mapeada ao status validado do backend (o valor `status` não
+// muda), então o drag-and-drop e o PATCH permanecem idênticos. Ganho/Perdido
+// são mantidos (funcionalidade existente) — não constam no wireframe pois lá
+// ficam fora do filtro "Ativos".
 const COLUNAS: { status: StatusLead; titulo: string }[] = [
-  { status: 'NOVO', titulo: 'Novo' },
-  { status: 'CONTATADO', titulo: 'Contatado' },
-  { status: 'QUALIFICADO', titulo: 'Qualificado' },
-  { status: 'PROPOSTA', titulo: 'Proposta' },
+  { status: 'NOVO', titulo: 'Entrada de Leads' },
+  { status: 'CONTATADO', titulo: 'Tentando contato' },
+  { status: 'QUALIFICADO', titulo: 'Contato realizado' },
+  { status: 'PROPOSTA', titulo: 'Contato com decisor' },
   { status: 'GANHO', titulo: 'Ganho' },
   { status: 'PERDIDO', titulo: 'Perdido' },
 ];
