@@ -22,6 +22,7 @@ import { Comercial } from './pages/Comercial';
 import { MeuPainel } from './pages/MeuPainel';
 import { Negocios } from './pages/Negocios';
 import { Contatos } from './pages/Contatos';
+import { Pessoas } from './pages/Pessoas';
 import { Atividades } from './pages/Atividades';
 import { Metricas } from './pages/Metricas';
 import { Recrutamento } from './pages/Recrutamento';
@@ -84,6 +85,7 @@ export function App() {
         <Route path="meu-painel" element={<MeuPainel />} />
         <Route path="negocios" element={<Negocios />} />
         <Route path="contatos" element={<Contatos />} />
+        <Route path="contatos/pessoas" element={<Pessoas />} />
         <Route path="atividades" element={<Atividades />} />
         <Route path="metricas" element={<Metricas />} />
         <Route path="clientes" element={<Clientes />} />

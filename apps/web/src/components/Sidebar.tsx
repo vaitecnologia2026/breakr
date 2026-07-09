@@ -66,6 +66,7 @@ interface NavItem {
   rotulo: string;
   icone: React.ReactNode;
   fim?: boolean;
+  subItens?: NavItem[];
 }
 
 interface NavGroup {
@@ -96,7 +97,9 @@ const GRUPOS: NavGroup[] = [
       { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
       { para: '/meu-painel', rotulo: 'Meu Painel', icone: <IcoHome /> },
       { para: '/negocios',   rotulo: 'Negócios',   icone: <IcoBriefcase /> },
-      { para: '/contatos',   rotulo: 'Contatos',   icone: <IcoUsers /> },
+      { para: '/contatos',   rotulo: 'Contatos',   icone: <IcoUsers />, subItens: [
+        { para: '/contatos/pessoas', rotulo: 'Pessoas', icone: <IcoUsers /> },
+      ] },
       { para: '/atividades', rotulo: 'Atividades', icone: <IcoFileText /> },
       { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
       { para: '/clientes',   rotulo: 'Clientes',   icone: <IcoUsers /> },
@@ -423,12 +426,16 @@ function NavGrupo({ label, icone, collapsible, items, favoritos, onToggleFav }: 
   if (!collapsible) {
     return (
       <div className="brk-sidebar-group">
-        {items.map((item) => (
-          <SidebarLink key={item.para} {...item}
-            favoritado={favoritos.some((f) => f.para === item.para)}
-            onToggleFav={() => onToggleFav(item)}
-          />
-        ))}
+        {items.map((item) =>
+          item.subItens && item.subItens.length ? (
+            <SidebarLinkComSub key={item.para} item={item} favoritos={favoritos} onToggleFav={onToggleFav} />
+          ) : (
+            <SidebarLink key={item.para} {...item}
+              favoritado={favoritos.some((f) => f.para === item.para)}
+              onToggleFav={() => onToggleFav(item)}
+            />
+          ),
+        )}
       </div>
     );
   }
@@ -445,12 +452,16 @@ function NavGrupo({ label, icone, collapsible, items, favoritos, onToggleFav }: 
 
       {aberto && (
         <div className="brk-sidebar-submenu">
-          {items.map((item) => (
-            <SidebarLink key={item.para} {...item} sub
-              favoritado={favoritos.some((f) => f.para === item.para)}
-              onToggleFav={() => onToggleFav(item)}
-            />
-          ))}
+          {items.map((item) =>
+            item.subItens && item.subItens.length ? (
+              <SidebarLinkComSub key={item.para} item={item} favoritos={favoritos} onToggleFav={onToggleFav} />
+            ) : (
+              <SidebarLink key={item.para} {...item} sub
+                favoritado={favoritos.some((f) => f.para === item.para)}
+                onToggleFav={() => onToggleFav(item)}
+              />
+            ),
+          )}
         </div>
       )}
     </div>
@@ -484,6 +495,57 @@ function SidebarLink({
         >
           <IcoStar16 filled={!!favoritado} />
         </button>
+      )}
+    </div>
+  );
+}
+
+// Item de navegação que, ao clicar, abre um sub-submenu (ex.: Contatos → Pessoas).
+// O item pai vira um botão de expandir/recolher (não navega); os filhos são
+// SidebarLink normais, indentados. Aditivo — não altera o SidebarLink existente.
+function SidebarLinkComSub({
+  item, favoritos, onToggleFav,
+}: {
+  item: NavItem;
+  favoritos: FavItem[];
+  onToggleFav: (item: NavItem) => void;
+}) {
+  const location = useLocation();
+  const filhos = item.subItens ?? [];
+  const temFilhoAtivo = filhos.some(
+    (f) => location.pathname === f.para || location.pathname.startsWith(f.para + '/'),
+  );
+  const [aberto, setAberto] = useState<boolean>(temFilhoAtivo);
+
+  useEffect(() => {
+    if (temFilhoAtivo) setAberto(true);
+  }, [temFilhoAtivo]);
+
+  return (
+    <div className="brk-sidebar-item-wrap" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+      <button
+        type="button"
+        className={`brk-sidebar-item sub${temFilhoAtivo ? ' active' : ''}`}
+        onClick={() => setAberto((v) => !v)}
+        aria-expanded={aberto}
+        title={item.rotulo}
+        style={{ width: '100%' }}
+      >
+        <span className="brk-sidebar-icon" aria-hidden="true">{item.icone}</span>
+        <span className="brk-sidebar-item-label"><PontoStatusTeste para={item.para} />{item.rotulo}</span>
+        <span className={`brk-sidebar-group-chevron${aberto ? ' open' : ''}`} style={{ marginLeft: 'auto' }}>
+          <IcoChevronRight />
+        </span>
+      </button>
+      {aberto && (
+        <div className="brk-sidebar-submenu">
+          {filhos.map((f) => (
+            <SidebarLink key={f.para} {...f} sub
+              favoritado={favoritos.some((x) => x.para === f.para)}
+              onToggleFav={() => onToggleFav(f)}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
