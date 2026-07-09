@@ -3,7 +3,7 @@
 // esquerda; à direita, as métricas computadas dos Leads (/comercial/leads) e das
 // Atividades (/comercial/atividades). Cada relatório mostra os registros reais
 // que o mapeiam. Estados carregando/erro no padrão do app.
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { PaginaShell, EstadoCarregando, EstadoErro } from '../components/primitivos';
@@ -97,44 +97,237 @@ function leadsDoRelatorio(n: string, leads: Lead[]): Lead[] {
   return leads;
 }
 
-function Kpi({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: string }) {
+// ── Paleta e rótulos dos gráficos (tema do app) ──
+const COR_STATUS: Record<StatusLead, string> = { NOVO: '#3b82f6', CONTATADO: '#f59e0b', QUALIFICADO: '#FF9406', PROPOSTA: '#8b5cf6', GANHO: '#22c55e', PERDIDO: '#ef4444' };
+const PALETA = ['#3b82f6', '#22c55e', '#FF9406', '#8b5cf6', '#ef4444', '#14b8a6', '#eab308', '#ec4899'];
+const FUNIL_ORDEM: StatusLead[] = ['NOVO', 'CONTATADO', 'QUALIFICADO', 'PROPOSTA', 'GANHO'];
+const FUNIL_LABEL: Record<StatusLead, string> = { NOVO: 'Entrada de Leads', CONTATADO: 'Tentando contato', QUALIFICADO: 'Contato realizado', PROPOSTA: 'Contato com decisor', GANHO: 'Ganho', PERDIDO: 'Perdido' };
+const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function diaLabel(iso: string): string { const d = new Date(iso + 'T00:00'); return `${String(d.getDate()).padStart(2, '0')} de ${MES[d.getMonth()]}`; }
+function mesLabel(iso: string): string { const d = new Date(iso + 'T00:00'); return MES[d.getMonth()]; }
+function agrupar<T>(itens: T[], chaveFn: (x: T) => string): { chave: string; itens: T[] }[] {
+  const mapa = new Map<string, T[]>();
+  for (const it of itens) { const k = chaveFn(it); const arr = mapa.get(k) ?? []; arr.push(it); mapa.set(k, arr); }
+  return Array.from(mapa.entries()).map(([chave, itens]) => ({ chave, itens }));
+}
+
+function VazioMini() {
+  return <div style={{ textAlign: 'center', color: 'var(--texto-fraco)', fontSize: 12.5, padding: '28px 0' }}>Nenhum dado encontrado</div>;
+}
+function Painel({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <Card>
-      <div style={{ color: 'var(--texto-fraco)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{rotulo}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: cor ?? 'var(--texto)' }}>{valor}</div>
+      <h3 style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 12px' }}>{titulo}</h3>
+      {children}
     </Card>
   );
 }
+function SecaoTitulo({ texto }: { texto: string }) {
+  return <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: 'var(--texto-fraco)', textTransform: 'uppercase', margin: '8px 0 2px' }}>{texto}</div>;
+}
+function CartaoKpi({ titulo, sub, valor, cor }: { titulo: string; sub: string; valor: number; cor?: string }) {
+  return (
+    <Card>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--texto)' }}>{titulo}</div>
+      <div style={{ fontSize: 10, letterSpacing: 0.5, color: 'var(--texto-fraco)', textTransform: 'uppercase', fontWeight: 700, margin: '3px 0 8px' }}>{sub}</div>
+      <div style={{ fontSize: 30, fontWeight: 800, color: cor ?? 'var(--texto)', lineHeight: 1 }}>{valor}</div>
+      <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginTop: 4 }}>no período</div>
+    </Card>
+  );
+}
+// Barras verticais simples (contagem ou moeda).
+function BarrasV({ dados, moeda }: { dados: { rotulo: string; valor: number; cor: string }[]; moeda?: boolean }) {
+  if (dados.length === 0 || dados.every((d) => d.valor === 0)) return <VazioMini />;
+  const max = Math.max(...dados.map((d) => d.valor), 1);
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 170, paddingTop: 18, overflowX: 'auto' }}>
+      {dados.map((d, i) => (
+        <div key={i} style={{ flex: '1 0 44px', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', minWidth: 44 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--texto-suave)', marginBottom: 3, whiteSpace: 'nowrap' }}>{moeda ? brl(String(d.valor)) : d.valor}</div>
+          <div style={{ width: '100%', maxWidth: 46, height: `${(d.valor / max) * 100}%`, minHeight: d.valor > 0 ? 4 : 0, background: d.cor, borderRadius: '4px 4px 0 0' }} />
+          <div style={{ fontSize: 10.5, color: 'var(--texto-fraco)', marginTop: 6, textAlign: 'center', maxWidth: 80, lineHeight: 1.2 }}>{d.rotulo}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+// Funil de conversão (barras decrescentes + % entre etapas).
+function Funil({ etapas }: { etapas: { rotulo: string; valor: number }[] }) {
+  if (etapas.every((e) => e.valor === 0)) return <VazioMini />;
+  const max = Math.max(...etapas.map((e) => e.valor), 1);
+  const taxa = etapas[0].valor > 0 ? Math.round((etapas[etapas.length - 1].valor / etapas[0].valor) * 100) : 0;
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Taxa de ganho: {taxa}%</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 170, paddingTop: 18, overflowX: 'auto' }}>
+        {etapas.map((e, i) => (
+          <Fragment key={i}>
+            <div style={{ flex: '1 0 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', minWidth: 40 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--texto-suave)', marginBottom: 3 }}>{e.valor}</div>
+              <div style={{ width: '100%', maxWidth: 44, height: `${(e.valor / max) * 100}%`, minHeight: e.valor > 0 ? 4 : 0, background: i === etapas.length - 1 ? '#22c55e' : '#FF9406', borderRadius: '4px 4px 0 0' }} />
+              <div style={{ fontSize: 10, color: 'var(--texto-fraco)', marginTop: 6, textAlign: 'center', maxWidth: 64, lineHeight: 1.2 }}>{e.rotulo}</div>
+            </div>
+            {i < etapas.length - 1 && (
+              <div style={{ alignSelf: 'center', fontSize: 10, fontWeight: 700, background: 'var(--superficie-4)', color: 'var(--texto-suave)', borderRadius: 6, padding: '2px 5px', whiteSpace: 'nowrap' }}>
+                {etapas[i].valor > 0 ? Math.round((etapas[i + 1].valor / etapas[i].valor) * 100) : 0}%
+              </div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+// Barras horizontais empilhadas por grupo (responsável) + legenda.
+function BarrasEmpilhadasH({ grupos, legenda }: { grupos: { rotulo: string; total: number; segmentos: { nome: string; valor: number; cor: string }[] }[]; legenda: { nome: string; cor: string }[] }) {
+  const validos = grupos.filter((g) => g.total > 0);
+  if (validos.length === 0) return <VazioMini />;
+  const max = Math.max(...grupos.map((g) => g.total), 1);
+  return (
+    <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {validos.map((g, i) => (
+          <div key={i}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+              <span style={{ color: 'var(--texto-suave)' }}>{g.rotulo}</span>
+              <span style={{ color: 'var(--texto-fraco)', fontWeight: 700 }}>{g.total}</span>
+            </div>
+            <div style={{ display: 'flex', height: 22, borderRadius: 5, overflow: 'hidden', background: 'var(--superficie-3)', width: `${(g.total / max) * 100}%`, minWidth: 40 }}>
+              {g.segmentos.filter((s) => s.valor > 0).map((s, j) => (
+                <div key={j} title={`${s.nome}: ${s.valor}`} style={{ flex: s.valor, background: s.cor }} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
+        {legenda.map((l, i) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--texto-fraco)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: l.cor }} />{l.nome}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+// Pizza (CSS conic-gradient) + legenda.
+function Pizza({ fatias }: { fatias: { nome: string; valor: number; cor: string }[] }) {
+  const total = fatias.reduce((s, f) => s + f.valor, 0);
+  if (total === 0) return <VazioMini />;
+  let acc = 0;
+  const paradas = fatias.map((f) => { const ini = (acc / total) * 360; acc += f.valor; const fim = (acc / total) * 360; return `${f.cor} ${ini}deg ${fim}deg`; }).join(', ');
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+      <div style={{ width: 140, height: 140, borderRadius: '50%', background: `conic-gradient(${paradas})` }} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
+        {fatias.map((f, i) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--texto-suave)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: f.cor }} />{f.nome} <b>{f.valor}</b>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-function MeuPainelView({ leads }: { leads: Lead[] }) {
-  const cont = (s: StatusLead) => leads.filter((l) => l.status === s).length;
-  const ganhos = cont('GANHO');
-  const perdidos = cont('PERDIDO');
-  const fechados = ganhos + perdidos;
-  const taxa = fechados > 0 ? Math.round((ganhos / fechados) * 100) : 0;
+// Uma seção de funil (Prospecção/Inbound/Social Selling/Negociação): KPIs +
+// Funil + Negócios Abertos por Etapa + Atividades por Responsável + Mix.
+function SecaoFunil({ titulo, leads, ativ, kpis }: { titulo: string; leads: Lead[]; ativ: Atividade[]; kpis: { titulo: string; sub: string; valor: number; cor?: string }[] }) {
+  const idx = (s: StatusLead) => FUNIL_ORDEM.indexOf(s);
+  const etapasFunil = FUNIL_ORDEM.map((s, i) => ({ rotulo: FUNIL_LABEL[s], valor: leads.filter((l) => l.status !== 'PERDIDO' && idx(l.status) >= i).length }));
+  const abertosEtapa = (['NOVO', 'CONTATADO', 'QUALIFICADO', 'PROPOSTA'] as StatusLead[]).map((s) => ({ rotulo: FUNIL_LABEL[s], valor: leads.filter((l) => l.status === s).length, cor: COR_STATUS[s] }));
+  const respAtiv = agrupar(ativ, (a) => a.responsavel?.nome ?? '—');
+  const tipos = Array.from(new Set(ativ.map((a) => a.tipo)));
+  const atividadesResp = respAtiv.map(({ chave, itens }) => ({ rotulo: chave, total: itens.length, segmentos: [{ nome: 'Concluída', valor: itens.filter((a) => a.status === 'CONCLUIDA').length, cor: '#22c55e' }, { nome: 'Pendente', valor: itens.filter((a) => a.status === 'PENDENTE').length, cor: '#3b82f6' }] }));
+  const mixResp = respAtiv.map(({ chave, itens }) => ({ rotulo: chave, total: itens.length, segmentos: tipos.map((t, i) => ({ nome: t, valor: itens.filter((a) => a.tipo === t).length, cor: PALETA[i % PALETA.length] })) }));
   return (
     <>
-      <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 12px' }}>Meu Painel</h2>
-      <div className="brk-rgrid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <Kpi rotulo="Novos Leads" valor={String(cont('NOVO'))} />
-        <Kpi rotulo="Em contato/qualificação" valor={String(cont('CONTATADO') + cont('QUALIFICADO'))} />
-        <Kpi rotulo="Em proposta" valor={String(cont('PROPOSTA'))} />
-        <Kpi rotulo="Ganhos" valor={String(ganhos)} cor="var(--verde)" />
+      <SecaoTitulo texto={titulo} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
+        {kpis.map((k, i) => <CartaoKpi key={i} {...k} />)}
       </div>
-      <Card>
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Negócios por etapa</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12 }}>
-          {(Object.keys(ROTULO_STATUS) as StatusLead[]).map((s) => (
-            <div key={s}>{ROTULO_STATUS[s]} <b>{cont(s)}</b></div>
-          ))}
-        </div>
-      </Card>
-      <div className="brk-rgrid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <Kpi rotulo="Ganhos" valor={String(ganhos)} cor="var(--verde)" />
-        <Kpi rotulo="Perdidos" valor={String(perdidos)} cor="var(--vermelho)" />
-        <Kpi rotulo="Taxa de conversão" valor={`${taxa}%`} />
+      <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <Painel titulo="Funil de Conversão"><Funil etapas={etapasFunil} /></Painel>
+        <Painel titulo="Negócios Abertos por Etapa"><BarrasV dados={abertosEtapa} /></Painel>
+      </div>
+      <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <Painel titulo="Atividades por Responsável"><BarrasEmpilhadasH grupos={atividadesResp} legenda={[{ nome: 'Concluída', cor: '#22c55e' }, { nome: 'Pendente', cor: '#3b82f6' }]} /></Painel>
+        <Painel titulo="Mix de Atividades"><BarrasEmpilhadasH grupos={mixResp} legenda={tipos.map((t, i) => ({ nome: t, cor: PALETA[i % PALETA.length] }))} /></Painel>
       </div>
     </>
+  );
+}
+
+function MeuPainelView({ leads, ativ }: { leads: Lead[]; ativ: Atividade[] }) {
+  const abertos = (l: Lead) => l.status !== 'GANHO' && l.status !== 'PERDIDO';
+  const c = (arr: Lead[], s: StatusLead) => arr.filter((l) => l.status === s).length;
+  const orig = (re: RegExp) => leads.filter((l) => re.test(l.origem ?? ''));
+  const secProsp = orig(/prospec|scrap|outbound|cold|ativa/i);
+  const secInbound = orig(/inbound|formul|form|site|organ/i);
+  const secSocial = orig(/social|linkedin|instagram|facebook|rede|mql/i);
+  const secNeg = leads.filter((l) => l.status === 'PROPOSTA' || l.status === 'GANHO' || l.status === 'PERDIDO');
+
+  const respL = agrupar(leads, (l) => l.responsavel?.nome ?? '—');
+  const statusTodos = [...FUNIL_ORDEM, 'PERDIDO' as StatusLead];
+  const negPorResp = respL.map(({ chave, itens }) => ({ rotulo: chave, total: itens.length, segmentos: statusTodos.map((s) => ({ nome: ROTULO_STATUS[s], valor: itens.filter((l) => l.status === s).length, cor: COR_STATUS[s] })) }));
+  const receitaResp = respL.map(({ chave, itens }) => ({ rotulo: chave, valor: itens.filter((l) => l.status === 'GANHO').reduce((s, l) => s + Number(l.valorEstimado || 0), 0), cor: '#3b82f6' }));
+
+  const dias = Array.from(new Set(leads.map((l) => l.criadoEm.slice(0, 10)))).sort();
+  const negPorDia = dias.map((d) => ({ rotulo: diaLabel(d), valor: leads.filter((l) => l.criadoEm.slice(0, 10) === d).length, cor: '#3b82f6' }));
+  const meses = Array.from(new Set(leads.filter((l) => l.status === 'GANHO').map((l) => l.criadoEm.slice(0, 7)))).sort();
+  const receitaMes = meses.map((m) => ({ rotulo: mesLabel(m + '-01'), valor: leads.filter((l) => l.status === 'GANHO' && l.criadoEm.slice(0, 7) === m).reduce((s, l) => s + Number(l.valorEstimado || 0), 0), cor: '#3b82f6' }));
+
+  const ganhos = c(leads, 'GANHO');
+  const perdidos = c(leads, 'PERDIDO');
+  const emAberto = leads.filter(abertos).length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Meu Painel</h2>
+
+      <SecaoFunil titulo="Prospecção" leads={secProsp} ativ={ativ} kpis={[
+        { titulo: 'Novos Leads no Funil', sub: 'Entrada de leads', valor: c(secProsp, 'NOVO') },
+        { titulo: 'Contatos Realizados com Decisor', sub: 'Contato com o decisor', valor: c(secProsp, 'CONTATADO') + c(secProsp, 'QUALIFICADO') },
+        { titulo: 'Reuniões Agendadas', sub: 'Reunião agendada', valor: c(secProsp, 'PROPOSTA') },
+        { titulo: 'Leads Ganhos', sub: 'Ganhos', valor: c(secProsp, 'GANHO'), cor: 'var(--verde)' },
+      ]} />
+
+      <SecaoFunil titulo="Inbound" leads={secInbound} ativ={ativ} kpis={[
+        { titulo: 'Leads em Formulário Preenchido', sub: 'Formulário preenchido', valor: c(secInbound, 'NOVO') },
+        { titulo: 'Leads Qualificados pelo Formulário', sub: 'Qualificado pelo formulário', valor: c(secInbound, 'QUALIFICADO') },
+        { titulo: 'Reuniões Agendadas', sub: 'Reunião agendada', valor: c(secInbound, 'PROPOSTA') },
+        { titulo: 'Leads Ganhos', sub: 'Ganhos', valor: c(secInbound, 'GANHO'), cor: 'var(--verde)' },
+      ]} />
+
+      <SecaoFunil titulo="Social Selling" leads={secSocial} ativ={ativ} kpis={[
+        { titulo: 'Novos Leads no Funil', sub: 'MQL cadastrado', valor: c(secSocial, 'NOVO') },
+        { titulo: 'Reuniões Agendadas', sub: 'Reunião agendada', valor: c(secSocial, 'PROPOSTA') },
+        { titulo: 'Leads Ganhos', sub: 'Ganhos', valor: c(secSocial, 'GANHO'), cor: 'var(--verde)' },
+      ]} />
+
+      <SecaoFunil titulo="Negociação" leads={secNeg} ativ={ativ} kpis={[
+        { titulo: 'Novos Leads no Funil', sub: 'Reunião realizada', valor: c(secNeg, 'PROPOSTA') },
+        { titulo: 'Reuniões Agendadas', sub: 'Reunião realizada', valor: c(secNeg, 'PROPOSTA') },
+        { titulo: 'Leads Ganhos', sub: 'Ganhos', valor: c(secNeg, 'GANHO'), cor: 'var(--verde)' },
+      ]} />
+
+      <SecaoTitulo texto="Geral" />
+      <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <Painel titulo="Negócios por Responsável"><BarrasEmpilhadasH grupos={negPorResp} legenda={statusTodos.map((s) => ({ nome: ROTULO_STATUS[s], cor: COR_STATUS[s] }))} /></Painel>
+        <Painel titulo="Receita por Responsável"><BarrasV dados={receitaResp} moeda /></Painel>
+      </div>
+      <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <Painel titulo="Negócios Criados por Dia"><BarrasV dados={negPorDia} /></Painel>
+        <Painel titulo="Receita Mensal"><BarrasV dados={receitaMes} moeda /></Painel>
+      </div>
+      <Painel titulo="Ganhos vs Perdidos">
+        <Pizza fatias={[
+          { nome: 'Em aberto', valor: emAberto, cor: '#ec4899' },
+          { nome: 'Ganho', valor: ganhos, cor: '#3b82f6' },
+          { nome: 'Perdido', valor: perdidos, cor: '#22c55e' },
+        ]} />
+      </Painel>
+    </div>
   );
 }
 
@@ -269,7 +462,7 @@ export function Metricas() {
       ) : (
         <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) 1fr', gap: 16, alignItems: 'start' }}>
           <Submenu sel={sel} onSel={setSel} />
-          <div>{sel === null ? <MeuPainelView leads={leads} /> : <ReportView report={REPORTS[sel]} leads={leads} ativ={ativ} />}</div>
+          <div>{sel === null ? <MeuPainelView leads={leads} ativ={ativ} /> : <ReportView report={REPORTS[sel]} leads={leads} ativ={ativ} />}</div>
         </div>
       )}
     </PaginaShell>
