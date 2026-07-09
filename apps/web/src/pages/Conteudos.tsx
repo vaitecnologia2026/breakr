@@ -292,6 +292,21 @@ function Kanban({
     (porStatus[c.status] ?? porStatus.IDEIA).push(c);
   }
 
+  // Solta um card numa coluna → move a peça para o status daquela coluna,
+  // reusando exatamente o mesmo PATCH /conteudos/:id/status do seletor "Mover".
+  // Ignora se a peça já estiver na coluna (nenhuma chamada desnecessária).
+  async function aoSoltar(id: string, novoStatus: StatusConteudo) {
+    const peca = conteudos.find((c) => c.id === id);
+    if (!peca || peca.status === novoStatus) return;
+    aoErroAcao(null);
+    try {
+      await api.patch(`/conteudos/${id}/status`, { status: novoStatus });
+      aoAtualizar();
+    } catch {
+      aoErroAcao('Não foi possível mover a peça. Tente novamente.');
+    }
+  }
+
   return (
     <div
       className="brk-kanban-scroll"
@@ -310,6 +325,7 @@ function Kanban({
           itens={porStatus[status]}
           aoAtualizar={aoAtualizar}
           aoErroAcao={aoErroAcao}
+          aoSoltar={aoSoltar}
         />
       ))}
     </div>
@@ -321,25 +337,45 @@ function Coluna({
   itens,
   aoAtualizar,
   aoErroAcao,
+  aoSoltar,
 }: {
   status: StatusConteudo;
   itens: Conteudo[];
   aoAtualizar: () => void;
   aoErroAcao: (msg: string | null) => void;
+  aoSoltar: (id: string, novoStatus: StatusConteudo) => void;
 }) {
   const meta = STATUS_META[status];
+  // Realce da coluna enquanto um card é arrastado por cima dela (feedback de drop).
+  const [sobre, setSobre] = useState(false);
   return (
     <div
       className="brk-kanban-col"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!sobre) setSobre(true);
+      }}
+      onDragLeave={(e) => {
+        // Só apaga o realce ao sair de fato da coluna (ignora troca entre filhos).
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setSobre(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setSobre(false);
+        const id = e.dataTransfer.getData('text/plain');
+        if (id) aoSoltar(id, status);
+      }}
       style={{
         flex: '0 0 auto',
-        background: 'var(--superficie)',
-        border: '1px solid var(--borda)',
+        background: sobre ? 'var(--superficie-2)' : 'var(--superficie)',
+        border: `1px solid ${sobre ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`,
         borderRadius: 16,
         boxShadow: 'var(--sombra-card)',
         display: 'flex',
         flexDirection: 'column',
         maxHeight: '100%',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
       }}
     >
       <div
@@ -445,6 +481,11 @@ function CardConteudo({
   const [midia, setMidia] = useState(conteudo.midiaUrl ?? '');
   // Upload de arquivo (imagem/vídeo/documento) — alternativa ao anexo por link.
   const [enviandoArq, setEnviandoArq] = useState(false);
+  // Arrastando este card (feedback visual). Drag só é habilitado quando o card
+  // não está movendo nem com o editor de mídia aberto (para não capturar a
+  // seleção de texto do input de URL). O drop é tratado pela Coluna.
+  const [arrastando, setArrastando] = useState(false);
+  const podeArrastar = !movendo && !editMidia;
 
   async function mover(novo: StatusConteudo) {
     if (movendo || novo === conteudo.status) return;
@@ -519,6 +560,13 @@ function CardConteudo({
 
   return (
     <div
+      draggable={podeArrastar}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', conteudo.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setArrastando(true);
+      }}
+      onDragEnd={() => setArrastando(false)}
       style={{
         background: 'var(--superficie-2)',
         border: '1px solid var(--borda)',
@@ -527,7 +575,8 @@ function CardConteudo({
         display: 'flex',
         flexDirection: 'column',
         gap: 9,
-        opacity: movendo ? 0.6 : 1,
+        opacity: movendo ? 0.6 : arrastando ? 0.4 : 1,
+        cursor: podeArrastar ? 'grab' : 'default',
         transition: 'opacity 0.15s ease',
       }}
     >
