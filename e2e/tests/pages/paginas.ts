@@ -157,6 +157,22 @@ export class NpsPage {
   sucesso(): Locator { return this.page.getByText('NPS registrado.'); }
 }
 
+// ─── Atividades (CRM Comercial) ──────────────────────────────────────────────
+export class AtividadesPage {
+  constructor(private readonly page: Page) {}
+  async abrir() { await this.page.goto('/atividades'); }
+  botaoNova(): Locator { return this.page.getByRole('button', { name: '+ Nova Atividade' }); }
+  async novaAtividade(a: { titulo: string; tipo?: string; negocio?: string; vencimento?: string }) {
+    await this.botaoNova().click();
+    await this.page.getByLabel('Título').fill(a.titulo);
+    if (a.tipo) await this.page.getByLabel('Tipo').selectOption({ label: a.tipo });
+    if (a.negocio) await this.page.getByLabel('Negócio (opcional)').selectOption({ label: a.negocio });
+    if (a.vencimento) await this.page.getByLabel('Vencimento').fill(a.vencimento);
+    await this.page.getByRole('button', { name: 'Salvar' }).click();
+  }
+  card(titulo: string): Locator { return this.page.locator('.brk-card').filter({ hasText: titulo }); }
+}
+
 // ─── Portal do cliente (anônimo) ─────────────────────────────────────────────
 // Recebe um `page` de contexto anônimo (sem sessão) — instanciado no spec.
 export class PortalPage {
