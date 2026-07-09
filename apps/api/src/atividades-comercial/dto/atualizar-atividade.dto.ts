@@ -1,4 +1,4 @@
-import { IsEnum, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsISO8601, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { StatusAtividade, TipoAtividade } from '@prisma/client';
 
 // Payload para atualizar uma atividade comercial (editar / concluir).
@@ -20,4 +20,21 @@ export class AtualizarAtividadeDto {
   @IsOptional()
   @IsISO8601()
   vencimento?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  horaFim?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notas?: string;
+
+  @IsOptional()
+  @IsUUID()
+  leadId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  responsavelId?: string;
 }

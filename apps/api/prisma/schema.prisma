@@ -652,6 +652,8 @@ model AtividadeComercial {
   tipo         TipoAtividade   @default(LIGACAO)
   status       StatusAtividade @default(PENDENTE)
   vencimento   DateTime?       @map("vencimento")
+  horaFim      DateTime?       @map("hora_fim")
+  notas        String?         @map("notas")
   criadoEm     DateTime        @default(now()) @map("criado_em")
   atualizadoEm DateTime        @updatedAt @map("atualizado_em")
 
