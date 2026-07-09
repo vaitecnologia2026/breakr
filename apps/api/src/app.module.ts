@@ -21,6 +21,7 @@ import { ContratosModule } from './contratos/contratos.module';
 import { PortalModule } from './portal/portal.module';
 import { ConteudosModule } from './conteudos/conteudos.module';
 import { ComercialModule } from './comercial/comercial.module';
+import { AtividadesComercialModule } from './atividades-comercial/atividades-comercial.module';
 import { RhModule } from './rh/rh.module';
 import { ComprasModule } from './compras/compras.module';
 import { DesenvolvimentoModule } from './desenvolvimento/desenvolvimento.module';
@@ -83,6 +84,8 @@ import { PesquisasModule } from './pesquisas/pesquisas.module';
     ConteudosModule,
     // Back-office (Fase 3): pipeline comercial / CRM.
     ComercialModule,
+    // CRM comercial — tela "Atividades" (ligacoes/WhatsApp/tarefas do vendedor).
+    AtividadesComercialModule,
     // Back-office (Fase 3): RH, Operacoes (compras), Desenvolvimento (bugs).
     RhModule,
     ComprasModule,
