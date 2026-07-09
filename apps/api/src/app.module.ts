@@ -13,6 +13,7 @@ import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { IntegracoesModule } from './integracoes/integracoes.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { PlanosModule } from './planos/planos.module';
+import { ProdutosModule } from './produtos/produtos.module';
 import { SquadsModule } from './squads/squads.module';
 import { ProjetosModule } from './projetos/projetos.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
@@ -72,6 +73,7 @@ import { PesquisasModule } from './pesquisas/pesquisas.module';
     IntegracoesModule,
     ClientesModule,
     PlanosModule,
+    ProdutosModule,
     SquadsModule,
     // Pipeline de entrada (Fase 1): contrato -> cobranca -> NF -> onboarding -> projetos.
     ProjetosModule,
