@@ -315,7 +315,10 @@ function Kanban({
         gap: 14,
         overflowX: 'auto',
         paddingBottom: 6,
-        alignItems: 'flex-start',
+        // Colunas com a mesma altura: assim a área de drop de cada coluna cobre
+        // toda a faixa vertical, permitindo soltar um card em QUALQUER coluna
+        // (para frente OU para trás) mesmo que ela tenha menos peças.
+        alignItems: 'stretch',
       }}
     >
       {ORDEM_STATUS.map((status) => (
@@ -422,6 +425,10 @@ function Coluna({
           gap: 10,
           padding: 12,
           minHeight: 80,
+          // Ocupa toda a altura da coluna (que agora é igual entre colunas) para
+          // que o espaço vazio abaixo dos cards também aceite o drop — soltar
+          // um card no mesmo nível vertical funciona indo para frente ou para trás.
+          flex: 1,
         }}
       >
         {itens.length === 0 ? (
