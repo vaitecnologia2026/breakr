@@ -22,6 +22,14 @@ interface Atividade {
   responsavel?: { nome: string } | null;
 }
 
+// Negócio (lead) para vincular a atividade — liga a tela Atividades ao pipeline
+// de Negócios (/comercial/leads). Só o necessário para o seletor do modal.
+interface LeadOpcao {
+  id: string;
+  nome: string;
+  empresa: string | null;
+}
+
 const ROTULO_TIPO: Record<TipoAtividade, string> = {
   LIGACAO: 'Ligação', WHATSAPP: 'WhatsApp', EMAIL: 'E-mail', INSTAGRAM: 'Instagram', REUNIAO: 'Reunião', OUTRO: 'Outro',
 };
@@ -29,6 +37,11 @@ const ROTULO_TIPO: Record<TipoAtividade, string> = {
 const MOCK_ATIVIDADES: Atividade[] = [
   { id: 'm1', titulo: 'Tentativa de contato via ligação', tipo: 'LIGACAO', status: 'PENDENTE', vencimento: new Date().toISOString(), criadoEm: new Date().toISOString(), lead: { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
   { id: 'm2', titulo: 'Tentativa de agendar reunião', tipo: 'WHATSAPP', status: 'PENDENTE', vencimento: new Date().toISOString(), criadoEm: new Date().toISOString(), lead: { id: 'l2', nome: 'Ditto Pizzaria', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
+];
+
+const MOCK_LEADS: LeadOpcao[] = [
+  { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null },
+  { id: 'l2', nome: 'Ditto Pizzaria', empresa: null },
 ];
 
 // Ícone de linha (padrão SVG monocromático do app).
@@ -53,13 +66,14 @@ const ABAS: Aba[] = ['Hoje', 'Vencidas', 'Concluídas', 'Todas'];
 
 export function Atividades() {
   const [lista, setLista] = useState<Atividade[]>([]);
+  const [leads, setLeads] = useState<LeadOpcao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [aba, setAba] = useState<Aba>('Hoje');
   const [modal, setModal] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [form, setForm] = useState<{ titulo: string; tipo: TipoAtividade; vencimento: string }>({ titulo: '', tipo: 'LIGACAO', vencimento: '' });
+  const [form, setForm] = useState<{ titulo: string; tipo: TipoAtividade; vencimento: string; leadId: string }>({ titulo: '', tipo: 'LIGACAO', vencimento: '', leadId: '' });
 
   async function carregar() {
     setCarregando(true);
@@ -74,8 +88,20 @@ export function Atividades() {
     }
   }
 
+  // Carrega os Negócios (leads) para o seletor de vínculo do modal. Falha aqui
+  // não bloqueia a lista de atividades — o seletor só fica sem opções.
+  async function carregarLeads() {
+    try {
+      const { data } = await api.get<LeadOpcao[]>('/comercial/leads');
+      setLeads(comDemo(data, MOCK_LEADS));
+    } catch {
+      setLeads(mockSeDemo(MOCK_LEADS));
+    }
+  }
+
   useEffect(() => {
     carregar();
+    carregarLeads();
   }, []);
 
   async function concluir(id: string) {
@@ -97,9 +123,10 @@ export function Atividades() {
         titulo: form.titulo.trim(),
         tipo: form.tipo,
         ...(form.vencimento ? { vencimento: new Date(form.vencimento).toISOString() } : {}),
+        ...(form.leadId ? { leadId: form.leadId } : {}),
       });
       setModal(false);
-      setForm({ titulo: '', tipo: 'LIGACAO', vencimento: '' });
+      setForm({ titulo: '', tipo: 'LIGACAO', vencimento: '', leadId: '' });
       await carregar();
     } catch {
       setErroAcao('Não foi possível criar a atividade.');
@@ -183,6 +210,10 @@ export function Atividades() {
             <Campo rotulo="Título" value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} placeholder="Ex.: Ligar para o cliente" autoFocus />
             <CampoSelect rotulo="Tipo" value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoAtividade }))}>
               {(Object.keys(ROTULO_TIPO) as TipoAtividade[]).map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
+            </CampoSelect>
+            <CampoSelect rotulo="Negócio (opcional)" value={form.leadId} onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))}>
+              <option value="">— Sem vínculo —</option>
+              {leads.map((l) => <option key={l.id} value={l.id}>{l.empresa ? `${l.nome} · ${l.empresa}` : l.nome}</option>)}
             </CampoSelect>
             <Campo rotulo="Vencimento" type="datetime-local" value={form.vencimento} onChange={(e) => setForm((f) => ({ ...f, vencimento: e.target.value }))} />
           </div>
