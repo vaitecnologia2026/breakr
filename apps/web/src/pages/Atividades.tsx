@@ -29,6 +29,7 @@ interface Atividade {
   vencimento: string | null;
   horaFim: string | null;
   notas: string | null;
+  contato: string | null;
   criadoEm: string;
   lead?: { id: string; nome: string; empresa: string | null } | null;
   responsavel?: { nome: string } | null;
@@ -68,8 +69,8 @@ const ROTULO_TIPO: Record<TipoAtividade, string> = {
 };
 
 const MOCK_ATIVIDADES: Atividade[] = [
-  { id: 'm1', titulo: 'Tentativa de contato via ligação', tipo: 'LIGACAO', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, criadoEm: new Date().toISOString(), lead: { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
-  { id: 'm2', titulo: 'Tentativa de agendar reunião', tipo: 'WHATSAPP', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, criadoEm: new Date().toISOString(), lead: { id: 'l2', nome: 'Ditto Pizzaria', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm1', titulo: 'Tentativa de contato via ligação', tipo: 'LIGACAO', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, contato: null, criadoEm: new Date().toISOString(), lead: { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
+  { id: 'm2', titulo: 'Tentativa de agendar reunião', tipo: 'WHATSAPP', status: 'PENDENTE', vencimento: new Date().toISOString(), horaFim: null, notas: null, contato: null, criadoEm: new Date().toISOString(), lead: { id: 'l2', nome: 'Ditto Pizzaria', empresa: null }, responsavel: { nome: 'Gustavo Costa' } },
 ];
 
 const MOCK_LEADS: LeadOpcao[] = [
@@ -237,8 +238,8 @@ export function Atividades() {
   const [salvando, setSalvando] = useState(false);
   const [form, setForm] = useState<{
     id?: string; tipoVisual: TipoVisual; titulo: string; data: string; horaInicio: string; horaFim: string;
-    leadId: string; buscaLead: string; notas: string; responsavelId: string; marcarFeito: boolean;
-  }>({ id: undefined, tipoVisual: 'LIGACAO', titulo: '', data: '', horaInicio: '', horaFim: '', leadId: '', buscaLead: '', notas: '', responsavelId: '', marcarFeito: false });
+    leadId: string; buscaLead: string; notas: string; contato: string; responsavelId: string; marcarFeito: boolean;
+  }>({ id: undefined, tipoVisual: 'LIGACAO', titulo: '', data: '', horaInicio: '', horaFim: '', leadId: '', buscaLead: '', notas: '', contato: '', responsavelId: '', marcarFeito: false });
 
   async function carregar() {
     setCarregando(true);
@@ -284,7 +285,7 @@ export function Atividades() {
     setForm({
       id: undefined, tipoVisual: 'LIGACAO', titulo: '',
       data: `${agora.getFullYear()}-${p2(agora.getMonth() + 1)}-${p2(agora.getDate())}`,
-      horaInicio: '', horaFim: '', leadId: '', buscaLead: '', notas: '',
+      horaInicio: '', horaFim: '', leadId: '', buscaLead: '', notas: '', contato: '',
       responsavelId: usuario?.id ?? '', marcarFeito: false,
     });
     setModal('novo');
@@ -302,6 +303,7 @@ export function Atividades() {
       leadId: a.lead?.id ?? '',
       buscaLead: a.lead ? (a.lead.empresa ? `${a.lead.nome} · ${a.lead.empresa}` : a.lead.nome) : '',
       notas: a.notas ?? '',
+      contato: a.contato ?? '',
       responsavelId: usuario?.id ?? '',
       marcarFeito: false,
     });
@@ -323,6 +325,7 @@ export function Atividades() {
           ...(vencimento ? { vencimento } : {}),
           ...(horaFimIso ? { horaFim: horaFimIso } : {}),
           ...(form.notas.trim() ? { notas: form.notas.trim() } : {}),
+          ...(form.contato.trim() ? { contato: form.contato.trim() } : {}),
           leadId: form.leadId,
           ...(form.responsavelId ? { responsavelId: form.responsavelId } : {}),
         });
@@ -336,6 +339,7 @@ export function Atividades() {
           ...(vencimento ? { vencimento } : {}),
           ...(horaFimIso ? { horaFim: horaFimIso } : {}),
           notas: form.notas.trim(),
+          contato: form.contato.trim(),
           leadId: form.leadId,
         });
       }
@@ -510,6 +514,7 @@ export function Atividades() {
                           )}
                           {a.lead?.nome && <span style={{ color: 'var(--amarelo-fagulha)', fontWeight: 500 }}>{a.lead.nome}</span>}
                           {a.lead?.empresa && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--texto-fraco)' }}><IcoEmpresa tamanho={13} />{a.lead.empresa}</span>}
+                          {a.contato && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--texto-fraco)' }}><IcoUsuario tamanho={13} />{a.contato}</span>}
                           {a.responsavel?.nome && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--texto-fraco)' }}><IcoUsuario tamanho={13} />{a.responsavel.nome}{ehVoce ? ' (você)' : ''}</span>}
                         </div>
                       </div>
@@ -587,6 +592,12 @@ export function Atividades() {
                   )}
                 </>
               )}
+            </div>
+
+            {/* Contato */}
+            <div className="brk-campo">
+              <label className="brk-campo-label" htmlFor="ativ-contato">Contato</label>
+              <input id="ativ-contato" className="brk-input" value={form.contato} onChange={(e) => setForm((f) => ({ ...f, contato: e.target.value }))} placeholder="Pessoa de contato" />
             </div>
 
             {/* Notas */}
