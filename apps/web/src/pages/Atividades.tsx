@@ -35,12 +35,15 @@ interface Atividade {
   responsavel?: { nome: string } | null;
 }
 
-// Negócio (lead) para vincular a atividade — liga a tela Atividades ao pipeline
-// de Negócios (/comercial/leads). Só o necessário para o seletor do modal.
+// Contato (pessoa/empresa) para vincular a atividade — vem da MESMA fonte do
+// menu Contatos (/comercial/leads, que reúne pessoas e empresas). O seletor do
+// campo "Negócio" busca por nome, empresa, e-mail e telefone.
 interface LeadOpcao {
   id: string;
   nome: string;
   empresa: string | null;
+  email: string | null;
+  telefone: string | null;
 }
 
 // Tipo "visual" do wireframe (8 opções). O backend só tem 6 tipos, então
@@ -74,8 +77,8 @@ const MOCK_ATIVIDADES: Atividade[] = [
 ];
 
 const MOCK_LEADS: LeadOpcao[] = [
-  { id: 'l1', nome: 'KI PIZZA TEUTÔNIA', empresa: null },
-  { id: 'l2', nome: 'Ditto Pizzaria', empresa: null },
+  { id: 'l1', nome: 'Sandro Bonacina', empresa: 'Bonacina Pizzaria', email: 'sandro@bonacina.com', telefone: '(51) 99999-0001' },
+  { id: 'l2', nome: 'Karina Cioriano', empresa: 'Cyborg Lanches', email: 'karina@cyborg.com', telefone: '(51) 99999-0002' },
 ];
 
 // ── Ícones (padrão SVG monocromático do app) ──
@@ -411,7 +414,7 @@ export function Atividades() {
   }
 
   const leadsFiltrados = form.buscaLead.trim()
-    ? leads.filter((l) => `${l.nome} ${l.empresa ?? ''}`.toLowerCase().includes(form.buscaLead.trim().toLowerCase()))
+    ? leads.filter((l) => `${l.nome} ${l.empresa ?? ''} ${l.email ?? ''} ${l.telefone ?? ''}`.toLowerCase().includes(form.buscaLead.trim().toLowerCase()))
     : leads;
 
   // Controles do cabeçalho (alternador de visão + filtros + novo).
@@ -577,16 +580,16 @@ export function Atividades() {
                 </div>
               ) : (
                 <>
-                  <input className="brk-input" value={form.buscaLead} onChange={(e) => setForm((f) => ({ ...f, buscaLead: e.target.value }))} placeholder="Buscar negócio..." />
+                  <input className="brk-input" value={form.buscaLead} onChange={(e) => setForm((f) => ({ ...f, buscaLead: e.target.value }))} placeholder="Buscar pessoa ou empresa..." />
                   {form.buscaLead.trim() && (
                     <div style={{ marginTop: 4, maxHeight: 168, overflowY: 'auto', border: '1px solid var(--borda)', borderRadius: 8, background: 'var(--superficie-2)' }}>
                       {leadsFiltrados.length === 0 ? (
-                        <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--texto-fraco)' }}>Nenhum negócio encontrado.</div>
+                        <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--texto-fraco)' }}>Nenhuma pessoa ou empresa encontrada.</div>
                       ) : leadsFiltrados.slice(0, 20).map((l) => (
                         <button key={l.id} type="button" onClick={() => setForm((f) => ({ ...f, leadId: l.id, buscaLead: l.empresa ? `${l.nome} · ${l.empresa}` : l.nome }))} style={{
                           display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 12.5, border: 'none',
                           borderBottom: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: 'pointer',
-                        }}>{l.nome}{l.empresa ? <span style={{ color: 'var(--texto-fraco)' }}> · {l.empresa}</span> : null}</button>
+                        }}><span style={{ fontWeight: 500, color: 'var(--texto)' }}>{l.nome}</span>{(l.empresa || l.email) && <span style={{ display: 'block', color: 'var(--texto-fraco)', fontSize: 11.5, marginTop: 1 }}>{[l.empresa, l.email].filter(Boolean).join(' · ')}</span>}</button>
                       ))}
                     </div>
                   )}
