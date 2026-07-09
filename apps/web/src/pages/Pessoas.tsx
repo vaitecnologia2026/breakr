@@ -4,10 +4,10 @@
 //
 // ADITIVO: reutiliza a MESMA fonte de dados da tela Contatos (/comercial/leads,
 // agregados por pessoa) — sem alterar a página Contatos nem sua lógica.
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
-import { EstadoCarregando, EstadoErro, PainelVazio, Overlay, Campo, BotaoPrimario, BotaoSecundario, MensagemErro } from '../components/primitivos';
+import { EstadoCarregando, EstadoErro, PainelVazio, Overlay, BotaoPrimario, BotaoSecundario, MensagemErro } from '../components/primitivos';
 import { Card, Th, Td } from '../components/ui';
 
 interface Lead {
@@ -77,7 +77,13 @@ export function Pessoas() {
 
   // Modal "Novo Contato".
   const [modalNovo, setModalNovo] = useState(false);
-  const [form, setForm] = useState({ nome: '', email: '', telefone: '', empresa: '' });
+  const [nome, setNome] = useState('');
+  const [emails, setEmails] = useState<{ valor: string; tipo: string }[]>([{ valor: '', tipo: 'Comercial' }]);
+  const [telefones, setTelefones] = useState<{ valor: string; tipo: string }[]>([{ valor: '', tipo: 'Celular' }]);
+  const [cargo, setCargo] = useState('');
+  const [empresa, setEmpresa] = useState('');
+  const [empresasCadastradas, setEmpresasCadastradas] = useState<string[]>([]);
+  const [empresaFoco, setEmpresaFoco] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
 
@@ -136,24 +142,50 @@ export function Pessoas() {
     URL.revokeObjectURL(url);
   }
 
+  function resetFormNovo() {
+    setNome('');
+    setEmails([{ valor: '', tipo: 'Comercial' }]);
+    setTelefones([{ valor: '', tipo: 'Celular' }]);
+    setCargo('');
+    setEmpresa('');
+    setEmpresaFoco(false);
+  }
+
+  // Abre o modal e carrega as empresas cadastradas (clientes) para a busca real.
+  async function abrirModalNovo() {
+    setErroForm(null);
+    resetFormNovo();
+    setModalNovo(true);
+    try {
+      const { data } = await api.get<{ nomeFantasia?: string | null }[]>('/clientes');
+      const nomes = Array.from(
+        new Set((data ?? []).map((c) => (c.nomeFantasia ?? '').trim()).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b));
+      setEmpresasCadastradas(nomes);
+    } catch {
+      setEmpresasCadastradas([]);
+    }
+  }
+
   async function salvarNovo(e: FormEvent) {
     e.preventDefault();
     if (salvando) return;
-    if (form.nome.trim().length < 2) {
+    if (nome.trim().length < 2) {
       setErroForm('Informe o nome (mínimo 2 caracteres).');
       return;
     }
     setSalvando(true);
     setErroForm(null);
     try {
+      // O backend (/comercial/leads) guarda 1 e-mail e 1 telefone: envia o primeiro de cada.
       await api.post('/comercial/leads', {
-        nome: form.nome.trim(),
-        email: form.email.trim() || undefined,
-        telefone: form.telefone.trim() || undefined,
-        empresa: form.empresa.trim() || undefined,
+        nome: nome.trim(),
+        email: emails[0]?.valor.trim() || undefined,
+        telefone: telefones[0]?.valor.trim() || undefined,
+        empresa: empresa.trim() || undefined,
       });
       setModalNovo(false);
-      setForm({ nome: '', email: '', telefone: '', empresa: '' });
+      resetFormNovo();
       carregar();
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -205,7 +237,7 @@ export function Pessoas() {
             />
           </div>
           <BotaoSecundario onClick={exportarCsv}>Exportar</BotaoSecundario>
-          <BotaoPrimario onClick={() => { setErroForm(null); setModalNovo(true); }}>+ Novo Contato</BotaoPrimario>
+          <BotaoPrimario onClick={abrirModalNovo}>+ Novo Contato</BotaoPrimario>
         </div>
       </div>
 
@@ -281,28 +313,177 @@ export function Pessoas() {
         </Card>
       )}
 
-      {/* Modal Novo Contato */}
+      {/* Modal Novo Contato (layout do wireframe) */}
       {modalNovo && (
         <Overlay onFechar={() => setModalNovo(false)}>
-          <form onSubmit={salvarNovo} className="brk-card brk-card-p" style={{ width: 420, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--texto)' }}>Novo Contato</h2>
-              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--texto-fraco)' }}>
-                Cadastra uma nova pessoa no comercial.
-              </p>
+          <form
+            onSubmit={salvarNovo}
+            className="brk-card brk-card-p"
+            style={{ width: 460, maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}
+          >
+            {/* Cabeçalho + fechar */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--texto)' }}>Novo Contato</h2>
+                <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+                  Preencha os dados da pessoa.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalNovo(false)}
+                title="Fechar"
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--texto-fraco)', padding: 4, lineHeight: 0 }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
+
             {erroForm && <MensagemErro texto={erroForm} />}
-            <Campo rotulo="Nome" valor={form.nome} aoMudar={(v) => setForm((f) => ({ ...f, nome: v }))} placeholder="Nome completo" obrigatorio autoFocus />
-            <Campo rotulo="Email" valor={form.email} aoMudar={(v) => setForm((f) => ({ ...f, email: v }))} placeholder="email@exemplo.com" />
-            <Campo rotulo="Telefone" valor={form.telefone} aoMudar={(v) => setForm((f) => ({ ...f, telefone: v }))} placeholder="(00) 00000-0000" />
-            <Campo rotulo="Empresa" valor={form.empresa} aoMudar={(v) => setForm((f) => ({ ...f, empresa: v }))} placeholder="Empresa" />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
-              <BotaoSecundario onClick={() => setModalNovo(false)}>Cancelar</BotaoSecundario>
-              <BotaoPrimario type="submit" disabled={salvando}>{salvando ? 'Salvando…' : 'Criar contato'}</BotaoPrimario>
+
+            {/* Nome */}
+            <div>
+              <LabelCampo>Nome *</LabelCampo>
+              <input className="brk-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" autoFocus />
             </div>
+
+            {/* E-mail(s) — tipo + adicionar (guarda o 1º no backend) */}
+            <div>
+              <LabelCampo>E-mail</LabelCampo>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {emails.map((em, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="brk-input"
+                      type="email"
+                      value={em.valor}
+                      onChange={(e) => setEmails((arr) => arr.map((x, j) => (j === i ? { ...x, valor: e.target.value } : x)))}
+                      placeholder="email@empresa.com"
+                      style={{ flex: 1 }}
+                    />
+                    <select
+                      className="brk-input"
+                      value={em.tipo}
+                      onChange={(e) => setEmails((arr) => arr.map((x, j) => (j === i ? { ...x, tipo: e.target.value } : x)))}
+                      style={{ width: 120, flexShrink: 0 }}
+                    >
+                      <option>Comercial</option>
+                      <option>Pessoal</option>
+                      <option>Outro</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <LinkAdicionar onClick={() => setEmails((arr) => [...arr, { valor: '', tipo: 'Comercial' }])}>+ Adicionar e-mail</LinkAdicionar>
+            </div>
+
+            {/* Telefone(s) — tipo + adicionar (guarda o 1º no backend) */}
+            <div>
+              <LabelCampo>Telefone</LabelCampo>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {telefones.map((tel, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="brk-input"
+                      value={tel.valor}
+                      onChange={(e) => setTelefones((arr) => arr.map((x, j) => (j === i ? { ...x, valor: e.target.value } : x)))}
+                      placeholder="(11) 99999-9999"
+                      style={{ flex: 1 }}
+                    />
+                    <select
+                      className="brk-input"
+                      value={tel.tipo}
+                      onChange={(e) => setTelefones((arr) => arr.map((x, j) => (j === i ? { ...x, tipo: e.target.value } : x)))}
+                      style={{ width: 120, flexShrink: 0 }}
+                    >
+                      <option>Celular</option>
+                      <option>Comercial</option>
+                      <option>Residencial</option>
+                      <option>Outro</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <LinkAdicionar onClick={() => setTelefones((arr) => [...arr, { valor: '', tipo: 'Celular' }])}>+ Adicionar telefone</LinkAdicionar>
+            </div>
+
+            {/* Cargo (visual — o backend de leads não persiste cargo) */}
+            <div>
+              <LabelCampo>Cargo</LabelCampo>
+              <input className="brk-input" value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Ex: CEO, Diretor Comercial..." />
+            </div>
+
+            {/* Empresa — busca real entre empresas cadastradas (clientes) */}
+            <div style={{ position: 'relative' }}>
+              <LabelCampo>Empresa</LabelCampo>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--texto-fraco)', display: 'flex', pointerEvents: 'none' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                </span>
+                <input
+                  className="brk-input"
+                  value={empresa}
+                  onChange={(e) => { setEmpresa(e.target.value); setEmpresaFoco(true); }}
+                  onFocus={() => setEmpresaFoco(true)}
+                  onBlur={() => setTimeout(() => setEmpresaFoco(false), 150)}
+                  placeholder="Buscar empresa por nome..."
+                  style={{ paddingLeft: 32 }}
+                />
+              </div>
+              {empresaFoco && (() => {
+                const q = empresa.trim().toLowerCase();
+                const sug = empresasCadastradas.filter((n) => !q || n.toLowerCase().includes(q)).slice(0, 8);
+                if (sug.length === 0) return null;
+                return (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 5, marginTop: 4, background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 9, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxHeight: 200, overflowY: 'auto' }}>
+                    {sug.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); setEmpresa(n); setEmpresaFoco(false); }}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '8px 12px', color: 'var(--texto)', fontSize: 13, cursor: 'pointer' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--superficie-3)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Ação (botão único, largura total) */}
+            <button type="submit" className="brk-btn brk-btn-primary" disabled={salvando} style={{ width: '100%', marginTop: 4 }}>
+              {salvando ? 'Salvando…' : 'Criar Contato'}
+            </button>
           </form>
         </Overlay>
       )}
     </section>
+  );
+}
+
+// Rótulo de campo do modal (mesmo padrão visual do design system).
+function LabelCampo({ children }: { children: ReactNode }) {
+  return (
+    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 5 }}>
+      {children}
+    </label>
+  );
+}
+
+// Link "+ Adicionar e-mail/telefone" (laranja, como no wireframe).
+function LinkAdicionar({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ marginTop: 6, background: 'transparent', border: 'none', color: 'var(--laranja-brasa)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+    >
+      {children}
+    </button>
   );
 }
