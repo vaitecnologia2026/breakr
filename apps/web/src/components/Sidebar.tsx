@@ -99,6 +99,7 @@ const GRUPOS: NavGroup[] = [
       { para: '/negocios',   rotulo: 'Negócios',   icone: <IcoBriefcase /> },
       { para: '/contatos',   rotulo: 'Contatos',   icone: <IcoUsers />, subItens: [
         { para: '/contatos/pessoas', rotulo: 'Pessoas', icone: <IcoUsers /> },
+        { para: '/contatos/empresas', rotulo: 'Empresas', icone: <IcoBriefcase /> },
       ] },
       { para: '/atividades', rotulo: 'Atividades', icone: <IcoFileText /> },
       { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
