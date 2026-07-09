@@ -31,6 +31,11 @@ export class CriarAtividadeDto {
   contato?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  empresaNome?: string;
+
+  @IsOptional()
   @IsUUID()
   leadId?: string;
 
