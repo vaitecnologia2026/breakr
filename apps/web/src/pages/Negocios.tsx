@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
-import { PaginaShell, EstadoCarregando, EstadoErro, PainelVazio, MensagemErro } from '../components/primitivos';
+import { PaginaShell, EstadoCarregando, EstadoErro, MensagemErro } from '../components/primitivos';
 
 type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
 
@@ -179,8 +179,6 @@ export function Negocios() {
         <EstadoCarregando />
       ) : erro ? (
         <EstadoErro mensagem={erro} onTentar={carregar} />
-      ) : total === 0 ? (
-        <PainelVazio titulo="Nenhum negócio ainda" descricao="Os leads do comercial aparecem aqui no funil." />
       ) : (
         <>
           {erroAcao && <MensagemErro texto={erroAcao} />}
