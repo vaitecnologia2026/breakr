@@ -19,6 +19,7 @@ import { ComercialService } from './comercial.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
 import { MoverStatusLeadDto } from './dto/mover-status-lead.dto';
 import { AtribuirResponsavelLeadDto } from './dto/atribuir-responsavel-lead.dto';
+import { MoverEtapaLeadDto } from './dto/pipeline.dto';
 
 @Controller('comercial/leads')
 @UseGuards(JwtAuthGuard)
@@ -31,8 +32,11 @@ export class ComercialController {
   listar(
     @Query('status') status?: StatusLead,
     @Query('responsavelId') responsavelId?: string,
+    @Query('pipelineId') pipelineId?: string,
+    @Query('etapaId') etapaId?: string,
+    @Query('etiquetaId') etiquetaId?: string,
   ) {
-    return this.comercialService.listar({ status, responsavelId });
+    return this.comercialService.listar({ status, responsavelId, pipelineId, etapaId, etiquetaId });
   }
 
   // GET /comercial/leads/performance — visão de gestão do pipeline (antes de :id).
@@ -66,6 +70,18 @@ export class ComercialController {
     @Body() dto: MoverStatusLeadDto,
   ) {
     return this.comercialService.moverStatus(id, dto.status);
+  }
+
+  // PATCH /comercial/leads/:id/etapa — move o lead para uma etapa de pipeline
+  // (deriva o status do funil a partir da etapa).
+  @Patch(':id/etapa')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  moverEtapa(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: MoverEtapaLeadDto,
+  ) {
+    return this.comercialService.moverEtapa(id, dto.etapaId);
   }
 
   // PATCH /comercial/leads/:id/responsavel — atribui um responsavel ao lead.
