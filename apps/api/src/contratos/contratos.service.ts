@@ -1,8 +1,8 @@
 // Servico de contratos (M12) — porta de entrada do pipeline.
 // Fluxo: cria (RASCUNHO) -> envia p/ assinatura (Autentique) -> assinado cai
 // em EM_REVISAO (revisao da Franciela) -> EM_VIGOR dispara a 1a cobranca.
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Contrato, Prisma } from '@prisma/client';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { CadastroContrato, Contrato, Prisma } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
@@ -17,6 +17,8 @@ import { CriarContratoLeadDto } from './dto/criar-contrato-lead.dto';
 
 @Injectable()
 export class ContratosService {
+  private readonly logger = new Logger(ContratosService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly codigoUnico: CodigoUnicoService,
@@ -150,7 +152,117 @@ export class ContratosService {
     });
 
     await this.engine.dispatch('contrato.criado', { contratoId: contrato.id, clienteId });
+
+    // Ao criar o contrato, dispara a cobranca no Asaas via webhook n8n (usando os
+    // dados do Cadastro Completo). Best-effort: se o webhook nao estiver configurado
+    // ou falhar, a criacao do contrato NAO e afetada.
+    await this.dispararCobrancaAsaasWebhook(contrato, lead.cadastroContrato, lead.planos, valorMensal);
+
     return contrato;
+  }
+
+  // URL do webhook n8n do Asaas configurada em Configuracoes -> Integracoes.
+  // Le direto do Config singleton (mesmo id da IntegracoesConfigService).
+  private async lerWebhookAsaasUrl(): Promise<string | null> {
+    try {
+      const cfg = await this.prisma.config.findUnique({
+        where: { id: '00000000-0000-0000-0000-000000000001' },
+      });
+      const params = (cfg?.parametros as Record<string, unknown>) ?? {};
+      const integ = (params.integracoes as { asaas?: { webhook?: string | null } }) ?? {};
+      const url = integ.asaas?.webhook?.trim();
+      return url ? url : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Dispara o fluxo de cobranca do Asaas no n8n (POST no webhook) com os dados do
+  // Cadastro Completo, seguindo a logica do fluxo oficial "Criacao e Cadastro de
+  // Contrato": cadastra o cliente e cria a assinatura mensal. Idempotente por
+  // negocio (nao dispara 2x para o mesmo lead) e nunca derruba a criacao do contrato.
+  private async dispararCobrancaAsaasWebhook(
+    contrato: Contrato,
+    cad: CadastroContrato | null,
+    planos: Array<{ plano: { nome: string } }>,
+    valorMensal: Prisma.Decimal,
+  ): Promise<void> {
+    try {
+      const url = await this.lerWebhookAsaasUrl();
+      if (!url) return; // webhook nao configurado -> nao faz nada
+
+      // Idempotencia por negocio: se ja houve cobranca disparada para outro
+      // contrato do mesmo lead, nao dispara de novo (evita cobrar 2x).
+      if (contrato.leadId) {
+        const jaDisparado = await this.prisma.contrato.findFirst({
+          where: { leadId: contrato.leadId, cobrancaAsaasEm: { not: null } },
+          select: { id: true },
+        });
+        if (jaDisparado) return;
+      }
+
+      const digitos = (v?: string | null) => (v ?? '').replace(/\D/g, '');
+      const planosSel = planos.map((lp) => lp.plano.nome).filter(Boolean).join(', ');
+
+      const payload = {
+        // Dados do Cadastro Completo (nomes que o fluxo n8n do Asaas espera).
+        razao_social: cad?.razaoSocial ?? '',
+        nome_fantasia: cad?.nomeFantasia ?? '',
+        cnpj: cad?.cnpj ?? '',
+        cnpj_formatado: cad?.cnpj ?? '',
+        nome_socio: cad?.nomeSocio ?? '',
+        cpf_socio: cad?.cpfSocio ?? '',
+        cpf_socio_formatado: cad?.cpfSocio ?? '',
+        data_nascimento: cad?.dataNascimentoSocio ?? '',
+        profissao: cad?.profissao ?? '',
+        nacionalidade: cad?.nacionalidade ?? '',
+        email: cad?.email ?? '',
+        whatsapp_socio: cad?.whatsappSocio ?? '',
+        whatsapp_socio_clean: digitos(cad?.whatsappSocio),
+        whatsapp_financeiro: cad?.whatsappFinanceiro ?? '',
+        whatsapp_financeiro_clean: digitos(cad?.whatsappFinanceiro),
+        cep: cad?.cep ?? '',
+        rua: cad?.endereco ?? '',
+        numero: cad?.numero ?? '',
+        complemento: cad?.complemento ?? '',
+        bairro: cad?.bairro ?? '',
+        cidade_estado: cad?.cidadeEstado ?? '',
+        inscricao_estadual: cad?.inscricaoEstadual ?? '',
+        inscricao_municipal: cad?.inscricaoMunicipal ?? '',
+        // Contrato / cobranca (assinatura mensal).
+        contrato_id: contrato.id,
+        codigo_contrato: contrato.codigoUnico,
+        tipo_contrato: contrato.tipoContrato ?? '',
+        forma_pagamento: contrato.formaPagamento ?? '',
+        dia_pagamento: contrato.diaPagamento ?? null,
+        duracao_meses: contrato.duracaoMeses ?? null,
+        valor_total: Number(valorMensal),
+        planos_selecionados: planosSel || 'Plano Breakr',
+      };
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        this.logger.warn(
+          `Webhook Asaas (n8n) retornou ${resp.status} para o contrato ${contrato.codigoUnico}.`,
+        );
+        return;
+      }
+
+      await this.prisma.contrato.update({
+        where: { id: contrato.id },
+        data: { cobrancaAsaasEm: new Date() },
+      });
+      this.logger.log(`Cobranca Asaas (n8n) disparada para o contrato ${contrato.codigoUnico}.`);
+    } catch (erro) {
+      // Best-effort: falha no webhook nunca derruba a criacao do contrato.
+      this.logger.warn(
+        `Falha ao disparar o webhook Asaas (n8n): ${String((erro as Error)?.message ?? erro)}`,
+      );
+    }
   }
 
   // Gera o .docx do contrato (modelo COM/SEM Marketing) com as tags preenchidas

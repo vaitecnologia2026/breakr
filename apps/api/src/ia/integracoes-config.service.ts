@@ -10,6 +10,8 @@ interface IntegracaoEntry {
   instancia?: string | null;
   email?: string | null;
   senha?: string | null;
+  // URL do webhook n8n do Asaas (dispara a cobranca ao criar o contrato).
+  webhook?: string | null;
 }
 
 interface Integracoes {
@@ -21,7 +23,7 @@ interface Integracoes {
 }
 
 interface IntegracoesPublicas {
-  asaas: { temChave: boolean; preview: string | null; sandbox: boolean };
+  asaas: { temChave: boolean; preview: string | null; sandbox: boolean; webhook: string | null };
   speed: { temChave: boolean; preview: string | null };
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
@@ -55,7 +57,7 @@ export class IntegracoesConfigService {
   async obter(): Promise<IntegracoesPublicas> {
     const integ = await this.lerParametros();
     return {
-      asaas: { temChave: !!integ.asaas.apiKey, preview: this.mascarar(integ.asaas.apiKey), sandbox: integ.asaas.sandbox ?? false },
+      asaas: { temChave: !!integ.asaas.apiKey, preview: this.mascarar(integ.asaas.apiKey), sandbox: integ.asaas.sandbox ?? false, webhook: integ.asaas.webhook ?? null },
       speed: { temChave: !!integ.speed.apiKey, preview: this.mascarar(integ.speed.apiKey) },
       autentique: { temChave: !!integ.autentique.apiKey, preview: this.mascarar(integ.autentique.apiKey) },
       whatsapp: { temToken: !!integ.whatsapp.apiKey, preview: this.mascarar(integ.whatsapp.apiKey), instancia: integ.whatsapp.instancia ?? null },
@@ -82,6 +84,7 @@ export class IntegracoesConfigService {
   async atualizar(dto: {
     asaasApiKey?: string;
     asaasSandbox?: boolean;
+    asaasWebhook?: string;
     speedApiKey?: string;
     autentiqueToken?: string;
     whatsappToken?: string;
@@ -95,7 +98,11 @@ export class IntegracoesConfigService {
       v === '' ? null : v !== undefined ? v : atual ?? null;
 
     const novas: Integracoes = {
-      asaas: { apiKey: limpavel(dto.asaasApiKey, integ.asaas.apiKey), sandbox: dto.asaasSandbox ?? integ.asaas.sandbox ?? false },
+      asaas: {
+        apiKey: limpavel(dto.asaasApiKey, integ.asaas.apiKey),
+        sandbox: dto.asaasSandbox ?? integ.asaas.sandbox ?? false,
+        webhook: limpavel(dto.asaasWebhook, integ.asaas.webhook),
+      },
       speed: { apiKey: limpavel(dto.speedApiKey, integ.speed.apiKey) },
       autentique: { apiKey: limpavel(dto.autentiqueToken, integ.autentique.apiKey) },
       whatsapp: {
