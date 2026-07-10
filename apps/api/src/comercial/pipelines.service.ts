@@ -147,7 +147,13 @@ export class PipelinesService {
     await this.garantirPipeline(pipelineId);
     const agg = await this.prisma.etapaPipeline.aggregate({ where: { pipelineId }, _max: { ordem: true } });
     return this.prisma.etapaPipeline.create({
-      data: { pipelineId, nome: dto.nome, status: dto.status, ordem: (agg._max.ordem ?? -1) + 1 },
+      data: {
+        pipelineId,
+        nome: dto.nome,
+        status: dto.status,
+        ordem: (agg._max.ordem ?? -1) + 1,
+        ...(dto.metaDias !== undefined && { metaDias: dto.metaDias }),
+      },
     });
   }
 
@@ -160,6 +166,7 @@ export class PipelinesService {
         ...(dto.nome !== undefined && { nome: dto.nome }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.ordem !== undefined && { ordem: dto.ordem }),
+        ...(dto.metaDias !== undefined && { metaDias: dto.metaDias }),
       },
     });
   }

@@ -11,10 +11,11 @@ import { comDemo, mockSeDemo } from '../lib/demo';
 import { PaginaShell, EstadoCarregando, EstadoErro, MensagemErro } from '../components/primitivos';
 import { Modal, Campo, CampoSelect, Btn, Badge } from '../components/ui';
 import { NegocioDetalhe } from '../components/NegocioDetalhe';
+import { ConfigFunil } from '../components/ConfigFunil';
 
 type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
 
-interface Etapa { id: string; nome: string; ordem: number; status: StatusLead }
+interface Etapa { id: string; nome: string; ordem: number; status: StatusLead; metaDias?: number }
 interface Pipeline { id: string; nome: string; ordem: number; etapas: Etapa[] }
 interface Etiqueta { id: string; nome: string; cor: string }
 interface LeadEtiqueta { etiqueta: Etiqueta }
@@ -124,6 +125,7 @@ const IcoLista = () => <Ico size={15}><line x1="8" y1="6" x2="21" y2="6" /><line
 const IcoChevron = () => <Ico size={14}><polyline points="6 9 12 15 18 9" /></Ico>;
 const IcoBusca = () => <Ico size={14}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></Ico>;
 const IcoExportar = () => <Ico size={14}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Ico>;
+const IcoConfig = () => <Ico size={14}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></Ico>;
 
 // Editor de etapa (modal add/edit).
 interface EditorEtapa { modo: 'add' | 'edit'; id?: string; nome: string; status: StatusLead }
@@ -149,6 +151,10 @@ export function Negocios() {
 
   // Detalhe do negocio (aberto ao clicar num card / linha)
   const [leadAberto, setLeadAberto] = useState<string | null>(null);
+
+  // Menu "..." (Exportar CSV / Configurar funil) e tela de config do funil
+  const [menuMais, setMenuMais] = useState(false);
+  const [configFunil, setConfigFunil] = useState(false);
 
   // Editor de etapa
   const [editorEtapa, setEditorEtapa] = useState<EditorEtapa | null>(null);
@@ -389,6 +395,25 @@ export function Negocios() {
                 <Btn variante="secondary" tamanho="sm" onClick={exportarCsv}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IcoExportar /> Exportar</span></Btn>
               )}
               <Btn tamanho="sm" onClick={abrirNovo}>+ Novo Negócio</Btn>
+              <div style={{ position: 'relative' }}>
+                <button type="button" title="Mais opções" onClick={() => setMenuMais((v) => !v)}
+                  style={{ width: 34, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--borda)', borderRadius: 8, background: 'var(--superficie-2)', color: 'var(--texto-suave)', cursor: 'pointer', fontSize: 18, fontWeight: 700, lineHeight: 1 }}>⋯</button>
+                {menuMais && (
+                  <>
+                    <div onClick={() => setMenuMais(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
+                    <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 30, minWidth: 190, background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 10, padding: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                      <div onClick={() => { setMenuMais(false); exportarCsv(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 13, color: 'var(--texto)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--superficie-3)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                        <IcoExportar /> Exportar CSV
+                      </div>
+                      <div onClick={() => { setMenuMais(false); setConfigFunil(true); }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 13, color: 'var(--texto)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--superficie-3)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                        <IcoConfig /> Configurar funil
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -604,6 +629,16 @@ export function Negocios() {
           onFechar={() => setLeadAberto(null)}
           onMudou={carregarLeads}
           onEtiquetasMudou={carregarEtiquetas}
+        />
+      )}
+
+      {/* Configurações do Pipeline (menu ⋯ → Configurar funil) */}
+      {configFunil && (
+        <ConfigFunil
+          pipelinesIniciais={pipelines}
+          pipelineSelInicial={pipelineSel}
+          onFechar={() => setConfigFunil(false)}
+          onMudou={carregarPipelines}
         />
       )}
     </PaginaShell>
