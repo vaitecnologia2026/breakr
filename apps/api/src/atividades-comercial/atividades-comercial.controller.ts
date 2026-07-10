@@ -1,6 +1,6 @@
 // Endpoints da tela "Atividades" do CRM comercial (acesso via JWT do Breakr).
 // Prefixo proprio "/comercial/atividades" — nao colide com "/comercial/leads".
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AtividadesComercialService } from './atividades-comercial.service';
 import { CriarAtividadeDto } from './dto/criar-atividade.dto';
@@ -24,5 +24,10 @@ export class AtividadesComercialController {
   @Patch(':id')
   atualizar(@Param('id') id: string, @Body() dto: AtualizarAtividadeDto) {
     return this.svc.atualizar(id, dto);
+  }
+
+  @Delete(':id')
+  excluir(@Param('id') id: string) {
+    return this.svc.excluir(id);
   }
 }

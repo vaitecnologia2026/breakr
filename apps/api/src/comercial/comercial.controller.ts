@@ -14,9 +14,12 @@ import { StatusLead } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CargosGuard } from '../common/rbac/cargos.guard';
 import { Cargos } from '../common/rbac/cargos.decorator';
-import { Cargo } from '@breakr/shared';
+import { Cargo, UsuarioPublico } from '@breakr/shared';
+import { UsuarioAtual } from '../usuarios/usuario-atual.decorator';
 import { ComercialService } from './comercial.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
+import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
+import { CriarNotaLeadDto } from './dto/criar-nota-lead.dto';
 import { MoverStatusLeadDto } from './dto/mover-status-lead.dto';
 import { AtribuirResponsavelLeadDto } from './dto/atribuir-responsavel-lead.dto';
 import { MoverEtapaLeadDto } from './dto/pipeline.dto';
@@ -61,6 +64,41 @@ export class ComercialController {
     return this.comercialService.criar(dto);
   }
 
+  // GET /comercial/leads/:id/notas — notas do negocio (aba "Notas").
+  @Get(':id/notas')
+  listarNotas(@Param('id', ParseUUIDPipe) id: string) {
+    return this.comercialService.listarNotas(id);
+  }
+
+  // GET /comercial/leads/:id/historico — historico do negocio (aba "Historico").
+  @Get(':id/historico')
+  listarHistorico(@Param('id', ParseUUIDPipe) id: string) {
+    return this.comercialService.listarHistorico(id);
+  }
+
+  // PATCH /comercial/leads/:id — atualiza os campos do negocio (RESUMO).
+  @Patch(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  atualizar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AtualizarLeadDto,
+  ) {
+    return this.comercialService.atualizar(id, dto);
+  }
+
+  // POST /comercial/leads/:id/notas — adiciona uma nota ao negocio.
+  @Post(':id/notas')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  criarNota(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CriarNotaLeadDto,
+    @UsuarioAtual() usuario: UsuarioPublico,
+  ) {
+    return this.comercialService.criarNota(id, dto.texto, usuario.id);
+  }
+
   // PATCH /comercial/leads/:id/status — move o lead de etapa no pipeline.
   @Patch(':id/status')
   @UseGuards(CargosGuard)
@@ -68,8 +106,9 @@ export class ComercialController {
   moverStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: MoverStatusLeadDto,
+    @UsuarioAtual() usuario: UsuarioPublico,
   ) {
-    return this.comercialService.moverStatus(id, dto.status);
+    return this.comercialService.moverStatus(id, dto.status, usuario.id);
   }
 
   // PATCH /comercial/leads/:id/etapa — move o lead para uma etapa de pipeline
@@ -80,8 +119,9 @@ export class ComercialController {
   moverEtapa(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: MoverEtapaLeadDto,
+    @UsuarioAtual() usuario: UsuarioPublico,
   ) {
-    return this.comercialService.moverEtapa(id, dto.etapaId);
+    return this.comercialService.moverEtapa(id, dto.etapaId, usuario.id);
   }
 
   // PATCH /comercial/leads/:id/responsavel — atribui um responsavel ao lead.

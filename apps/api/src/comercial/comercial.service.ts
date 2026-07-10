@@ -7,7 +7,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { EngineService } from '../automacao/engine.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
+import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
 import { CriarLeadPublicoDto } from './dto/criar-lead-publico.dto';
+
+// Rotulo legivel de cada status do funil (usado no historico do negocio).
+const STATUS_LABEL: Record<StatusLead, string> = {
+  [StatusLead.NOVO]: 'Entrada de Leads',
+  [StatusLead.CONTATADO]: 'Tentando contato',
+  [StatusLead.QUALIFICADO]: 'Qualificado',
+  [StatusLead.PROPOSTA]: 'Proposta',
+  [StatusLead.GANHO]: 'Ganho',
+  [StatusLead.PERDIDO]: 'Perdido',
+};
 
 @Injectable()
 export class ComercialService {
@@ -145,25 +156,36 @@ export class ComercialService {
 
   // Move o lead para uma ETAPA de pipeline. Ajusta o etapaId e deriva o status
   // do funil a partir do status da etapa (mantendo a logica validada de GANHO).
-  async moverEtapa(id: string, etapaId: string): Promise<Lead> {
-    const lead = await this.obter(id);
+  // Registra o movimento no historico do negocio (aba "Historico").
+  async moverEtapa(id: string, etapaId: string, autorId?: string): Promise<Lead> {
+    const atual = await this.prisma.lead.findUnique({
+      where: { id },
+      select: { status: true, clienteId: true, etapa: { select: { nome: true } } },
+    });
+    if (!atual) throw new NotFoundException('Lead nao encontrado');
     const etapa = await this.prisma.etapaPipeline.findUnique({ where: { id: etapaId } });
     if (!etapa) throw new NotFoundException('Etapa nao encontrada');
-    if (etapa.status === StatusLead.GANHO && !lead.clienteId) {
+    const deNome = atual.etapa?.nome ?? STATUS_LABEL[atual.status];
+    if (etapa.status === StatusLead.GANHO && !atual.clienteId) {
       await this.prisma.lead.update({ where: { id }, data: { etapaId, pipelineId: etapa.pipelineId } });
+      await this.registrarHistorico(id, deNome, etapa.nome, autorId);
       return this.converter(id);
     }
     await this.prisma.lead.update({
       where: { id },
       data: { etapaId, pipelineId: etapa.pipelineId, status: etapa.status },
     });
+    await this.registrarHistorico(id, deNome, etapa.nome, autorId);
     return this.obter(id);
   }
 
   // Move o lead para outra etapa do pipeline. Se for GANHO e ainda nao houver
   // cliente vinculado, converte (que ja seta GANHO e cria o cliente).
-  async moverStatus(id: string, novoStatus: StatusLead): Promise<Lead> {
+  async moverStatus(id: string, novoStatus: StatusLead, autorId?: string): Promise<Lead> {
     const lead = await this.obter(id);
+    if (lead.status !== novoStatus) {
+      await this.registrarHistorico(id, STATUS_LABEL[lead.status], STATUS_LABEL[novoStatus], autorId, 'Status alterado');
+    }
     if (novoStatus === StatusLead.GANHO && !lead.clienteId) {
       return this.converter(id);
     }
@@ -172,6 +194,75 @@ export class ComercialService {
       data: { status: novoStatus },
     });
     return this.obter(id);
+  }
+
+  // Atualiza os campos do negocio (aba/RESUMO da tela de detalhe): empresa,
+  // email, telefone, observacao (contato), valor, previsao e etiquetas.
+  async atualizar(id: string, dto: AtualizarLeadDto): Promise<Lead> {
+    await this.obter(id);
+    const data: Prisma.LeadUpdateInput = {};
+    if (dto.empresa !== undefined) data.empresa = dto.empresa;
+    if (dto.email !== undefined) data.email = dto.email;
+    if (dto.telefone !== undefined) data.telefone = dto.telefone;
+    if (dto.observacao !== undefined) data.observacao = dto.observacao;
+    if (dto.valorEstimado !== undefined) {
+      data.valorEstimado = dto.valorEstimado === null || dto.valorEstimado === ''
+        ? null
+        : new Prisma.Decimal(dto.valorEstimado);
+    }
+    if (dto.previsaoFechamento !== undefined) {
+      data.previsaoFechamento = dto.previsaoFechamento ? new Date(dto.previsaoFechamento) : null;
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lead.update({ where: { id }, data });
+      if (dto.etiquetaIds !== undefined) {
+        await tx.leadEtiqueta.deleteMany({ where: { leadId: id } });
+        if (dto.etiquetaIds.length) {
+          await tx.leadEtiqueta.createMany({
+            data: dto.etiquetaIds.map((etiquetaId) => ({ leadId: id, etiquetaId })),
+          });
+        }
+      }
+    });
+    return this.obter(id);
+  }
+
+  // ── Notas do negocio (aba "Notas") ─────────────────────────────────────────
+  listarNotas(id: string) {
+    return this.prisma.notaLead.findMany({
+      where: { leadId: id },
+      include: { autor: { select: { nome: true } } },
+      orderBy: { criadoEm: 'desc' },
+    });
+  }
+
+  async criarNota(id: string, texto: string, autorId?: string) {
+    await this.obter(id);
+    return this.prisma.notaLead.create({
+      data: { leadId: id, texto, autorId: autorId ?? null },
+      include: { autor: { select: { nome: true } } },
+    });
+  }
+
+  // ── Historico do negocio (aba "Historico") ─────────────────────────────────
+  listarHistorico(id: string) {
+    return this.prisma.historicoLead.findMany({
+      where: { leadId: id },
+      include: { autor: { select: { nome: true } } },
+      orderBy: { criadoEm: 'desc' },
+    });
+  }
+
+  private async registrarHistorico(
+    leadId: string,
+    de: string | null,
+    para: string | null,
+    autorId?: string,
+    acao = 'Etapa alterada',
+  ): Promise<void> {
+    await this.prisma.historicoLead.create({
+      data: { leadId, de, para, autorId: autorId ?? null, acao },
+    });
   }
 
   // Atribui um responsavel ao lead.
