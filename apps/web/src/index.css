@@ -922,6 +922,19 @@ input, textarea, select { font-family: inherit; }
   .brk-kanban-scroll { width: calc(100vw - var(--sidebar-w) - 64px); }
 }
 
+/* Barra de rolagem HORIZONTAL visível na faixa do Kanban de Negócios — aparece
+   quando há mais colunas/cards do que cabem na largura (igual à vertical, só que
+   mais evidente para poder arrastar). Escopada nesta classe para não afetar
+   outras telas. */
+.brk-kanban-barra-x { overflow-x: auto; scrollbar-width: thin; scrollbar-color: rgba(243,244,247,0.28) transparent; }
+.brk-kanban-barra-x::-webkit-scrollbar { height: 10px; width: 10px; }
+.brk-kanban-barra-x::-webkit-scrollbar-track { background: transparent; }
+.brk-kanban-barra-x::-webkit-scrollbar-thumb { background: rgba(243,244,247,0.24); border-radius: 999px; }
+.brk-kanban-barra-x::-webkit-scrollbar-thumb:hover { background: rgba(243,244,247,0.38); }
+[data-tema="light"] .brk-kanban-barra-x { scrollbar-color: rgba(26,26,46,0.28) transparent; }
+[data-tema="light"] .brk-kanban-barra-x::-webkit-scrollbar-thumb { background: rgba(26,26,46,0.22); }
+[data-tema="light"] .brk-kanban-barra-x::-webkit-scrollbar-thumb:hover { background: rgba(26,26,46,0.34); }
+
 /* ── Topbar dentro do layout ── */
 .brk-topbar-version {
   font-size: 10.5px; color: var(--texto-fraco);
