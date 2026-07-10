@@ -36,6 +36,26 @@ interface LeadProduto { produto: { id: string; nome: string; valor: string }; qu
 interface Nota { id: string; texto: string; criadoEm: string; autor?: { nome: string } | null }
 interface Historico { id: string; acao: string; de: string | null; para: string | null; criadoEm: string; autor?: { nome: string } | null }
 interface Atividade { id: string; titulo: string; tipo: TipoAtividade; status: StatusAtividade; vencimento: string | null; horaFim?: string | null; notas?: string | null; lead?: { id: string } | null }
+interface PessoaVinc { nome: string; email: string; telefone: string; empresa: string }
+
+// Agrega os leads em pessoas únicas (chave: e-mail em minúsculas ou nome) — mesma
+// fonte da tela "Contatos"/"Pessoas" (/comercial/leads), usada para vincular.
+function agregarPessoasVinc(leads: { nome: string; email: string | null; telefone: string | null; empresa: string | null }[]): PessoaVinc[] {
+  const mapa = new Map<string, PessoaVinc>();
+  for (const l of leads) {
+    const chave = (l.email?.trim().toLowerCase() || l.nome.trim().toLowerCase());
+    if (!chave) continue;
+    const atual = mapa.get(chave);
+    if (atual) {
+      if (!atual.email && l.email) atual.email = l.email;
+      if (!atual.telefone && l.telefone) atual.telefone = l.telefone;
+      if (!atual.empresa && l.empresa) atual.empresa = l.empresa;
+    } else {
+      mapa.set(chave, { nome: l.nome, email: l.email || '', telefone: l.telefone || '', empresa: l.empresa || '' });
+    }
+  }
+  return [...mapa.values()].sort((a, b) => a.nome.localeCompare(b.nome));
+}
 
 const STATUS_LABEL: Record<StatusLead, string> = {
   NOVO: 'Entrada de Leads', CONTATADO: 'Tentando contato', QUALIFICADO: 'Qualificado',
@@ -147,6 +167,11 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [ativForm, setAtivForm] = useState<AtivForm | null>(null);
   const [novaNota, setNovaNota] = useState('');
   const [salvandoNota, setSalvandoNota] = useState(false);
+  const [vincular, setVincular] = useState<'contato' | 'empresa' | null>(null);
+  const [buscaVinc, setBuscaVinc] = useState('');
+  const [pessoasVinc, setPessoasVinc] = useState<PessoaVinc[]>([]);
+  const [empresasVinc, setEmpresasVinc] = useState<string[]>([]);
+  const [carregandoVinc, setCarregandoVinc] = useState(false);
 
   async function carregar() {
     setErro(null);
@@ -175,10 +200,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
 
   // Fecha com ESC.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && !editor && !ativForm && !modalEtiquetas) onFechar(); }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && !editor && !ativForm && !modalEtiquetas && !vincular) onFechar(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editor, ativForm, modalEtiquetas, onFechar]);
+  }, [editor, ativForm, modalEtiquetas, vincular, onFechar]);
 
   const pipelineDoLead =
     pipelines.find((p) => p.id === lead?.pipeline?.id) ??
@@ -251,6 +276,36 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
       const atuais = (lead?.etiquetas ?? []).map((e) => e.etiqueta.id);
       await patchLead({ etiquetaIds: [...atuais, data.id] });
     } catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao criar etiqueta.'); }
+  }
+
+  // ── Vincular contato/empresa (fonte: menu Contatos) ────────────────────────
+  async function abrirVincular(tipo: 'contato' | 'empresa') {
+    setBuscaVinc('');
+    setVincular(tipo);
+    setCarregandoVinc(true);
+    try {
+      if (tipo === 'contato') {
+        const { data } = await api.get<PessoaVinc[]>('/comercial/leads');
+        setPessoasVinc(agregarPessoasVinc(data as unknown as { nome: string; email: string | null; telefone: string | null; empresa: string | null }[]));
+      } else {
+        const { data } = await api.get<{ nomeFantasia?: string | null }[]>('/clientes');
+        const nomes = Array.from(new Set((data ?? []).map((c) => (c.nomeFantasia ?? '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+        setEmpresasVinc(nomes);
+      }
+    } catch {
+      if (tipo === 'contato') setPessoasVinc([]); else setEmpresasVinc([]);
+    } finally {
+      setCarregandoVinc(false);
+    }
+  }
+  async function escolherContato(nome: string) {
+    const t = nome.trim();
+    await patchLead({ observacao: t ? `Contato: ${t}` : '' });
+    setVincular(null);
+  }
+  async function escolherEmpresa(nome: string) {
+    await patchLead({ empresa: nome.trim() });
+    setVincular(null);
   }
 
   // ── Produtos/Planos do negócio ("+ Produtos") ──────────────────────────────
@@ -429,11 +484,11 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                 </div>
               </div>
 
-              <button type="button" onClick={() => abrirEditor('contato')} style={vincularBtn}>
+              <button type="button" onClick={() => abrirVincular('contato')} style={vincularBtn}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}><IcoPessoa /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contatoDe(lead) || 'Vincular contato'}</span></span>
                 <IcoLink />
               </button>
-              <button type="button" onClick={() => abrirEditor('empresa')} style={vincularBtn}>
+              <button type="button" onClick={() => abrirVincular('empresa')} style={vincularBtn}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}><IcoEmpresa /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.empresa || lead.cliente?.nomeFantasia || 'Vincular empresa'}</span></span>
                 <IcoLink />
               </button>
@@ -619,6 +674,56 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
         </Modal>
       )}
 
+      {/* Vincular contato / empresa (a partir do menu Contatos) */}
+      {vincular && (
+        <Modal titulo={vincular === 'contato' ? 'Vincular contato' : 'Vincular empresa'} onFechar={() => setVincular(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <input className="brk-input" autoFocus value={buscaVinc} onChange={(e) => setBuscaVinc(e.target.value)}
+              placeholder={vincular === 'contato' ? 'Buscar pessoa por nome, e-mail…' : 'Buscar empresa por nome…'} />
+            {carregandoVinc ? (
+              <div style={{ fontSize: 13, color: 'var(--texto-fraco)', padding: '8px 2px' }}>Carregando…</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+                {vincular === 'contato' ? (() => {
+                  const q = buscaVinc.trim().toLowerCase();
+                  const lista = pessoasVinc.filter((p) => !q || p.nome.toLowerCase().includes(q) || p.email.toLowerCase().includes(q) || p.empresa.toLowerCase().includes(q));
+                  if (lista.length === 0) return <VazioVinc texto="Nenhuma pessoa encontrada no menu Contatos." />;
+                  return lista.map((p, i) => (
+                    <button key={`${p.nome}-${i}`} type="button" onClick={() => escolherContato(p.nome)} style={itemVinc}>
+                      <span style={avatarVinc}>{iniciais(p.nome)}</span>
+                      <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                        <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--texto-fraco)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[p.email, p.empresa].filter(Boolean).join(' · ') || '—'}</span>
+                      </span>
+                    </button>
+                  ));
+                })() : (() => {
+                  const q = buscaVinc.trim().toLowerCase();
+                  const lista = empresasVinc.filter((n) => !q || n.toLowerCase().includes(q));
+                  if (lista.length === 0) return <VazioVinc texto="Nenhuma empresa encontrada no menu Contatos." />;
+                  return lista.map((n) => (
+                    <button key={n} type="button" onClick={() => escolherEmpresa(n)} style={itemVinc}>
+                      <span style={{ ...avatarVinc, color: 'var(--amarelo-fagulha)' }}>{n.charAt(0).toUpperCase()}</span>
+                      <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span>
+                    </button>
+                  ));
+                })()}
+              </div>
+            )}
+            {buscaVinc.trim() && (
+              <button type="button" onClick={() => (vincular === 'contato' ? escolherContato(buscaVinc) : escolherEmpresa(buscaVinc))} style={{ ...linkBtn, textAlign: 'left' }}>
+                + Usar “{buscaVinc.trim()}”
+              </button>
+            )}
+            {((vincular === 'contato' && !!contatoDe(lead)) || (vincular === 'empresa' && !!lead?.empresa)) && (
+              <button type="button" onClick={() => (vincular === 'contato' ? escolherContato('') : escolherEmpresa(''))} style={{ ...linkBtn, color: 'var(--vermelho)', textAlign: 'left' }}>
+                Remover vínculo
+              </button>
+            )}
+          </div>
+        </Modal>
+      )}
+
       {/* Planos e Produtos do negócio ("+ Produtos") */}
       {modalProdutos && (
         <Modal titulo="Planos e Produtos do negócio" onFechar={() => setModalProdutos(false)}
@@ -689,6 +794,12 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
 const linkBtn: CSSProperties = { border: 'none', background: 'transparent', color: 'var(--amarelo-fagulha)', fontSize: 12.5, cursor: 'pointer', padding: 0, fontWeight: 600 };
 const vincularBtn: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid var(--borda)', background: 'var(--superficie-2)', color: 'var(--texto-suave)', fontSize: 12.5, cursor: 'pointer' };
 const iconBtn: CSSProperties = { width: 28, height: 28, borderRadius: 7, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-fraco)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const itemVinc: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', borderRadius: 9, border: '1px solid var(--borda)', background: 'var(--superficie-2)', cursor: 'pointer' };
+const avatarVinc: CSSProperties = { width: 28, height: 28, borderRadius: 999, background: 'var(--superficie-4)', color: 'var(--texto-suave)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flex: '0 0 auto' };
+
+function VazioVinc({ texto }: { texto: string }) {
+  return <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)', padding: '10px 2px' }}>{texto}</div>;
+}
 
 function ResumoLinha({ icone, label, acao }: { icone: ReactNode; label: ReactNode; acao: ReactNode }) {
   return (
