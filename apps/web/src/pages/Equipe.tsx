@@ -5,6 +5,7 @@ import {
   PaginaHeader, Btn, Campo, CampoSelect, Modal,
   Carregando, ErroEstado, Vazio, Badge, Alerta, Th, Td,
 } from '../components/ui';
+import { CATALOGO_MENUS } from '../components/Sidebar';
 
 type Cargo =
   | 'SUPERADMIN' | 'ADMIN' | 'COMERCIAL' | 'CS' | 'ESTRATEGISTA'
@@ -20,6 +21,16 @@ interface Usuario {
   criadoEm: string;
   // Número de WhatsApp usado pelo n8n nos disparos (req. l.140).
   whatsapp?: string | null;
+  // Perfil de acesso (opcional).
+  perfilId?: string | null;
+  perfilNome?: string | null;
+}
+
+interface Perfil {
+  id: string;
+  nome: string;
+  permissoes: string[];
+  ativo: boolean;
 }
 
 const CARGOS: { value: Cargo; label: string }[] = [
@@ -62,7 +73,19 @@ export function Equipe() {
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', cargo: 'CS' as Cargo, whatsapp: '' });
+  const [form, setForm] = useState({ nome: '', email: '', senha: '', cargo: 'CS' as Cargo, whatsapp: '', perfilId: '' });
+
+  // Abas Usuários / Perfis de acesso.
+  const [aba, setAba] = useState<'usuarios' | 'perfis'>('usuarios');
+
+  // Perfis de acesso.
+  const [perfis, setPerfis] = useState<Perfil[]>([]);
+  const [modalPerfil, setModalPerfil] = useState(false);
+  const [editandoPerfil, setEditandoPerfil] = useState<Perfil | null>(null);
+  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
+  const [erroPerfil, setErroPerfil] = useState<string | null>(null);
+  const [perfilNome, setPerfilNome] = useState('');
+  const [perfilPermissoes, setPerfilPermissoes] = useState<string[]>([]);
 
   async function carregar() {
     setCarregando(true); setErro(false);
@@ -73,7 +96,14 @@ export function Equipe() {
     finally { setCarregando(false); }
   }
 
-  useEffect(() => { carregar(); }, []);
+  async function carregarPerfis() {
+    try {
+      const { data } = await api.get<Perfil[]>('/perfis');
+      setPerfis(data);
+    } catch { setPerfis([]); }
+  }
+
+  useEffect(() => { carregar(); carregarPerfis(); }, []);
 
   const filtrados = lista.filter(
     (u) =>
@@ -88,14 +118,18 @@ export function Equipe() {
     }
     setSalvando(true); setErroCriar(null);
     try {
-      const { data: novo } = await api.post<Usuario>('/usuarios', { ...form, whatsapp: form.whatsapp.trim() || undefined });
+      const { data: novo } = await api.post<Usuario>('/usuarios', {
+        nome: form.nome, email: form.email, senha: form.senha, cargo: form.cargo,
+        whatsapp: form.whatsapp.trim() || undefined,
+        ...(form.perfilId ? { perfilId: form.perfilId } : {}),
+      });
       await carregar();
       // Realtime: garante que o usuário recém-criado apareça na hora, mesmo que o
       // refetch acima retorne uma resposta em cache/defasada. A guarda por id evita
       // duplicar quando o carregar() já trouxe o novo usuário.
       setLista((l) => (l.some((u) => u.id === novo.id) ? l : [novo, ...l]));
       setModalNovo(false);
-      setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '' });
+      setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '', perfilId: '' });
       setSucesso('Usuário criado com sucesso.');
       setTimeout(() => setSucesso(null), 4000);
     } catch (e: unknown) {
@@ -106,7 +140,7 @@ export function Equipe() {
 
   function abrirEdicao(u: Usuario) {
     setEditando(u);
-    setForm({ nome: u.nome, email: u.email, senha: '', cargo: u.cargo, whatsapp: u.whatsapp ?? '' });
+    setForm({ nome: u.nome, email: u.email, senha: '', cargo: u.cargo, whatsapp: u.whatsapp ?? '', perfilId: u.perfilId ?? '' });
     setErroCriar(null);
     setModalNovo(true);
   }
@@ -114,7 +148,7 @@ export function Equipe() {
   function fecharModal() {
     setModalNovo(false);
     setEditando(null);
-    setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '' });
+    setForm({ nome: '', email: '', senha: '', cargo: 'CS', whatsapp: '', perfilId: '' });
   }
 
   // Salva criação OU edição (PATCH só nome/cargo — e-mail e senha não mudam aqui).
@@ -127,7 +161,7 @@ export function Equipe() {
       }
       setSalvando(true); setErroCriar(null);
       try {
-        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo, whatsapp: form.whatsapp.trim() || undefined, ...(form.senha.trim() ? { senha: form.senha.trim() } : {}) });
+        await api.patch(`/usuarios/${editando.id}`, { nome: form.nome.trim(), cargo: form.cargo, whatsapp: form.whatsapp.trim() || undefined, perfilId: form.perfilId || null, ...(form.senha.trim() ? { senha: form.senha.trim() } : {}) });
         await carregar();
         fecharModal();
         setSucesso('Usuário atualizado.');
@@ -150,17 +184,61 @@ export function Equipe() {
     } catch { /* silent */ }
   }
 
+  // ── Perfis de acesso ───────────────────────────────────────────────────────
+  function abrirNovoPerfil() {
+    setEditandoPerfil(null); setPerfilNome(''); setPerfilPermissoes([]); setErroPerfil(null); setModalPerfil(true);
+  }
+  function abrirEdicaoPerfil(p: Perfil) {
+    setEditandoPerfil(p); setPerfilNome(p.nome); setPerfilPermissoes(p.permissoes ?? []); setErroPerfil(null); setModalPerfil(true);
+  }
+  function togglePermissao(para: string) {
+    setPerfilPermissoes((prev) => prev.includes(para) ? prev.filter((x) => x !== para) : [...prev, para]);
+  }
+
+  async function salvarPerfil() {
+    if (!perfilNome.trim()) { setErroPerfil('Informe o nome do perfil.'); return; }
+    setSalvandoPerfil(true); setErroPerfil(null);
+    const corpo = { nome: perfilNome.trim(), permissoes: perfilPermissoes };
+    try {
+      if (editandoPerfil) await api.patch(`/perfis/${editandoPerfil.id}`, corpo);
+      else await api.post('/perfis', corpo);
+      await carregarPerfis();
+      setModalPerfil(false);
+      setSucesso('Perfil salvo com sucesso.');
+      setTimeout(() => setSucesso(null), 3000);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setErroPerfil(Array.isArray(msg) ? msg.join(' ') : msg ?? 'Erro ao salvar o perfil.');
+    } finally { setSalvandoPerfil(false); }
+  }
+
+  async function toggleAtivoPerfil(p: Perfil) {
+    try {
+      await api.patch(`/perfis/${p.id}`, { ativo: !p.ativo });
+      await carregarPerfis();
+    } catch { /* silent */ }
+  }
+
   return (
     <>
       <PaginaHeader
         titulo="Equipe"
-        subtitulo="Gerencie usuários, cargos e acessos ao sistema"
-        acoes={<Btn onClick={() => { setModalNovo(true); setErroCriar(null); }}>+ Novo usuário</Btn>}
+        subtitulo="Gerencie usuários, cargos, perfis de acesso e permissões do sistema"
+        acoes={aba === 'usuarios'
+          ? <Btn onClick={() => { setModalNovo(true); setErroCriar(null); }}>+ Novo usuário</Btn>
+          : <Btn onClick={abrirNovoPerfil}>+ Novo perfil</Btn>}
       />
 
       {sucesso && <Alerta tipo="sucesso">{sucesso}</Alerta>}
 
-      <div style={{ marginTop: sucesso ? 12 : 0, marginBottom: 16 }}>
+      {/* Abas Usuários / Perfis de acesso */}
+      <div style={{ display: 'flex', gap: 8, marginTop: sucesso ? 12 : 0, marginBottom: 16 }}>
+        <Btn variante={aba === 'usuarios' ? 'primary' : 'ghost'} tamanho="sm" onClick={() => setAba('usuarios')}>Usuários</Btn>
+        <Btn variante={aba === 'perfis' ? 'primary' : 'ghost'} tamanho="sm" onClick={() => setAba('perfis')}>Perfis de acesso</Btn>
+      </div>
+
+      {aba === 'usuarios' && (<>
+      <div style={{ marginBottom: 16 }}>
         <div className="brk-filtros">
           <div className="brk-search" style={{ maxWidth: 340 }}>
             <span className="brk-search-icon">
@@ -228,6 +306,7 @@ export function Equipe() {
                   </Td>
                   <Td>
                     <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{CARGO_LABEL[u.cargo]}</span>
+                    {u.perfilNome && <div style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>Perfil: {u.perfilNome}</div>}
                   </Td>
                   <Td>
                     <Badge cor={u.ativo ? 'verde' : 'neutro'}>{u.ativo ? 'Ativo' : 'Inativo'}</Badge>
@@ -254,6 +333,40 @@ export function Equipe() {
             </tbody>
           </table>
         </div>
+      )}
+      </>)}
+
+      {aba === 'perfis' && (
+        perfis.length === 0 ? (
+          <Vazio
+            titulo="Nenhum perfil de acesso ainda"
+            subtitulo="Crie um perfil e marque quais menus/telas ele poderá ver. Usuários com um perfil só enxergam o que estiver liberado."
+            acao={<Btn onClick={abrirNovoPerfil}>+ Novo perfil</Btn>}
+          />
+        ) : (
+          <div className="brk-table-wrap">
+            <table className="brk-table">
+              <thead>
+                <tr><Th>Perfil</Th><Th>Menus liberados</Th><Th>Status</Th><Th>Ações</Th></tr>
+              </thead>
+              <tbody>
+                {perfis.map((p) => (
+                  <tr key={p.id} className="brk-tr">
+                    <Td><strong style={{ color: 'var(--texto)' }}>{p.nome}</strong></Td>
+                    <Td><span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{(p.permissoes ?? []).length} menu(s)</span></Td>
+                    <Td><Badge cor={p.ativo ? 'verde' : 'neutro'}>{p.ativo ? 'Ativo' : 'Inativo'}</Badge></Td>
+                    <Td>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Btn variante="secondary" tamanho="sm" onClick={() => abrirEdicaoPerfil(p)}>Editar</Btn>
+                        <Btn variante={p.ativo ? 'secondary' : 'ghost'} tamanho="sm" onClick={() => toggleAtivoPerfil(p)}>{p.ativo ? 'Inativar' : 'Ativar'}</Btn>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
       {modalNovo && (
@@ -306,6 +419,60 @@ export function Equipe() {
             value={form.whatsapp}
             onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
           />
+          <CampoSelect
+            rotulo="Perfil de acesso"
+            value={form.perfilId}
+            onChange={(e) => setForm((f) => ({ ...f, perfilId: e.target.value }))}
+          >
+            <option value="">Nenhum (acesso total)</option>
+            {perfis.filter((p) => p.ativo || p.id === form.perfilId).map((p) => (
+              <option key={p.id} value={p.id}>{p.nome}</option>
+            ))}
+          </CampoSelect>
+          <div style={{ fontSize: 11.5, color: 'var(--texto-fraco)', marginTop: 4 }}>
+            Sem perfil, o usuário vê tudo. Cargos Admin/Super Admin sempre veem tudo.
+          </div>
+        </Modal>
+      )}
+
+      {modalPerfil && (
+        <Modal
+          titulo={editandoPerfil ? 'Editar perfil de acesso' : 'Novo perfil de acesso'}
+          onFechar={() => setModalPerfil(false)}
+          rodape={
+            <>
+              <Btn variante="secondary" onClick={() => setModalPerfil(false)}>Cancelar</Btn>
+              <Btn onClick={salvarPerfil} disabled={salvandoPerfil}>{salvandoPerfil ? 'Salvando…' : 'Salvar'}</Btn>
+            </>
+          }
+        >
+          {erroPerfil && <Alerta tipo="erro">{erroPerfil}</Alerta>}
+          <Campo
+            rotulo="Nome do perfil"
+            placeholder="Ex: Vendedor, Financeiro, Suporte…"
+            value={perfilNome}
+            onChange={(e) => setPerfilNome(e.target.value)}
+          />
+          <div style={{ marginTop: 8 }}>
+            <span className="brk-campo-label" style={{ display: 'block', marginBottom: 8 }}>
+              Menus e telas que este perfil pode ver
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 340, overflowY: 'auto', paddingRight: 4 }}>
+              {CATALOGO_MENUS.map((g) => (
+                <div key={g.grupo}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--texto-fraco)', marginBottom: 6 }}>{g.grupo}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {g.itens.map((it) => (
+                      <label key={`${g.grupo}:${it.para}`} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={perfilPermissoes.includes(it.para)} onChange={() => togglePermissao(it.para)} />
+                        <span style={{ color: 'var(--texto)' }}>{it.rotulo}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </Modal>
       )}
     </>

@@ -20,11 +20,12 @@ export class AuthService {
     // Aceita e-mail (admin@breakr.com) ou usuario simples (admin). Sem "@",
     // resolve pelo prefixo do e-mail (ex.: "admin" -> "admin@...").
     const ident = identificador.trim().toLowerCase();
-    let usuario = await this.prisma.usuario.findUnique({ where: { email: ident } });
+    let usuario = await this.prisma.usuario.findUnique({ where: { email: ident }, include: { perfil: true } });
     if (!usuario && !ident.includes('@')) {
       usuario = await this.prisma.usuario.findFirst({
         where: { email: { startsWith: `${ident}@` } },
         orderBy: { criadoEm: 'asc' },
+        include: { perfil: true },
       });
     }
 
@@ -71,6 +72,8 @@ export class AuthService {
         nome: usuario.nome,
         email: usuario.email,
         cargo: usuario.cargo as Cargo,
+        perfilId: usuario.perfilId ?? null,
+        permissoes: usuario.perfil?.permissoes ?? [],
       },
     };
   }

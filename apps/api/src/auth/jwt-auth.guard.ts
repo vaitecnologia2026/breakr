@@ -38,6 +38,7 @@ export class JwtAuthGuard implements CanActivate {
 
     const usuario = await this.prisma.usuario.findUnique({
       where: { id: payload.sub },
+      include: { perfil: true },
     });
     if (!usuario || !usuario.ativo) {
       throw new UnauthorizedException('Usuário inexistente ou inativo');
@@ -48,6 +49,8 @@ export class JwtAuthGuard implements CanActivate {
       nome: usuario.nome,
       email: usuario.email,
       cargo: usuario.cargo as Cargo,
+      perfilId: usuario.perfilId ?? null,
+      permissoes: usuario.perfil?.permissoes ?? [],
     };
     (req as Request & { user: UsuarioPublico }).user = usuarioPublico;
     return true;

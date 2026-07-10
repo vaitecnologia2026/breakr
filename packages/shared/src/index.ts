@@ -64,6 +64,11 @@ export interface UsuarioPublico {
   nome: string;
   email: string;
   cargo: Cargo;
+  // Perfil de acesso (opcional). Quando ausente/null, o usuário enxerga tudo
+  // (compatibilidade com usuários já existentes). ADMIN/SUPERADMIN sempre veem tudo.
+  perfilId?: string | null;
+  // Rotas (menus) liberadas pelo perfil de acesso. Só restringe quando há perfilId.
+  permissoes?: string[];
 }
 
 export interface LoginResponse {

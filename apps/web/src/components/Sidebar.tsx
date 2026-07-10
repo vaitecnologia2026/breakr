@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { podeVerMenu } from '../lib/permissoes';
 import { useFavoritos } from '../lib/favoritos';
 import type { FavItem } from '../lib/favoritos';
 import { Avatar } from './UserMenu';
@@ -184,6 +185,19 @@ const GRUPO_ADMINISTRATIVO: NavGroup = {
 
 const TODOS_ITENS: NavItem[] = GRUPOS.flatMap((g) => g.items);
 
+// Catálogo plano de menus (rota + rótulo, agrupado) para a tela de Perfis de
+// acesso (Equipe). Derivado dos próprios grupos — fonte única de verdade das
+// rotas permissionáveis, incluindo subitens e os grupos administrativos.
+export interface CatalogoMenuItem { para: string; rotulo: string }
+export interface CatalogoMenuGrupo { grupo: string; itens: CatalogoMenuItem[] }
+export const CATALOGO_MENUS: CatalogoMenuGrupo[] = [...GRUPOS, GRUPO_ADMINISTRATIVO, GRUPO_ADMIN].map((g) => ({
+  grupo: g.label,
+  itens: g.items.flatMap((i) => [
+    { para: i.para, rotulo: i.rotulo },
+    ...((i.subItens ?? []).map((s) => ({ para: s.para, rotulo: s.rotulo }))),
+  ]),
+}));
+
 // ─── Status de teste por tela (bolinha ao lado do item) ───────────────────────
 // 'ok' verde = testado e funcional; 'erro' vermelho = tem erro a ajustar.
 // Telas não listadas caem em 'na' (amarelo = não testado). Base: suíte E2E que
@@ -253,6 +267,21 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
   const isAdmin = usuario?.cargo === 'ADMIN' || usuario?.cargo === 'SUPERADMIN';
   const isJuridico = usuario?.cargo === 'JURIDICO';
 
+  // Filtra itens (e subitens) pelo perfil de acesso do usuário. Mantém o item
+  // pai quando ele próprio é permitido OU quando ainda tem algum subitem visível.
+  function filtrarItens(items: NavItem[]): NavItem[] {
+    return items
+      .map((it): NavItem | null => {
+        if (it.subItens) {
+          const subs = it.subItens.filter((s) => podeVerMenu(usuario, s.para));
+          if (!podeVerMenu(usuario, it.para) && subs.length === 0) return null;
+          return { ...it, subItens: subs };
+        }
+        return podeVerMenu(usuario, it.para) ? it : null;
+      })
+      .filter((x): x is NavItem => x !== null);
+  }
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; }
   });
@@ -266,14 +295,16 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
   // Lista plana p/ modo colapsado e favoritos. Inclui os grupos administrativos
   // visíveis ao usuário e deduplica por rota (Equipe/Captação vivem só nesses
   // grupos; Contratos/Onboarding/Ouvidoria já aparecem nos grupos principais).
-  const todosItens = Array.from(
-    new Map(
-      [
-        ...TODOS_ITENS,
-        ...(isAdmin || isJuridico ? GRUPO_ADMINISTRATIVO.items : []),
-        ...(isAdmin ? GRUPO_ADMIN.items : []),
-      ].map((item) => [item.para, item]),
-    ).values(),
+  const todosItens = filtrarItens(
+    Array.from(
+      new Map(
+        [
+          ...TODOS_ITENS,
+          ...(isAdmin || isJuridico ? GRUPO_ADMINISTRATIVO.items : []),
+          ...(isAdmin ? GRUPO_ADMIN.items : []),
+        ].map((item) => [item.para, item]),
+      ).values(),
+    ),
   );
 
   function toggleFavItem(item: NavItem) {
@@ -337,24 +368,31 @@ export function Sidebar({ mobileAberta = false }: { mobileAberta?: boolean } = {
           </div>
         ) : (
           <>
-            {GRUPOS.map((grupo) => (
-              <NavGrupo
-                key={grupo.label}
-                {...grupo}
-                favoritos={favoritos}
-                onToggleFav={(item) => toggleFavItem(item)}
-              />
-            ))}
-            {(isAdmin || isJuridico) && (
+            {GRUPOS.map((grupo) => {
+              const items = filtrarItens(grupo.items);
+              if (items.length === 0) return null;
+              return (
+                <NavGrupo
+                  key={grupo.label}
+                  {...grupo}
+                  items={items}
+                  favoritos={favoritos}
+                  onToggleFav={(item) => toggleFavItem(item)}
+                />
+              );
+            })}
+            {(isAdmin || isJuridico) && filtrarItens(GRUPO_ADMINISTRATIVO.items).length > 0 && (
               <NavGrupo
                 {...GRUPO_ADMINISTRATIVO}
+                items={filtrarItens(GRUPO_ADMINISTRATIVO.items)}
                 favoritos={favoritos}
                 onToggleFav={(item) => toggleFavItem(item)}
               />
             )}
-            {isAdmin && (
+            {isAdmin && filtrarItens(GRUPO_ADMIN.items).length > 0 && (
               <NavGrupo
                 {...GRUPO_ADMIN}
+                items={filtrarItens(GRUPO_ADMIN.items)}
                 favoritos={favoritos}
                 onToggleFav={(item) => toggleFavItem(item)}
               />

@@ -95,6 +95,11 @@ model Usuario {
   departamentoId String?      @map("departamento_id")
   departamento   Departamento? @relation(fields: [departamentoId], references: [id])
 
+  // Perfil de acesso (opcional) — define quais menus/telas o usuario enxerga.
+  // Nulo = enxerga tudo (compatibilidade). ADMIN/SUPERADMIN sempre veem tudo.
+  perfilId String? @map("perfil_id")
+  perfil   Perfil? @relation(fields: [perfilId], references: [id])
+
   // Participacoes em squads (com funcao)
   squads SquadMembro[]
 
@@ -153,7 +158,23 @@ model Usuario {
   atividadesComercial AtividadeComercial[] @relation("AtividadeResponsavel")
 
   @@index([departamentoId])
+  @@index([perfilId])
   @@map("usuario")
+}
+
+/// Perfil de acesso — define quais menus/telas os usuarios vinculados enxergam.
+/// `permissoes` guarda as rotas liberadas (ex.: "/comercial", "/meu-painel").
+model Perfil {
+  id           String   @id @default(uuid())
+  nome         String   @unique
+  permissoes   String[]
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  usuarios Usuario[]
+
+  @@map("perfil")
 }
 
 /// Departamento — Comercial, Sucesso do Cliente, Marketing, etc.
