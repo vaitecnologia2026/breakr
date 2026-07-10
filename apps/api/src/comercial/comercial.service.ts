@@ -8,6 +8,7 @@ import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service'
 import { EngineService } from '../automacao/engine.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
 import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
+import { DefinirItensNegocioDto } from './dto/definir-itens-negocio.dto';
 import { CriarLeadPublicoDto } from './dto/criar-lead-publico.dto';
 
 // Rotulo legivel de cada status do funil (usado no historico do negocio).
@@ -146,12 +147,54 @@ export class ComercialService {
         pipeline: { select: { id: true, nome: true } },
         etapa: { select: { id: true, nome: true, status: true } },
         etiquetas: { include: { etiqueta: true } },
+        planos: { include: { plano: { select: { id: true, nome: true, valor: true } } } },
+        produtos: { include: { produto: { select: { id: true, nome: true, valor: true } } } },
       },
     });
     if (!lead) {
       throw new NotFoundException('Lead nao encontrado');
     }
     return lead;
+  }
+
+  // Define os planos/produtos do negocio ("+ Produtos"). Substitui o conjunto
+  // atual e recalcula o valor do negocio como a soma (valor x quantidade) de
+  // todos os itens. Aceita so plano, so produto, ou ambos.
+  async definirItens(id: string, dto: DefinirItensNegocioDto): Promise<Lead> {
+    await this.obter(id);
+    const planos = dto.planos ?? [];
+    const produtos = dto.produtos ?? [];
+    const planoIds = planos.map((p) => p.planoId);
+    const produtoIds = produtos.map((p) => p.produtoId);
+    const pl = planoIds.length
+      ? await this.prisma.plano.findMany({ where: { id: { in: planoIds } } })
+      : [];
+    const pr = produtoIds.length
+      ? await this.prisma.produto.findMany({ where: { id: { in: produtoIds } } })
+      : [];
+    const valorPlano = new Map<string, Prisma.Decimal>(pl.map((x) => [x.id, x.valor] as [string, Prisma.Decimal]));
+    const valorProduto = new Map<string, Prisma.Decimal>(pr.map((x) => [x.id, x.valor] as [string, Prisma.Decimal]));
+    let total = new Prisma.Decimal(0);
+    for (const it of planos) {
+      const v = valorPlano.get(it.planoId);
+      if (v) total = total.plus(v.mul(it.quantidade ?? 1));
+    }
+    for (const it of produtos) {
+      const v = valorProduto.get(it.produtoId);
+      if (v) total = total.plus(v.mul(it.quantidade ?? 1));
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.leadPlano.deleteMany({ where: { leadId: id } });
+      await tx.leadProduto.deleteMany({ where: { leadId: id } });
+      if (planos.length) {
+        await tx.leadPlano.createMany({ data: planos.map((p) => ({ leadId: id, planoId: p.planoId, quantidade: p.quantidade ?? 1 })) });
+      }
+      if (produtos.length) {
+        await tx.leadProduto.createMany({ data: produtos.map((p) => ({ leadId: id, produtoId: p.produtoId, quantidade: p.quantidade ?? 1 })) });
+      }
+      await tx.lead.update({ where: { id }, data: { valorEstimado: total } });
+    });
+    return this.obter(id);
   }
 
   // Move o lead para uma ETAPA de pipeline. Ajusta o etapaId e deriva o status

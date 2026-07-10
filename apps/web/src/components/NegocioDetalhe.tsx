@@ -27,7 +27,12 @@ interface Lead {
   responsavel?: { nome: string } | null; cliente?: { nomeFantasia: string } | null;
   pipeline?: { id: string; nome: string } | null; etapa?: { id: string; nome: string; status: StatusLead } | null;
   etiquetas?: LeadEtiqueta[];
+  planos?: LeadPlano[];
+  produtos?: LeadProduto[];
 }
+interface ItemCatalogo { id: string; nome: string; valor: string; ativo: boolean }
+interface LeadPlano { plano: { id: string; nome: string; valor: string }; quantidade: number }
+interface LeadProduto { produto: { id: string; nome: string; valor: string }; quantidade: number }
 interface Nota { id: string; texto: string; criadoEm: string; autor?: { nome: string } | null }
 interface Historico { id: string; acao: string; de: string | null; para: string | null; criadoEm: string; autor?: { nome: string } | null }
 interface Atividade { id: string; titulo: string; tipo: TipoAtividade; status: StatusAtividade; vencimento: string | null; notas?: string | null; lead?: { id: string } | null }
@@ -117,6 +122,12 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [editor, setEditor] = useState<CampoEdit | null>(null);
   const [modalEtiquetas, setModalEtiquetas] = useState(false);
   const [novaEtiqueta, setNovaEtiqueta] = useState('');
+  const [planosCat, setPlanosCat] = useState<ItemCatalogo[]>([]);
+  const [produtosCat, setProdutosCat] = useState<ItemCatalogo[]>([]);
+  const [modalProdutos, setModalProdutos] = useState(false);
+  const [selPlanos, setSelPlanos] = useState<Record<string, number>>({});
+  const [selProdutos, setSelProdutos] = useState<Record<string, number>>({});
+  const [salvandoItens, setSalvandoItens] = useState(false);
   const [ativForm, setAtivForm] = useState<AtivForm | null>(null);
   const [novaNota, setNovaNota] = useState('');
   const [salvandoNota, setSalvandoNota] = useState(false);
@@ -124,16 +135,20 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   async function carregar() {
     setErro(null);
     try {
-      const [l, n, h, a] = await Promise.all([
+      const [l, n, h, a, pls, prs] = await Promise.all([
         api.get<Lead>(`/comercial/leads/${leadId}`),
         api.get<Nota[]>(`/comercial/leads/${leadId}/notas`),
         api.get<Historico[]>(`/comercial/leads/${leadId}/historico`),
         api.get<Atividade[]>(`/comercial/atividades`),
+        api.get<ItemCatalogo[]>('/planos').catch(() => ({ data: [] as ItemCatalogo[] })),
+        api.get<ItemCatalogo[]>('/produtos').catch(() => ({ data: [] as ItemCatalogo[] })),
       ]);
       setLead(l.data);
       setNotas(n.data);
       setHistorico(h.data);
       setAtividades(a.data.filter((x) => x.lead?.id === leadId));
+      setPlanosCat(pls.data.filter((x) => x.ativo));
+      setProdutosCat(prs.data.filter((x) => x.ativo));
     } catch {
       setErro('Não foi possível carregar o negócio.');
     } finally {
@@ -222,6 +237,33 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
     } catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao criar etiqueta.'); }
   }
 
+  // ── Produtos/Planos do negócio ("+ Produtos") ──────────────────────────────
+  function abrirProdutos() {
+    const sp: Record<string, number> = {};
+    (lead?.planos ?? []).forEach((p) => { sp[p.plano.id] = p.quantidade; });
+    const spr: Record<string, number> = {};
+    (lead?.produtos ?? []).forEach((p) => { spr[p.produto.id] = p.quantidade; });
+    setSelPlanos(sp); setSelProdutos(spr); setModalProdutos(true);
+  }
+  function toggleSel(mapa: Record<string, number>, set: (m: Record<string, number>) => void, id: string) {
+    const novo = { ...mapa };
+    if (novo[id] !== undefined) delete novo[id]; else novo[id] = 1;
+    set(novo);
+  }
+  function setQtd(mapa: Record<string, number>, set: (m: Record<string, number>) => void, id: string, q: number) {
+    set({ ...mapa, [id]: Math.max(1, q || 1) });
+  }
+  async function salvarItens() {
+    setSalvandoItens(true);
+    const corpo = {
+      planos: Object.entries(selPlanos).map(([planoId, quantidade]) => ({ planoId, quantidade })),
+      produtos: Object.entries(selProdutos).map(([produtoId, quantidade]) => ({ produtoId, quantidade })),
+    };
+    try { await api.put(`/comercial/leads/${leadId}/itens`, corpo); setModalProdutos(false); await carregar(); onMudou(); }
+    catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Não foi possível salvar os itens.'); }
+    finally { setSalvandoItens(false); }
+  }
+
   // ── Atividades ─────────────────────────────────────────────────────────────
   function abrirAddAtiv() { setAtivForm({ titulo: '', tipo: 'LIGACAO', vencimento: '', notas: '' }); }
   function abrirEditAtiv(a: Atividade) { setAtivForm({ id: a.id, titulo: a.titulo, tipo: a.tipo, vencimento: toLocalInput(a.vencimento), notas: a.notas ?? '' }); }
@@ -260,6 +302,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
 
   const ligacoes = atividades.filter((a) => a.tipo === 'LIGACAO');
   const etiquetasLead = lead?.etiquetas ?? [];
+  const numVal = (v: string) => Number(v) || 0;
+  const totalItens =
+    Object.entries(selPlanos).reduce((s, [id, q]) => s + numVal(planosCat.find((p) => p.id === id)?.valor ?? '0') * q, 0) +
+    Object.entries(selProdutos).reduce((s, [id, q]) => s + numVal(produtosCat.find((p) => p.id === id)?.valor ?? '0') * q, 0);
 
   const abaEstilo = (a: Aba, cor = 'var(--amarelo-fagulha)'): CSSProperties => ({
     padding: '10px 4px', border: 'none', background: 'transparent', cursor: 'pointer',
@@ -326,7 +372,17 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
             <aside style={{ borderRight: '1px solid var(--borda)', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14, background: 'var(--superficie)' }}>
               <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--texto-fraco)' }}>RESUMO</span>
 
-              <ResumoLinha icone={<IcoDinheiro />} label={<b style={{ fontSize: 15, color: 'var(--texto)' }}>{formatValor(lead.valorEstimado)}</b>} acao={<button type="button" onClick={() => abrirEditor('valor')} style={linkBtn}>+ Produtos</button>} />
+              <ResumoLinha icone={<IcoDinheiro />} label={<b style={{ fontSize: 15, color: 'var(--texto)' }}>{formatValor(lead.valorEstimado)}</b>} acao={<button type="button" onClick={abrirProdutos} style={linkBtn}>+ Produtos</button>} />
+              {((lead.planos?.length ?? 0) > 0 || (lead.produtos?.length ?? 0) > 0) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: -8, marginLeft: 22 }}>
+                  {(lead.planos ?? []).map((p) => (
+                    <ItemLinha key={`pl-${p.plano.id}`} tag="Plano" nome={p.plano.nome} qtd={p.quantidade} valor={formatValor(String(numVal(p.plano.valor) * p.quantidade))} />
+                  ))}
+                  {(lead.produtos ?? []).map((p) => (
+                    <ItemLinha key={`pr-${p.produto.id}`} tag="Produto" nome={p.produto.nome} qtd={p.quantidade} valor={formatValor(String(numVal(p.produto.valor) * p.quantidade))} />
+                  ))}
+                </div>
+              )}
               <ResumoLinha icone={<IcoCalendario />} label={<span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Previsão</span>} acao={<button type="button" onClick={() => abrirEditor('previsao')} style={linkBtn}>{lead.previsaoFechamento ? new Date(lead.previsaoFechamento).toLocaleDateString('pt-BR') : 'Definir data'}</button>} />
               <ResumoLinha icone={<IcoRelogio />} label={<span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Na etapa</span>} acao={<span style={{ fontSize: 13, fontWeight: 700, color: 'var(--texto)' }}>{naEtapaDesde ? `${diasDesde(naEtapaDesde)} dias` : '—'}</span>} />
               <ResumoLinha icone={<IcoPercent />} label={<span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Probabilidade</span>} acao={<span style={{ fontSize: 13, fontWeight: 700, color: 'var(--texto)' }}>{PROBABILIDADE[lead.status]}%</span>} />
@@ -535,6 +591,22 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
         </Modal>
       )}
 
+      {/* Planos e Produtos do negócio ("+ Produtos") */}
+      {modalProdutos && (
+        <Modal titulo="Planos e Produtos do negócio" onFechar={() => setModalProdutos(false)}
+          rodape={<><Btn variante="secondary" onClick={() => setModalProdutos(false)}>Cancelar</Btn><Btn onClick={salvarItens} disabled={salvandoItens}>{salvandoItens ? 'Salvando…' : 'Salvar'}</Btn></>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 12, color: 'var(--texto-fraco)', margin: 0 }}>Selecione um plano, um produto, ou ambos. O valor do negócio passa a somar os itens.</p>
+            <SecaoItens titulo="Planos" itens={planosCat} sel={selPlanos} onToggle={(id) => toggleSel(selPlanos, setSelPlanos, id)} onQtd={(id, q) => setQtd(selPlanos, setSelPlanos, id, q)} />
+            <SecaoItens titulo="Produtos" itens={produtosCat} sel={selProdutos} onToggle={(id) => toggleSel(selProdutos, setSelProdutos, id)} onQtd={(id, q) => setQtd(selProdutos, setSelProdutos, id, q)} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--borda)', paddingTop: 12 }}>
+              <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Total do negócio</span>
+              <b style={{ fontSize: 16, color: 'var(--texto)' }}>{formatValor(String(totalItens))}</b>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Editor de atividade */}
       {ativForm && (
         <Modal titulo={ativForm.id ? 'Editar atividade' : 'Nova atividade'} onFechar={() => setAtivForm(null)}
@@ -569,6 +641,43 @@ function ResumoLinha({ icone, label, acao }: { icone: ReactNode; label: ReactNod
 }
 function Contador({ n }: { n: number }) {
   return <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: 'var(--superficie-3)', color: 'var(--texto-suave)' }}>{n}</span>;
+}
+function ItemLinha({ tag, nome, qtd, valor }: { tag: string; nome: string; qtd: number; valor: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, fontSize: 11.5, color: 'var(--texto-suave)' }}>
+      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 9.5, fontWeight: 700, padding: '0 5px', borderRadius: 5, background: 'var(--superficie-4)', color: 'var(--texto-fraco)', marginRight: 5 }}>{tag}</span>
+        {nome}{qtd > 1 ? ` ×${qtd}` : ''}
+      </span>
+      <span style={{ flex: '0 0 auto', color: 'var(--texto-fraco)' }}>{valor}</span>
+    </div>
+  );
+}
+function SecaoItens({ titulo, itens, sel, onToggle, onQtd }: { titulo: string; itens: ItemCatalogo[]; sel: Record<string, number>; onToggle: (id: string) => void; onQtd: (id: string, q: number) => void }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--texto-fraco)', marginBottom: 8 }}>{titulo.toUpperCase()}</div>
+      {itens.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Nenhum {titulo.toLowerCase().replace(/s$/, '')} cadastrado.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {itens.map((it) => {
+            const marcado = sel[it.id] !== undefined;
+            return (
+              <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9, border: `1px solid ${marcado ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`, background: marcado ? 'color-mix(in srgb, var(--amarelo-fagulha) 10%, transparent)' : 'var(--superficie-2)' }}>
+                <input type="checkbox" checked={marcado} onChange={() => onToggle(it.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--amarelo-fagulha)' }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.nome}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--texto-suave)', flex: '0 0 auto' }}>R$ {(Number(it.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                {marcado && (
+                  <input type="number" min={1} value={sel[it.id]} onChange={(e) => onQtd(it.id, parseInt(e.target.value, 10))} title="Quantidade" className="brk-input" style={{ width: 58, flex: '0 0 auto', padding: '4px 6px' }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 function Vazio({ icone, titulo, sub, acao }: { icone: ReactNode; titulo: string; sub?: string; acao?: ReactNode }) {
   return (

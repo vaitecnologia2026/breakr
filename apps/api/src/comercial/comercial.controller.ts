@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { UsuarioAtual } from '../usuarios/usuario-atual.decorator';
 import { ComercialService } from './comercial.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
 import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
+import { DefinirItensNegocioDto } from './dto/definir-itens-negocio.dto';
 import { CriarNotaLeadDto } from './dto/criar-nota-lead.dto';
 import { MoverStatusLeadDto } from './dto/mover-status-lead.dto';
 import { AtribuirResponsavelLeadDto } from './dto/atribuir-responsavel-lead.dto';
@@ -85,6 +87,17 @@ export class ComercialController {
     @Body() dto: AtualizarLeadDto,
   ) {
     return this.comercialService.atualizar(id, dto);
+  }
+
+  // PUT /comercial/leads/:id/itens — define planos/produtos do negocio ("+ Produtos").
+  @Put(':id/itens')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  definirItens(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DefinirItensNegocioDto,
+  ) {
+    return this.comercialService.definirItens(id, dto);
   }
 
   // POST /comercial/leads/:id/notas — adiciona uma nota ao negocio.

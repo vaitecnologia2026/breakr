@@ -343,6 +343,7 @@ model Plano {
   clientes  Cliente[]
   contratos Contrato[]
   produtos  PlanoProduto[]
+  negocios  LeadPlano[]
 
   @@map("plano")
 }
@@ -357,7 +358,8 @@ model Produto {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  planos PlanoProduto[]
+  planos   PlanoProduto[]
+  negocios LeadProduto[]
 
   @@map("produto")
 }
@@ -691,6 +693,10 @@ model Lead {
   notas     NotaLead[]
   historico HistoricoLead[]
 
+  // Planos e produtos vinculados ao negocio ("+ Produtos" da tela de detalhe).
+  planos   LeadPlano[]
+  produtos LeadProduto[]
+
   @@index([status])
   @@index([responsavelId])
   @@index([pipelineId])
@@ -783,6 +789,36 @@ model HistoricoLead {
 
   @@index([leadId])
   @@map("historico_lead")
+}
+
+/// Plano vinculado a um negocio (Lead) — item do "+ Produtos" da tela de detalhe.
+model LeadPlano {
+  id         String   @id @default(uuid())
+  leadId     String   @map("lead_id")
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  planoId    String   @map("plano_id")
+  plano      Plano    @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  quantidade Int      @default(1)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([leadId])
+  @@index([planoId])
+  @@map("lead_plano")
+}
+
+/// Produto vinculado a um negocio (Lead) — item do "+ Produtos" da tela de detalhe.
+model LeadProduto {
+  id         String   @id @default(uuid())
+  leadId     String   @map("lead_id")
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  produtoId  String   @map("produto_id")
+  produto    Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  quantidade Int      @default(1)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([leadId])
+  @@index([produtoId])
+  @@map("lead_produto")
 }
 
 /// Tipo de atividade comercial (canal/tarefa do vendedor).
