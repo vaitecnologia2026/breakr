@@ -512,6 +512,10 @@ model Contrato {
   diaPagamento   Int?      @map("dia_pagamento") // 1..31
   dataAssinatura DateTime? @map("data_assinatura")
 
+  // Momento em que a cobranca no Asaas foi disparada (via webhook n8n) ao criar
+  // o contrato. Guarda de idempotencia: nao dispara 2x para o mesmo negocio.
+  cobrancaAsaasEm DateTime? @map("cobranca_asaas_em")
+
   faturas Fatura[]
 
   @@index([clienteId])
