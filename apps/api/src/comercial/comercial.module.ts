@@ -5,11 +5,13 @@ import { AutomacaoModule } from '../automacao/automacao.module';
 import { ComercialService } from './comercial.service';
 import { ComercialController } from './comercial.controller';
 import { ComercialPublicoController } from './comercial-publico.controller';
+import { ComercialConfigController } from './comercial-config.controller';
+import { PipelinesService } from './pipelines.service';
 
 @Module({
   imports: [AutomacaoModule],
-  controllers: [ComercialController, ComercialPublicoController],
-  providers: [ComercialService],
+  controllers: [ComercialController, ComercialPublicoController, ComercialConfigController],
+  providers: [ComercialService, PipelinesService],
   exports: [ComercialService],
 })
 export class ComercialModule {}

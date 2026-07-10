@@ -672,9 +672,79 @@ model Lead {
   // Atividades comerciais (ligacoes/WhatsApp/tarefas) vinculadas ao lead.
   atividades AtividadeComercial[] @relation("LeadAtividades")
 
+  // Pipeline + etapa (CRM estilo RD). A etapa mapeia para um `status` do funil,
+  // que continua sendo a fonte de verdade (Meu Painel/Metricas/kanban por status).
+  pipelineId String?        @map("pipeline_id")
+  pipeline   Pipeline?      @relation(fields: [pipelineId], references: [id])
+  etapaId    String?        @map("etapa_id")
+  etapa      EtapaPipeline? @relation(fields: [etapaId], references: [id])
+  // Previsao de fechamento (campo do card "Novo Negocio").
+  previsaoFechamento DateTime? @map("previsao_fechamento")
+  // Etiquetas (tags) do negocio (N:N).
+  etiquetas LeadEtiqueta[]
+
   @@index([status])
   @@index([responsavelId])
+  @@index([pipelineId])
+  @@index([etapaId])
   @@map("lead")
+}
+
+/// Pipeline de vendas (CRM estilo RD) — um conjunto ordenado de etapas.
+model Pipeline {
+  id           String   @id @default(uuid())
+  nome         String   @unique
+  ordem        Int      @default(0)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  etapas EtapaPipeline[]
+  leads  Lead[]
+
+  @@map("pipeline")
+}
+
+/// Etapa de um pipeline. `status` liga a etapa ao funil validado do backend.
+model EtapaPipeline {
+  id           String     @id @default(uuid())
+  pipelineId   String     @map("pipeline_id")
+  pipeline     Pipeline   @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  nome         String
+  ordem        Int        @default(0)
+  status       StatusLead @default(NOVO)
+  criadoEm     DateTime   @default(now()) @map("criado_em")
+  atualizadoEm DateTime   @updatedAt @map("atualizado_em")
+
+  leads Lead[]
+
+  @@index([pipelineId])
+  @@map("etapa_pipeline")
+}
+
+/// Etiqueta (tag) de negocio.
+model Etiqueta {
+  id           String   @id @default(uuid())
+  nome         String   @unique
+  cor          String   @default("#22c55e")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  leads LeadEtiqueta[]
+
+  @@map("etiqueta")
+}
+
+/// Vinculo N:N entre Lead e Etiqueta.
+model LeadEtiqueta {
+  leadId     String @map("lead_id")
+  etiquetaId String @map("etiqueta_id")
+
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  etiqueta Etiqueta @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, etiquetaId])
+  @@map("lead_etiqueta")
 }
 
 /// Tipo de atividade comercial (canal/tarefa do vendedor).

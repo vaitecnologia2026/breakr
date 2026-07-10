@@ -17,8 +17,18 @@ export class ComercialService {
     private readonly engine: EngineService,
   ) {}
 
-  // Cria lead com status NOVO e codigo unico gerado (prefixo LEAD).
+  // Cria lead. Se veio uma etapa de pipeline, o status inicial vem do status
+  // dessa etapa (a etapa liga ao funil); senao NOVO. Codigo unico prefixo LEAD.
   async criar(dto: CriarLeadDto): Promise<Lead> {
+    let status: StatusLead = StatusLead.NOVO;
+    let pipelineId = dto.pipelineId;
+    if (dto.etapaId) {
+      const etapa = await this.prisma.etapaPipeline.findUnique({ where: { id: dto.etapaId } });
+      if (etapa) {
+        status = etapa.status;
+        pipelineId = pipelineId ?? etapa.pipelineId;
+      }
+    }
     const lead = await this.prisma.lead.create({
       data: {
         nome: dto.nome,
@@ -28,12 +38,18 @@ export class ComercialService {
         origem: dto.origem,
         observacao: dto.observacao,
         responsavelId: dto.responsavelId,
-        status: StatusLead.NOVO,
+        status,
         valorEstimado:
           dto.valorEstimado !== undefined
             ? new Prisma.Decimal(dto.valorEstimado)
             : undefined,
         codigoUnico: this.codigoUnico.gerar('LEAD'),
+        ...(pipelineId && { pipelineId }),
+        ...(dto.etapaId && { etapaId: dto.etapaId }),
+        ...(dto.previsaoFechamento && { previsaoFechamento: new Date(dto.previsaoFechamento) }),
+        ...(dto.etiquetaIds && dto.etiquetaIds.length && {
+          etiquetas: { create: dto.etiquetaIds.map((etiquetaId) => ({ etiquetaId })) },
+        }),
       },
     });
     await this.engine.dispatch('lead.capturado', {
@@ -52,6 +68,9 @@ export class ComercialService {
   listar(filtro?: {
     status?: StatusLead;
     responsavelId?: string;
+    pipelineId?: string;
+    etapaId?: string;
+    etiquetaId?: string;
   }): Promise<Lead[]> {
     const where: Prisma.LeadWhereInput = {};
     if (filtro?.status !== undefined) {
@@ -60,11 +79,23 @@ export class ComercialService {
     if (filtro?.responsavelId !== undefined) {
       where.responsavelId = filtro.responsavelId;
     }
+    if (filtro?.pipelineId !== undefined) {
+      where.pipelineId = filtro.pipelineId;
+    }
+    if (filtro?.etapaId !== undefined) {
+      where.etapaId = filtro.etapaId;
+    }
+    if (filtro?.etiquetaId !== undefined) {
+      where.etiquetas = { some: { etiquetaId: filtro.etiquetaId } };
+    }
     return this.prisma.lead.findMany({
       where,
       include: {
         responsavel: { select: { nome: true } },
         cliente: { select: { nomeFantasia: true } },
+        pipeline: { select: { id: true, nome: true } },
+        etapa: { select: { id: true, nome: true, status: true } },
+        etiquetas: { include: { etiqueta: true } },
       },
       orderBy: { criadoEm: 'desc' },
     });
@@ -101,12 +132,32 @@ export class ComercialService {
       include: {
         responsavel: { select: { nome: true } },
         cliente: { select: { nomeFantasia: true } },
+        pipeline: { select: { id: true, nome: true } },
+        etapa: { select: { id: true, nome: true, status: true } },
+        etiquetas: { include: { etiqueta: true } },
       },
     });
     if (!lead) {
       throw new NotFoundException('Lead nao encontrado');
     }
     return lead;
+  }
+
+  // Move o lead para uma ETAPA de pipeline. Ajusta o etapaId e deriva o status
+  // do funil a partir do status da etapa (mantendo a logica validada de GANHO).
+  async moverEtapa(id: string, etapaId: string): Promise<Lead> {
+    const lead = await this.obter(id);
+    const etapa = await this.prisma.etapaPipeline.findUnique({ where: { id: etapaId } });
+    if (!etapa) throw new NotFoundException('Etapa nao encontrada');
+    if (etapa.status === StatusLead.GANHO && !lead.clienteId) {
+      await this.prisma.lead.update({ where: { id }, data: { etapaId, pipelineId: etapa.pipelineId } });
+      return this.converter(id);
+    }
+    await this.prisma.lead.update({
+      where: { id },
+      data: { etapaId, pipelineId: etapa.pipelineId, status: etapa.status },
+    });
+    return this.obter(id);
   }
 
   // Move o lead para outra etapa do pipeline. Se for GANHO e ainda nao houver
