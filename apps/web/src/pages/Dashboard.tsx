@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
+import { rotaPermitida } from '../lib/permissoes';
 import { Sidebar, useSidebarMobile } from '../components/Sidebar';
 import { NotificationBell } from '../components/NotificationBell';
 import { GlobalSearch, abrirBusca } from '../components/GlobalSearch';
@@ -115,8 +117,13 @@ function FavoritesBar() {
 
 export function Dashboard() {
   const { pathname } = useLocation();
+  const { usuario } = useAuth();
   const nomePagina = ROTA_NOME[pathname] ?? 'Breakr';
   const menuMobile = useSidebarMobile();
+
+  // Perfil de acesso: se a rota atual não é permitida, volta ao início.
+  // (admin/superadmin e usuários sem perfil enxergam tudo — nada muda.)
+  const rotaBloqueada = !rotaPermitida(usuario, pathname);
 
   // Fecha o menu mobile ao trocar de página.
   useEffect(() => { menuMobile.fechar(); }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -175,7 +182,7 @@ export function Dashboard() {
         </header>
 
         <main className="brk-content">
-          <Outlet />
+          {rotaBloqueada ? <Navigate to="/" replace /> : <Outlet />}
         </main>
 
         {/* Barra de favoritos */}

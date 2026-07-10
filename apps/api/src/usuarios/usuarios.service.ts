@@ -14,6 +14,8 @@ export interface UsuarioListado extends UsuarioPublico {
   ativo: boolean;
   criadoEm: Date;
   whatsapp: string | null;
+  perfilId: string | null;
+  perfilNome: string | null;
 }
 
 // Cargos com poder administrativo: so um SUPERADMIN pode conceder ou alterar.
@@ -36,6 +38,7 @@ export class UsuariosService {
   async listarTodos(): Promise<UsuarioListado[]> {
     const lista = await this.prisma.usuario.findMany({
       orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+      include: { perfil: true },
     });
     return lista.map((u) => ({
       id: u.id,
@@ -45,6 +48,8 @@ export class UsuariosService {
       ativo: u.ativo,
       criadoEm: u.criadoEm,
       whatsapp: u.whatsapp,
+      perfilId: u.perfilId ?? null,
+      perfilNome: u.perfil?.nome ?? null,
     }));
   }
 
@@ -57,9 +62,10 @@ export class UsuariosService {
     if (existe) throw new ConflictException('E-mail ja cadastrado');
     const senhaHash = await bcrypt.hash(dto.senha, 10);
     const usuario = await this.prisma.usuario.create({
-      data: { nome: dto.nome, email: dto.email, senhaHash, cargo: dto.cargo, ativo: true, whatsapp: dto.whatsapp },
+      data: { nome: dto.nome, email: dto.email, senhaHash, cargo: dto.cargo, ativo: true, whatsapp: dto.whatsapp, ...(dto.perfilId !== undefined && { perfilId: dto.perfilId }) },
+      include: { perfil: true },
     });
-    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp };
+    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp, perfilId: usuario.perfilId ?? null, perfilNome: usuario.perfil?.nome ?? null };
   }
 
   async atualizar(
@@ -93,9 +99,11 @@ export class UsuariosService {
     if (dto.cargo) dados.cargo = dto.cargo;
     if (dto.ativo !== undefined) dados.ativo = dto.ativo;
     if (dto.whatsapp !== undefined) dados.whatsapp = dto.whatsapp;
+    // Perfil de acesso: string vincula, null desvincula, ausente mantem.
+    if (dto.perfilId !== undefined) dados.perfilId = dto.perfilId;
     // Nova senha (opcional): so re-hash quando enviada — ausente/vazia mantem a atual.
     if (dto.senha) dados.senhaHash = await bcrypt.hash(dto.senha, 10);
-    const usuario = await this.prisma.usuario.update({ where: { id }, data: dados });
-    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp };
+    const usuario = await this.prisma.usuario.update({ where: { id }, data: dados, include: { perfil: true } });
+    return { id: usuario.id, nome: usuario.nome, email: usuario.email, cargo: usuario.cargo as Cargo, ativo: usuario.ativo, criadoEm: usuario.criadoEm, whatsapp: usuario.whatsapp, perfilId: usuario.perfilId ?? null, perfilNome: usuario.perfil?.nome ?? null };
   }
 }

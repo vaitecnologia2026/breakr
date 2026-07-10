@@ -1,5 +1,5 @@
 // DTO de atualizacao de usuario. Todos os campos opcionais (ausente = mantem).
-import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateIf } from 'class-validator';
 import { Cargo } from '@prisma/client';
 
 export class AtualizarUsuarioDto {
@@ -30,4 +30,10 @@ export class AtualizarUsuarioDto {
   @MinLength(8)
   @MaxLength(72)
   senha?: string;
+
+  // Perfil de acesso (opcional). null desvincula (usuario volta a ver tudo).
+  @IsOptional()
+  @ValidateIf((o) => o.perfilId !== null)
+  @IsUUID()
+  perfilId?: string | null;
 }

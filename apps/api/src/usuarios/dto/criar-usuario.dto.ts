@@ -1,5 +1,5 @@
 // DTO de criacao de usuario (validado em runtime pelo ValidationPipe global).
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { Cargo } from '@prisma/client';
 
 export class CriarUsuarioDto {
@@ -25,4 +25,9 @@ export class CriarUsuarioDto {
   @IsString()
   @MaxLength(30)
   whatsapp?: string;
+
+  // Perfil de acesso (opcional) — define quais menus/telas o usuario ve.
+  @IsOptional()
+  @IsUUID()
+  perfilId?: string;
 }
