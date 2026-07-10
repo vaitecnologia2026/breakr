@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { podeVerBloco } from '../lib/permissoes';
 import { api } from '../lib/api';
 import { Carregando, ErroEstado } from '../components/ui';
 import { MODO_DEMO } from '../lib/demo';
@@ -202,6 +203,7 @@ const MOCK_MEU_DIA: MeuDia = {
 export function Inicio() {
   const { usuario } = useAuth();
   const primeiroNome = usuario?.nome?.split(' ')[0] ?? 'usuário';
+  const ver = (chave: string) => podeVerBloco(usuario, 'inicio', chave);
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [meuDia, setMeuDia] = useState<MeuDia | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -243,9 +245,10 @@ export function Inicio() {
       ) : (
         <>
           {/* Meu dia — Hoje & Atrasados (personalizado por cargo) */}
-          {meuDia && <MeuDiaSecao meuDia={meuDia} />}
+          {meuDia && ver('bloco:inicio:meu-dia') && <MeuDiaSecao meuDia={meuDia} />}
 
           {/* KPI Grid */}
+          {ver('bloco:inicio:kpis') && (
           <div className="brk-stats-grid">
             {STATS_CONFIG.map((s) => {
               const val = getVal(resumo, s.chave);
@@ -266,8 +269,10 @@ export function Inicio() {
               );
             })}
           </div>
+          )}
 
           {/* Status bar do motor */}
+          {ver('bloco:inicio:motor') && (
           <div className="brk-status-bar">
             <span className="brk-status-bar-dot verde" />
             <span style={{ color: 'var(--verde)', display: 'flex' }}>
@@ -283,9 +288,10 @@ export function Inicio() {
             </div>
             <span className="brk-status-bar-badge">Operacional</span>
           </div>
+          )}
 
           {/* CSAT */}
-          {resumo.csat.total > 0 && (
+          {ver('bloco:inicio:csat') && resumo.csat.total > 0 && (
             <div className="brk-status-bar" style={{ gap: 14 }}>
               <span style={{ color: 'var(--amarelo)', display: 'flex' }}>
                 <IcoStar />
@@ -312,7 +318,7 @@ export function Inicio() {
           )}
 
           {/* Pendências */}
-          {resumo.acoes.length > 0 && (
+          {ver('bloco:inicio:pendencias') && resumo.acoes.length > 0 && (
             <section>
               <div className="brk-secao-titulo">
                 <IcoAlertCircle />

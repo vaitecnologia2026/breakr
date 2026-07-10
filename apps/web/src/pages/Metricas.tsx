@@ -5,6 +5,8 @@
 // que o mapeiam. Estados carregando/erro no padrão do app.
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { podeVerBloco } from '../lib/permissoes';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { PaginaShell, EstadoCarregando, EstadoErro } from '../components/primitivos';
 import { Card, Badge, Th, Td } from '../components/ui';
@@ -402,17 +404,21 @@ function ReportView({ report, leads, ativ }: { report: Report; leads: Lead[]; at
 }
 
 function Submenu({ sel, onSel }: { sel: number | null; onSel: (v: number | null) => void }) {
+  const { usuario } = useAuth();
+  const verMeuPainel = podeVerBloco(usuario, 'metricas', 'bloco:metricas:meu-painel');
+  const gruposVisiveis = GRUPOS.filter((g) => podeVerBloco(usuario, 'metricas', `bloco:metricas:${g}`));
   const itemStyle = (ativo: boolean): React.CSSProperties => ({
     padding: '7px 10px', borderRadius: 8, fontSize: 12.5, cursor: 'pointer',
     color: ativo ? 'var(--texto)' : 'var(--texto-suave)',
     background: ativo ? 'var(--superficie-3)' : 'transparent', fontWeight: ativo ? 600 : 400,
   });
+  const totalReports = REPORTS.filter((r) => gruposVisiveis.includes(r.g)).length;
   return (
     <Card>
-      <div onClick={() => onSel(null)} style={itemStyle(sel === null)}>▦ Meu Painel</div>
-      <div style={{ fontSize: 10, letterSpacing: 1, color: 'var(--texto-fraco)', textTransform: 'uppercase', fontWeight: 700, padding: '12px 10px 4px' }}>Relatórios · {REPORTS.length}</div>
+      {verMeuPainel && <div onClick={() => onSel(null)} style={itemStyle(sel === null)}>▦ Meu Painel</div>}
+      <div style={{ fontSize: 10, letterSpacing: 1, color: 'var(--texto-fraco)', textTransform: 'uppercase', fontWeight: 700, padding: '12px 10px 4px' }}>Relatórios · {totalReports}</div>
       <div style={{ maxHeight: 460, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {GRUPOS.map((g) => (
+        {gruposVisiveis.map((g) => (
           <div key={g}>
             <div style={{ fontSize: 10.5, color: 'var(--texto-fraco)', fontWeight: 700, padding: '8px 10px 2px' }}>{g}</div>
             {REPORTS.map((r, i) => (r.g === g ? (
@@ -426,11 +432,15 @@ function Submenu({ sel, onSel }: { sel: number | null; onSel: (v: number | null)
 }
 
 export function Metricas() {
+  const { usuario } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [ativ, setAtiv] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [sel, setSel] = useState<number | null>(null);
+  const selPermitido = sel === null
+    ? podeVerBloco(usuario, 'metricas', 'bloco:metricas:meu-painel')
+    : podeVerBloco(usuario, 'metricas', `bloco:metricas:${REPORTS[sel].g}`);
 
   async function carregar() {
     setCarregando(true);
@@ -462,7 +472,9 @@ export function Metricas() {
       ) : (
         <div className="brk-rsplit" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) 1fr', gap: 16, alignItems: 'start' }}>
           <Submenu sel={sel} onSel={setSel} />
-          <div>{sel === null ? <MeuPainelView leads={leads} ativ={ativ} /> : <ReportView report={REPORTS[sel]} leads={leads} ativ={ativ} />}</div>
+          <div>{!selPermitido ? (
+            <Card><div style={{ color: 'var(--texto-fraco)', fontSize: 13, padding: 8 }}>Seu perfil não tem acesso a esta métrica. Escolha outra no menu ao lado.</div></Card>
+          ) : sel === null ? <MeuPainelView leads={leads} ativ={ativ} /> : <ReportView report={REPORTS[sel]} leads={leads} ativ={ativ} />}</div>
         </div>
       )}
     </PaginaShell>

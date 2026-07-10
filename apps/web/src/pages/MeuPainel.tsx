@@ -4,6 +4,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { podeVerBloco } from '../lib/permissoes';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { PaginaShell, EstadoCarregando, EstadoErro } from '../components/primitivos';
 import { Card, Badge } from '../components/ui';
@@ -111,10 +113,12 @@ function Painel({ titulo, acao, children }: { titulo: ReactNode; acao?: ReactNod
 }
 
 export function MeuPainel() {
+  const { usuario } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [ativ, setAtiv] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const ver = (chave: string) => podeVerBloco(usuario, 'meu-painel', chave);
 
   async function carregar() {
     setCarregando(true);
@@ -180,14 +184,17 @@ export function MeuPainel() {
   return (
     <PaginaShell titulo="Meu Painel" subtitulo={dataLonga}>
       {/* KPIs */}
+      {ver('bloco:painel:kpis') && (
       <div className="brk-rgrid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <Kpi rotulo="Total em Pipeline" valor={brl(totalPipeline)} hint={`${abertos.length} negócios abertos`} corIcone="var(--amarelo-fagulha)" ico={<IcoCifrao />} />
         <Kpi rotulo="Ganhos no Mês" valor={brl(valorGanhosMes)} hint={`${ganhosMes.length} negócios fechados`} cor="var(--texto)" corIcone="var(--verde)" ico={<IcoCheck />} />
         <Kpi rotulo="Taxa de Conversão" valor={`${taxa}%`} hint="negócios fechados" corIcone="var(--azul)" ico={<IcoTrend />} />
         <Kpi rotulo="Atividades Hoje" valor={String(ativHoje.length)} hint="pendentes" corIcone="#a855f7" ico={<IcoRelogio />} />
       </div>
+      )}
 
       {/* Negócios parados */}
+      {ver('bloco:painel:parados') && (
       <Painel
         titulo={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ color: 'var(--amarelo-fagulha)' }}><IcoAlerta /></span> Negócios parados</span>}
         acao={<span style={{ color: 'var(--texto-fraco)', fontSize: 12 }}>{parados.length} {parados.length === 1 ? 'negócio' : 'negócios'}</span>}
@@ -212,9 +219,11 @@ export function MeuPainel() {
           );
         })}
       </Painel>
+      )}
 
       {/* Negócios por Etapa + Atividades de Hoje */}
       <div className="brk-rgrid-2" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
+        {ver('bloco:painel:etapas') && (
         <Painel titulo="Negócios por Etapa">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {porEtapa.map((e) => (
@@ -229,9 +238,11 @@ export function MeuPainel() {
             ))}
           </div>
         </Painel>
+        )}
 
+        {(ver('bloco:painel:atividades') || ver('bloco:painel:mes')) && (
         <Painel titulo="Atividades de Hoje" acao={<Link to="/atividades" style={{ color: 'var(--amarelo-fagulha)', fontSize: 12, textDecoration: 'none' }}>Ver todas</Link>}>
-          {ativHoje.length === 0 ? (
+          {ver('bloco:painel:atividades') && (ativHoje.length === 0 ? (
             <div style={{ color: 'var(--texto-fraco)', fontSize: 12.5 }}>Sem atividades para hoje.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -249,8 +260,9 @@ export function MeuPainel() {
                 );
               })}
             </div>
-          )}
+          ))}
 
+          {ver('bloco:painel:mes') && (
           <div style={{ marginTop: 16 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, color: 'var(--texto-fraco)', marginBottom: 8 }}>ESTE MÊS</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -264,10 +276,13 @@ export function MeuPainel() {
               </div>
             </div>
           </div>
+          )}
         </Painel>
+        )}
       </div>
 
       {/* Ações Rápidas */}
+      {ver('bloco:painel:acoes') && (
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, color: 'var(--texto-fraco)', marginBottom: 10 }}>Ações Rápidas</div>
         <div className="brk-rgrid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -291,6 +306,7 @@ export function MeuPainel() {
           ))}
         </div>
       </div>
+      )}
     </PaginaShell>
   );
 }
