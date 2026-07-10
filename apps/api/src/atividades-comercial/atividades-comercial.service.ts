@@ -63,4 +63,13 @@ export class AtividadesComercialService {
       include: INCLUDE,
     });
   }
+
+  async excluir(id: string): Promise<{ ok: true }> {
+    const existe = await this.prisma.atividadeComercial.findUnique({ where: { id } });
+    if (!existe) {
+      throw new NotFoundException('Atividade nao encontrada');
+    }
+    await this.prisma.atividadeComercial.delete({ where: { id } });
+    return { ok: true };
+  }
 }

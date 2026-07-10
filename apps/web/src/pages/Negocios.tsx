@@ -10,6 +10,7 @@ import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { PaginaShell, EstadoCarregando, EstadoErro, MensagemErro } from '../components/primitivos';
 import { Modal, Campo, CampoSelect, Btn, Badge } from '../components/ui';
+import { NegocioDetalhe } from '../components/NegocioDetalhe';
 
 type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
 
@@ -143,7 +144,11 @@ export function Negocios() {
 
   // Kanban drag
   const arrastando = useRef<string | null>(null);
+  const cliqueBloqueado = useRef(false); // evita abrir o detalhe logo apos um arraste
   const [alvo, setAlvo] = useState<string | null>(null);
+
+  // Detalhe do negocio (aberto ao clicar num card / linha)
+  const [leadAberto, setLeadAberto] = useState<string | null>(null);
 
   // Editor de etapa
   const [editorEtapa, setEditorEtapa] = useState<EditorEtapa | null>(null);
@@ -425,9 +430,10 @@ export function Negocios() {
                         const contato = contatoDoLead(l);
                         return (
                           <div key={l.id} draggable
-                            onDragStart={(e) => { arrastando.current = l.id; e.dataTransfer.effectAllowed = 'move'; }}
-                            onDragEnd={() => { arrastando.current = null; setAlvo(null); }}
-                            style={{ background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 10, padding: 11, cursor: 'grab', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            onDragStart={(e) => { arrastando.current = l.id; cliqueBloqueado.current = true; e.dataTransfer.effectAllowed = 'move'; }}
+                            onDragEnd={() => { arrastando.current = null; setAlvo(null); setTimeout(() => { cliqueBloqueado.current = false; }, 60); }}
+                            onClick={() => { if (cliqueBloqueado.current) return; setLeadAberto(l.id); }}
+                            style={{ background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 10, padding: 11, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6 }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.3, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome}</div>
@@ -511,7 +517,7 @@ export function Negocios() {
                     {leadsLista.length === 0 ? (
                       <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--texto-fraco)', fontSize: 13 }}>Nenhum negócio encontrado.</td></tr>
                     ) : leadsLista.map((l) => (
-                      <tr key={l.id} className="brk-tr">
+                      <tr key={l.id} className="brk-tr" style={{ cursor: 'pointer' }} onClick={() => setLeadAberto(l.id)}>
                         <td><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--texto)' }}>{l.nome}</span></td>
                         <td><span style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>{formatValor(l.valorEstimado)}</span></td>
                         <td><span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: 'var(--superficie-3)', color: 'var(--texto-suave)' }}>{etapaLabel(l)}</span></td>
@@ -587,6 +593,18 @@ export function Negocios() {
             </p>
           </div>
         </Modal>
+      )}
+
+      {/* Detalhe do negócio (clicar num card/linha) */}
+      {leadAberto && (
+        <NegocioDetalhe
+          leadId={leadAberto}
+          pipelines={pipelines}
+          etiquetas={etiquetas}
+          onFechar={() => setLeadAberto(null)}
+          onMudou={carregarLeads}
+          onEtiquetasMudou={carregarEtiquetas}
+        />
       )}
     </PaginaShell>
   );
