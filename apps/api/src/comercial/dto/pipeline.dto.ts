@@ -9,6 +9,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -31,6 +32,11 @@ export class EtapaDto {
   @IsOptional()
   @IsInt()
   ordem?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  metaDias?: number;
 }
 
 export class CriarPipelineDto {
@@ -76,6 +82,11 @@ export class AtualizarEtapaDto {
   @IsOptional()
   @IsInt()
   ordem?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  metaDias?: number;
 }
 
 export class ReordenarEtapasDto {
