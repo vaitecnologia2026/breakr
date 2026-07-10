@@ -72,6 +72,13 @@ export interface AutentiqueAssinaturaInput {
   // Conteudo do PDF (base64) ou URL acessivel pelo Autentique.
   pdfBase64?: string;
   pdfUrl?: string;
+  // Envio de arquivo generico (ex.: .docx do contrato) via multipart `file`.
+  // Quando presente, tem prioridade sobre pdfBase64/pdfUrl.
+  arquivoBase64?: string;
+  nomeArquivo?: string;
+  mimeType?: string;
+  // Mensagem exibida ao signatario (opcional).
+  mensagem?: string;
   signatarios: Array<{ nome: string; email: string }>;
 }
 

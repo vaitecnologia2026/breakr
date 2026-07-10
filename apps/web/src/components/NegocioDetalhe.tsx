@@ -223,6 +223,9 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [modalContrato, setModalContrato] = useState(false);
   const [contratoForm, setContratoForm] = useState<ContratoForm>(CONTRATO_PADRAO);
   const [gerandoContrato, setGerandoContrato] = useState(false);
+  const [contratoGerado, setContratoGerado] = useState<{ id: string; codigo: string } | null>(null);
+  const [enviandoAssinatura, setEnviandoAssinatura] = useState(false);
+  const [linkAssinatura, setLinkAssinatura] = useState<string | null>(null);
 
   async function carregar() {
     setErro(null);
@@ -383,7 +386,7 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   }
 
   // ── Criar Contrato (gera o .docx a partir do cadastro + planos/produtos) ────
-  function abrirContrato() { setErroAcao(null); setContratoForm(CONTRATO_PADRAO); setModalContrato(true); }
+  function abrirContrato() { setErroAcao(null); setContratoForm(CONTRATO_PADRAO); setContratoGerado(null); setLinkAssinatura(null); setModalContrato(true); }
   async function gerarContrato() {
     setGerandoContrato(true);
     setErroAcao(null);
@@ -402,10 +405,22 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
       a.download = `contrato-${novo.codigoUnico ?? 'breakr'}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-      setModalContrato(false);
+      // Mantém o modal aberto para oferecer o envio para assinatura.
+      setContratoGerado({ id: novo.id, codigo: novo.codigoUnico ?? '' });
       onMudou();
     } catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao gerar contrato.'); }
     finally { setGerandoContrato(false); }
+  }
+  async function enviarAssinatura() {
+    if (!contratoGerado) return;
+    setEnviandoAssinatura(true);
+    setErroAcao(null);
+    try {
+      const { data } = await api.post<{ docUrl?: string }>(`/contratos/${contratoGerado.id}/enviar-assinatura-docx`, {});
+      setLinkAssinatura(data?.docUrl ?? '');
+      onMudou();
+    } catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao enviar para assinatura.'); }
+    finally { setEnviandoAssinatura(false); }
   }
 
   // ── Produtos/Planos do negócio ("+ Produtos") ──────────────────────────────
@@ -870,7 +885,22 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
         ];
         return (
           <Modal titulo="Criar Contrato" onFechar={() => setModalContrato(false)}
-            rodape={<><Btn variante="secondary" onClick={() => setModalContrato(false)}>Cancelar</Btn><Btn onClick={gerarContrato} disabled={gerandoContrato}>{gerandoContrato ? 'Gerando…' : 'Gerar Contrato'}</Btn></>}>
+            rodape={contratoGerado ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                <div style={{ fontSize: 12.5, color: 'var(--verde)' }}>✓ Contrato {contratoGerado.codigo} criado e baixado.</div>
+                {linkAssinatura !== null && (
+                  <div style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>
+                    ✓ Enviado para assinatura{linkAssinatura ? <> — <a href={linkAssinatura} target="_blank" rel="noreferrer" style={{ color: 'var(--azul)' }}>abrir link</a></> : ' (via Autentique).'}
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <Btn variante="secondary" onClick={() => setModalContrato(false)}>Fechar</Btn>
+                  {linkAssinatura === null && <Btn onClick={enviarAssinatura} disabled={enviandoAssinatura}>{enviandoAssinatura ? 'Enviando…' : 'Enviar para assinatura'}</Btn>}
+                </div>
+              </div>
+            ) : (
+              <><Btn variante="secondary" onClick={() => setModalContrato(false)}>Cancelar</Btn><Btn onClick={gerarContrato} disabled={gerandoContrato}>{gerandoContrato ? 'Gerando…' : 'Gerar Contrato'}</Btn></>
+            )}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Tipo de contrato</span>
