@@ -10,6 +10,7 @@ import { CriarLeadDto } from './dto/criar-lead.dto';
 import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
 import { DefinirItensNegocioDto } from './dto/definir-itens-negocio.dto';
 import { CriarLeadPublicoDto } from './dto/criar-lead-publico.dto';
+import { SalvarCadastroContratoDto } from './dto/salvar-cadastro-contrato.dto';
 
 // Rotulo legivel de cada status do funil (usado no historico do negocio).
 const STATUS_LABEL: Record<StatusLead, string> = {
@@ -147,8 +148,8 @@ export class ComercialService {
         pipeline: { select: { id: true, nome: true } },
         etapa: { select: { id: true, nome: true, status: true } },
         etiquetas: { include: { etiqueta: true } },
-        planos: { include: { plano: { select: { id: true, nome: true, valor: true } } } },
-        produtos: { include: { produto: { select: { id: true, nome: true, valor: true } } } },
+        planos: { include: { plano: { select: { id: true, nome: true, valor: true, entregaveis: true } } } },
+        produtos: { include: { produto: { select: { id: true, nome: true, valor: true, descricao: true } } } },
       },
     });
     if (!lead) {
@@ -268,6 +269,44 @@ export class ComercialService {
       }
     });
     return this.obter(id);
+  }
+
+  // ── Cadastro Completo (dados de captacao p/ contrato) ──────────────────────
+  // Retorna o cadastro do negocio (ou null se ainda nao preenchido).
+  async obterCadastro(leadId: string) {
+    await this.obter(leadId);
+    return this.prisma.cadastroContrato.findUnique({ where: { leadId } });
+  }
+
+  // Cria ou atualiza (upsert) o cadastro completo do negocio.
+  async salvarCadastro(leadId: string, dto: SalvarCadastroContratoDto) {
+    await this.obter(leadId);
+    const data = {
+      razaoSocial: dto.razaoSocial ?? null,
+      nomeFantasia: dto.nomeFantasia ?? null,
+      cnpj: dto.cnpj ?? null,
+      nomeSocio: dto.nomeSocio ?? null,
+      cpfSocio: dto.cpfSocio ?? null,
+      dataNascimentoSocio: dto.dataNascimentoSocio ?? null,
+      profissao: dto.profissao ?? null,
+      nacionalidade: dto.nacionalidade ?? null,
+      email: dto.email ?? null,
+      whatsappSocio: dto.whatsappSocio ?? null,
+      whatsappFinanceiro: dto.whatsappFinanceiro ?? null,
+      cep: dto.cep ?? null,
+      endereco: dto.endereco ?? null,
+      numero: dto.numero ?? null,
+      complemento: dto.complemento ?? null,
+      bairro: dto.bairro ?? null,
+      cidadeEstado: dto.cidadeEstado ?? null,
+      inscricaoMunicipal: dto.inscricaoMunicipal ?? null,
+      inscricaoEstadual: dto.inscricaoEstadual ?? null,
+    };
+    return this.prisma.cadastroContrato.upsert({
+      where: { leadId },
+      create: { leadId, ...data },
+      update: data,
+    });
   }
 
   // ── Notas do negocio (aba "Notas") ─────────────────────────────────────────

@@ -11,7 +11,9 @@ import { EngineService } from '../automacao/engine.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { FaturasService } from '../faturas/faturas.service';
 import { ContratoPdfService } from './contrato-pdf.service';
+import { ContratoDocxService, EntregavelContrato, TipoContrato } from './contrato-docx.service';
 import { CriarContratoDto } from './dto/criar-contrato.dto';
+import { CriarContratoLeadDto } from './dto/criar-contrato-lead.dto';
 
 @Injectable()
 export class ContratosService {
@@ -23,6 +25,7 @@ export class ContratosService {
     private readonly faturas: FaturasService,
     private readonly notificacoes: NotificacoesService,
     private readonly pdf: ContratoPdfService,
+    private readonly docx: ContratoDocxService,
   ) {}
 
   // Cria um contrato em RASCUNHO. O valor vem do DTO ou, na falta, do plano.
@@ -73,6 +76,167 @@ export class ContratosService {
     });
 
     return contrato;
+  }
+
+  // Cria um contrato a partir do negocio (Lead) — "Criar Contrato" no detalhe.
+  // Garante um Cliente vinculado (cria a partir do cadastro, se faltar) e guarda
+  // os campos comerciais (tipo/duracao/desconto/forma/dia/data) que viram tags.
+  async criarDoLead(leadId: string, dto: CriarContratoLeadDto): Promise<Contrato> {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        cadastroContrato: true,
+        planos: { include: { plano: true } },
+      },
+    });
+    if (!lead) {
+      throw new NotFoundException('Negocio (lead) nao encontrado');
+    }
+
+    // Garante um Cliente vinculado ao negocio.
+    let clienteId = lead.clienteId ?? undefined;
+    if (!clienteId) {
+      const cad = lead.cadastroContrato;
+      const nomeFantasia =
+        cad?.nomeFantasia?.trim() ||
+        cad?.razaoSocial?.trim() ||
+        lead.empresa?.trim() ||
+        lead.nome;
+      const cliente = await this.prisma.cliente.create({
+        data: {
+          nomeFantasia,
+          cnpj: cad?.cnpj ?? undefined,
+          email: cad?.email ?? lead.email ?? undefined,
+          telefone: cad?.whatsappFinanceiro ?? lead.telefone ?? undefined,
+          status: 'NOVO',
+          codigoUnico: this.codigoUnico.gerar('CLI'),
+        },
+      });
+      clienteId = cliente.id;
+      await this.prisma.lead.update({ where: { id: leadId }, data: { clienteId } });
+    }
+
+    // Plano: do DTO, senao o 1o plano do negocio.
+    const planoId = dto.planoId ?? lead.planos[0]?.planoId ?? undefined;
+
+    // Valor mensal: do DTO; senao o valor do negocio (soma dos itens); senao plano.
+    let valorMensal: Prisma.Decimal;
+    if (dto.valorMensal !== undefined) {
+      valorMensal = new Prisma.Decimal(dto.valorMensal);
+    } else if (lead.valorEstimado != null) {
+      valorMensal = new Prisma.Decimal(lead.valorEstimado);
+    } else if (planoId) {
+      const plano = await this.prisma.plano.findUnique({ where: { id: planoId } });
+      valorMensal = new Prisma.Decimal(plano?.valor ?? 0);
+    } else {
+      valorMensal = new Prisma.Decimal(0);
+    }
+
+    const contrato = await this.prisma.contrato.create({
+      data: {
+        clienteId,
+        planoId,
+        leadId,
+        valorMensal,
+        status: 'RASCUNHO',
+        codigoUnico: this.codigoUnico.gerar('CTR'),
+        tipoContrato: dto.tipo,
+        ...(dto.duracaoMeses !== undefined && { duracaoMeses: dto.duracaoMeses }),
+        ...(dto.descontoPct !== undefined && { descontoPct: dto.descontoPct }),
+        ...(dto.formaPagamento !== undefined && { formaPagamento: dto.formaPagamento }),
+        ...(dto.diaPagamento !== undefined && { diaPagamento: dto.diaPagamento }),
+        ...(dto.dataAssinatura !== undefined && { dataAssinatura: new Date(dto.dataAssinatura) }),
+      },
+    });
+
+    await this.engine.dispatch('contrato.criado', { contratoId: contrato.id, clienteId });
+    return contrato;
+  }
+
+  // Gera o .docx do contrato (modelo COM/SEM Marketing) com as tags preenchidas
+  // pelo cadastro + planos/produtos do negocio. Usado pelo endpoint de download.
+  async gerarDocx(id: string): Promise<{ buffer: Buffer; nomeArquivo: string }> {
+    const contrato = await this.prisma.contrato.findUnique({
+      where: { id },
+      include: {
+        cliente: true,
+        plano: true,
+        lead: {
+          include: {
+            cadastroContrato: true,
+            planos: { include: { plano: true } },
+            produtos: { include: { produto: true } },
+          },
+        },
+      },
+    });
+    if (!contrato) {
+      throw new NotFoundException('Contrato nao encontrado');
+    }
+
+    const cad = contrato.lead?.cadastroContrato ?? null;
+
+    // Entregaveis = planos + produtos do negocio (nome + descricao).
+    const entregaveis: EntregavelContrato[] = [];
+    for (const lp of contrato.lead?.planos ?? []) {
+      entregaveis.push({ nome: lp.plano.nome, descricao: this.descreverEntregaveis(lp.plano.entregaveis) });
+    }
+    for (const pr of contrato.lead?.produtos ?? []) {
+      entregaveis.push({ nome: pr.produto.nome, descricao: pr.produto.descricao });
+    }
+    if (entregaveis.length === 0 && contrato.plano) {
+      entregaveis.push({ nome: contrato.plano.nome, descricao: this.descreverEntregaveis(contrato.plano.entregaveis) });
+    }
+
+    const buffer = this.docx.gerar((contrato.tipoContrato as TipoContrato) ?? 'COM_MARKETING', {
+      codigoContrato: contrato.codigoUnico,
+      razaoSocial: cad?.razaoSocial ?? contrato.cliente.nomeFantasia,
+      cnpj: cad?.cnpj ?? contrato.cliente.cnpj,
+      endereco: this.montarEndereco(cad),
+      email: cad?.email ?? contrato.cliente.email,
+      whatsappCobranca: cad?.whatsappFinanceiro ?? contrato.cliente.telefone,
+      socio: cad?.nomeSocio,
+      cpf: cad?.cpfSocio,
+      entregaveis,
+      duracaoMeses: contrato.duracaoMeses,
+      precoMensal: Number(contrato.valorMensal),
+      diaPagamento: contrato.diaPagamento,
+      descontoPct: contrato.descontoPct,
+      formaPagamento: contrato.formaPagamento,
+      dataAssinatura: contrato.dataAssinatura,
+    });
+    return { buffer, nomeArquivo: `contrato-${contrato.codigoUnico}.docx` };
+  }
+
+  // Renderiza o JSON de entregaveis do plano numa descricao legivel.
+  private descreverEntregaveis(entregaveis: Prisma.JsonValue | null): string | null {
+    if (entregaveis == null) return null;
+    if (typeof entregaveis === 'string') return entregaveis;
+    if (Array.isArray(entregaveis)) return entregaveis.map((x) => String(x)).join(', ');
+    if (typeof entregaveis === 'object') {
+      const partes = Object.entries(entregaveis as Record<string, unknown>)
+        .map(([k, v]) => (v === true ? k : v === false ? '' : `${k}: ${String(v)}`))
+        .filter(Boolean);
+      return partes.join('; ') || null;
+    }
+    return String(entregaveis);
+  }
+
+  private montarEndereco(cad: {
+    endereco?: string | null; numero?: string | null; complemento?: string | null;
+    bairro?: string | null; cidadeEstado?: string | null; cep?: string | null;
+  } | null): string {
+    if (!cad) return '';
+    return [
+      [cad.endereco, cad.numero].filter(Boolean).join(', '),
+      cad.complemento,
+      cad.bairro,
+      cad.cidadeEstado,
+      cad.cep ? `CEP ${cad.cep}` : '',
+    ]
+      .map((p) => (p ?? '').toString().trim())
+      .filter(Boolean)
+      .join(' - ');
   }
 
   /** Gera o PDF nativo do contrato e retorna como Buffer. Usado pelo endpoint de download. */

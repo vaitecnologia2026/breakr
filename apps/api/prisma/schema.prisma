@@ -63,10 +63,10 @@ enum TipoProjeto {
 
 /// Config singleton — branding e parametros globais da Breakr.
 model Config {
-  id         String   @id @default(uuid())
-  branding   Json?
-  parametros Json?
-  criadoEm   DateTime @default(now()) @map("criado_em")
+  id           String   @id @default(uuid())
+  branding     Json?
+  parametros   Json?
+  criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   @@map("config")
@@ -74,25 +74,25 @@ model Config {
 
 /// Usuario do sistema. Pertence a 1 cargo e N squads (via SquadMembro).
 model Usuario {
-  id        String   @id @default(uuid())
-  nome      String
-  email     String   @unique
-  senhaHash String   @map("senha_hash")
-  cargo     Cargo
-  telefone  String?
+  id            String    @id @default(uuid())
+  nome          String
+  email         String    @unique
+  senhaHash     String    @map("senha_hash")
+  cargo         Cargo
+  telefone      String?
   // Numero de WhatsApp usado pelo n8n nos disparos (req. l.140) — cadastrado
   // via tela de Equipe/Squads, sem editar codigo.
-  whatsapp  String?
-  fotoUrl   String?  @map("foto_url")
+  whatsapp      String?
+  fotoUrl       String?   @map("foto_url")
   // Notas pessoais do colaborador (scratchpad do painel do designer) — B8 (l.407-415).
-  notasPessoais String? @map("notas_pessoais")
-  ativo     Boolean  @default(true)
+  notasPessoais String?   @map("notas_pessoais")
+  ativo         Boolean   @default(true)
   ultimoLoginEm DateTime? @map("ultimo_login_em")
-  criadoEm  DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
 
   // Departamento ao qual o usuario pertence (opcional na Fase 0)
-  departamentoId String?      @map("departamento_id")
+  departamentoId String?       @map("departamento_id")
   departamento   Departamento? @relation(fields: [departamentoId], references: [id])
 
   // Perfil de acesso (opcional) — define quais menus/telas o usuario enxerga.
@@ -107,8 +107,8 @@ model Usuario {
   notificacoes Notificacao[]
 
   // Pecas de conteudo sob responsabilidade do usuario (Fase 2)
-  conteudosResponsavel Conteudo[]   @relation("ConteudoResponsavel")
-  avaliacoesRecebidas  Avaliacao[]  @relation("AvaliacaoResponsavel")
+  conteudosResponsavel Conteudo[]  @relation("ConteudoResponsavel")
+  avaliacoesRecebidas  Avaliacao[] @relation("AvaliacaoResponsavel")
 
   // Leads sob responsabilidade do usuario (Fase 3 — comercial)
   leadsResponsavel Lead[] @relation("LeadResponsavel")
@@ -127,9 +127,9 @@ model Usuario {
   ouvidorias Ouvidoria[] @relation("OuvidoriaAutor")
 
   // Documentos e avaliacoes de desempenho do colaborador (Fase 4 — RH)
-  documentos            DocumentoColaborador[] @relation("DocumentoColaborador")
-  desempenhosRecebidos  AvaliacaoDesempenho[]  @relation("DesempenhoColaborador")
-  desempenhosFeitos     AvaliacaoDesempenho[]  @relation("DesempenhoAvaliador")
+  documentos           DocumentoColaborador[] @relation("DocumentoColaborador")
+  desempenhosRecebidos AvaliacaoDesempenho[]  @relation("DesempenhoColaborador")
+  desempenhosFeitos    AvaliacaoDesempenho[]  @relation("DesempenhoAvaliador")
 
   // Agenda (Fase 5 — interno): agendamentos de sala e dias de home office
   agendamentosSala AgendamentoSala[] @relation("AgendamentoSalaResponsavel")
@@ -184,9 +184,9 @@ model Perfil {
 /// Departamento — Comercial, Sucesso do Cliente, Marketing, etc.
 /// Hierarquia: Departamento -> Area -> Lista/Processo.
 model Departamento {
-  id       String   @id @default(uuid())
-  nome     String   @unique
-  criadoEm DateTime @default(now()) @map("criado_em")
+  id           String   @id @default(uuid())
+  nome         String   @unique
+  criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   areas    Area[]
@@ -243,13 +243,13 @@ model Squad {
 /// Vinculo Usuario <-> Squad com a funcao desempenhada.
 /// Regra: cada funcao e unica dentro de um squad (1 CS, 1 designer, etc.).
 model SquadMembro {
-  id        String      @id @default(uuid())
-  squadId   String      @map("squad_id")
-  squad     Squad       @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  usuarioId String      @map("usuario_id")
-  usuario   Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  squadId   String   @map("squad_id")
+  squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  usuarioId String   @map("usuario_id")
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   funcao    String
-  criadoEm  DateTime    @default(now()) @map("criado_em")
+  criadoEm  DateTime @default(now()) @map("criado_em")
 
   // Uma funcao por squad (base deterministica da atribuicao automatica).
   @@unique([squadId, funcao])
@@ -319,7 +319,7 @@ model Cliente {
   conversas Conversa[]
 
   // NPS do cliente e respostas de pesquisas (Sucesso do Cliente / portal).
-  npsHistorico     NpsCliente[]
+  npsHistorico      NpsCliente[]
   respostasPesquisa RespostaPesquisa[]
 
   @@index([squadId])
@@ -401,13 +401,13 @@ model AutomacaoRule {
 
 /// Execucao de um job do motor — observabilidade (substitui a tela do n8n).
 model JobExecution {
-  id        String   @id @default(uuid())
-  status    String   @default("PENDENTE")
-  payload   Json?
-  resultado Json?
-  erro      String?
-  tentativas Int     @default(0)
-  criadoEm  DateTime @default(now()) @map("criado_em")
+  id         String   @id @default(uuid())
+  status     String   @default("PENDENTE")
+  payload    Json?
+  resultado  Json?
+  erro       String?
+  tentativas Int      @default(0)
+  criadoEm   DateTime @default(now()) @map("criado_em")
 
   // Regra que originou a execucao (manual/cron pode nao ter regra).
   ruleId String?        @map("rule_id")
@@ -461,11 +461,11 @@ model Notificacao {
 
 /// Ciclo de vida do contrato (M12).
 enum StatusContrato {
-  RASCUNHO              // criado a partir do formulario
+  RASCUNHO // criado a partir do formulario
   AGUARDANDO_ASSINATURA // enviado ao Autentique (stub)
-  EM_REVISAO            // revisao interna antes de vigorar
-  EM_VIGOR              // assinado e ativo (dispara a 1a cobranca)
-  RENOVACAO             // 45 dias antes do vencimento
+  EM_REVISAO // revisao interna antes de vigorar
+  EM_VIGOR // assinado e ativo (dispara a 1a cobranca)
+  RENOVACAO // 45 dias antes do vencimento
   ENCERRADO
 }
 
@@ -499,11 +499,55 @@ model Contrato {
   planoId String? @map("plano_id")
   plano   Plano?  @relation(fields: [planoId], references: [id])
 
+  // Negocio (Lead) de origem quando o contrato e gerado a partir do detalhe do
+  // negocio ("Criar Contrato"). Usado para montar {{ENTREGAVEIS}} e o cadastro.
+  leadId String? @map("lead_id")
+  lead   Lead?   @relation("LeadContratos", fields: [leadId], references: [id])
+
+  // Campos preenchidos pelo comercial no "Criar Contrato" (viram tags no .docx).
+  tipoContrato   String?   @map("tipo_contrato") // COM_MARKETING | SEM_MARKETING
+  duracaoMeses   Int?      @map("duracao_meses") // 3 | 6 | 12
+  descontoPct    Int?      @map("desconto_pct") // 0 | 10 | 20 | 30
+  formaPagamento String?   @map("forma_pagamento") // BOLETO_PIX | CARTAO
+  diaPagamento   Int?      @map("dia_pagamento") // 1..31
+  dataAssinatura DateTime? @map("data_assinatura")
+
   faturas Fatura[]
 
   @@index([clienteId])
   @@index([status])
   @@map("contrato")
+}
+
+/// Cadastro completo de dados do cliente para geracao de contrato (formulario
+/// de captacao de dados). 1:1 com o negocio (Lead). Alimenta as tags do .docx.
+model CadastroContrato {
+  id                  String   @id @default(uuid())
+  leadId              String   @unique @map("lead_id")
+  lead                Lead     @relation("LeadCadastroContrato", fields: [leadId], references: [id], onDelete: Cascade)
+  razaoSocial         String?  @map("razao_social")
+  nomeFantasia        String?  @map("nome_fantasia")
+  cnpj                String?
+  nomeSocio           String?  @map("nome_socio")
+  cpfSocio            String?  @map("cpf_socio")
+  dataNascimentoSocio String?  @map("data_nascimento_socio")
+  profissao           String?
+  nacionalidade       String?
+  email               String?
+  whatsappSocio       String?  @map("whatsapp_socio")
+  whatsappFinanceiro  String?  @map("whatsapp_financeiro")
+  cep                 String?
+  endereco            String?
+  numero              String?
+  complemento         String?
+  bairro              String?
+  cidadeEstado        String?  @map("cidade_estado")
+  inscricaoMunicipal  String?  @map("inscricao_municipal")
+  inscricaoEstadual   String?  @map("inscricao_estadual")
+  criadoEm            DateTime @default(now()) @map("criado_em")
+  atualizadoEm        DateTime @updatedAt @map("atualizado_em")
+
+  @@map("cadastro_contrato")
 }
 
 /// Fatura/cobranca de um contrato. asaasId = id externo no ASAAS (stub na Fase 1).
@@ -680,14 +724,14 @@ model Lead {
 
   // Pipeline + etapa (CRM estilo RD). A etapa mapeia para um `status` do funil,
   // que continua sendo a fonte de verdade (Meu Painel/Metricas/kanban por status).
-  pipelineId String?        @map("pipeline_id")
-  pipeline   Pipeline?      @relation(fields: [pipelineId], references: [id])
-  etapaId    String?        @map("etapa_id")
-  etapa      EtapaPipeline? @relation(fields: [etapaId], references: [id])
+  pipelineId         String?        @map("pipeline_id")
+  pipeline           Pipeline?      @relation(fields: [pipelineId], references: [id])
+  etapaId            String?        @map("etapa_id")
+  etapa              EtapaPipeline? @relation(fields: [etapaId], references: [id])
   // Previsao de fechamento (campo do card "Novo Negocio").
-  previsaoFechamento DateTime? @map("previsao_fechamento")
+  previsaoFechamento DateTime?      @map("previsao_fechamento")
   // Etiquetas (tags) do negocio (N:N).
-  etiquetas LeadEtiqueta[]
+  etiquetas          LeadEtiqueta[]
 
   // Notas livres e historico de mudancas (aba de detalhe do negocio).
   notas     NotaLead[]
@@ -696,6 +740,10 @@ model Lead {
   // Planos e produtos vinculados ao negocio ("+ Produtos" da tela de detalhe).
   planos   LeadPlano[]
   produtos LeadProduto[]
+
+  // Cadastro completo (dados p/ contrato) e contratos gerados a partir do negocio.
+  cadastroContrato CadastroContrato? @relation("LeadCadastroContrato")
+  contratos        Contrato[]        @relation("LeadContratos")
 
   @@index([status])
   @@index([responsavelId])
@@ -899,17 +947,17 @@ enum StatusConteudo {
 /// Peca de conteudo de um cliente, produzida por um squad. Percorre o funil e,
 /// em APROVACAO_CLIENTE, aparece no portal para o cliente aprovar e avaliar.
 model Conteudo {
-  id          String         @id @default(uuid())
-  titulo      String
-  descricao   String?
-  tipo        TipoConteudo   @default(POST)
-  status      StatusConteudo @default(IDEIA)
+  id           String         @id @default(uuid())
+  titulo       String
+  descricao    String?
+  tipo         TipoConteudo   @default(POST)
+  status       StatusConteudo @default(IDEIA)
   // URL da midia (imagem/video/carrossel) exibida na aprovacao do cliente (B5, l.258).
-  midiaUrl    String?        @map("midia_url")
-  codigoUnico String         @unique @map("codigo_unico")
-  dataAgendada DateTime?     @map("data_agendada")
+  midiaUrl     String?        @map("midia_url")
+  codigoUnico  String         @unique @map("codigo_unico")
+  dataAgendada DateTime?      @map("data_agendada")
   // Peca de trafego pago: ao ser aprovada vai p/ o laboratorio de criativos.
-  paraTrafego Boolean        @default(false) @map("para_trafego")
+  paraTrafego  Boolean        @default(false) @map("para_trafego")
 
   // Qualidade / aprovacao do cliente (M18)
   estrelas          Int? // 1..5 (avaliacao do cliente)
@@ -930,8 +978,8 @@ model Conteudo {
   responsavelId String?  @map("responsavel_id")
   responsavel   Usuario? @relation("ConteudoResponsavel", fields: [responsavelId], references: [id])
 
-  avaliacoes  Avaliacao[]
-  reworkLogs  ReworkLog[]
+  avaliacoes Avaliacao[]
+  reworkLogs ReworkLog[]
 
   @@index([clienteId])
   @@index([status])
@@ -943,14 +991,14 @@ model Conteudo {
 /// Cada dimensao e opcional para nao bloquear a aprovacao.
 model Avaliacao {
   id                String   @id @default(uuid())
-  qualidadeGrafica  Int?     @map("qualidade_grafica")  // 1..5
-  qualidadeTexto    Int?     @map("qualidade_texto")     // 1..5
-  facilidadeAprovar Int?     @map("facilidade_aprovar")  // 1..5
+  qualidadeGrafica  Int?     @map("qualidade_grafica") // 1..5
+  qualidadeTexto    Int?     @map("qualidade_texto") // 1..5
+  facilidadeAprovar Int?     @map("facilidade_aprovar") // 1..5
   comentario        String?
   criadoEm          DateTime @default(now()) @map("criado_em")
 
-  conteudoId    String   @map("conteudo_id")
-  conteudo      Conteudo @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
+  conteudoId String   @map("conteudo_id")
+  conteudo   Conteudo @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
 
   // Responsavel avaliado (derivo do conteudo.responsavelId no momento da criacao).
   responsavelId String?  @map("responsavel_id")
@@ -967,8 +1015,8 @@ model ReworkLog {
   id         String   @id @default(uuid())
   statusDe   String   @map("status_de")
   statusPara String   @map("status_para")
-  origem     String   // INTERNO | EXTERNO
-  comentario String?  // comentario do cliente (quando origem = EXTERNO)
+  origem     String // INTERNO | EXTERNO
+  comentario String? // comentario do cliente (quando origem = EXTERNO)
   criadoEm   DateTime @default(now()) @map("criado_em")
 
   conteudoId String   @map("conteudo_id")
@@ -981,10 +1029,10 @@ model ReworkLog {
 
 /// Ciclo de vida da estrategia aprovada pelo cliente (B6, req. l.202-208).
 enum StatusEstrategia {
-  RASCUNHO  // estrategista ainda montando
-  ENVIADA   // enviada ao cliente para aprovacao (aparece no portal)
-  APROVADA  // cliente aprovou — libera producao
-  AJUSTE    // cliente pediu ajustes
+  RASCUNHO // estrategista ainda montando
+  ENVIADA // enviada ao cliente para aprovacao (aparece no portal)
+  APROVADA // cliente aprovou — libera producao
+  AJUSTE // cliente pediu ajustes
 }
 
 /// Estrategia/funil montada pela estrategista e aprovada pelo cliente no portal.
@@ -993,7 +1041,7 @@ enum StatusEstrategia {
 model Estrategia {
   id                String           @id @default(uuid())
   titulo            String
-  descricao         String?          // a estrategia/funil (texto)
+  descricao         String? // a estrategia/funil (texto)
   status            StatusEstrategia @default(RASCUNHO)
   comentarioCliente String?          @map("comentario_cliente")
   enviadaEm         DateTime?        @map("enviada_em")
@@ -1242,17 +1290,17 @@ model ConfiguracaoWhatsapp {
 /// Conversa de atendimento (1 thread por numero ativo).
 /// Vinculada a um Cliente quando o numero e conhecido; nula para numeros avulsos.
 model Conversa {
-  id           String         @id @default(uuid())
-  status       StatusConversa @default(PENDENTE)
-  waTelefone   String?        @map("wa_telefone")
-  assunto      String?
-  ultimaMsgEm  DateTime?      @map("ultima_msg_em")
+  id               String         @id @default(uuid())
+  status           StatusConversa @default(PENDENTE)
+  waTelefone       String?        @map("wa_telefone")
+  assunto          String?
+  ultimaMsgEm      DateTime?      @map("ultima_msg_em")
   // CSAT do atendimento: nota 1-5 dada pelo cliente após a resolução.
-  csatNota         Int?      @map("csat_nota")
-  csatComentario   String?   @map("csat_comentario")
-  csatRespondidoEm DateTime? @map("csat_respondido_em")
-  criadoEm     DateTime       @default(now()) @map("criado_em")
-  atualizadoEm DateTime       @updatedAt @map("atualizado_em")
+  csatNota         Int?           @map("csat_nota")
+  csatComentario   String?        @map("csat_comentario")
+  csatRespondidoEm DateTime?      @map("csat_respondido_em")
+  criadoEm         DateTime       @default(now()) @map("criado_em")
+  atualizadoEm     DateTime       @updatedAt @map("atualizado_em")
 
   clienteId String?  @map("cliente_id")
   cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
@@ -1272,8 +1320,8 @@ model Conversa {
 /// Mensagem de uma conversa (inbound = cliente, outbound = atendente/sistema).
 model Mensagem {
   id         String    @id @default(uuid())
-  autor      String    // CLIENTE | ATENDENTE | SISTEMA
-  direcao    String    // inbound | outbound
+  autor      String // CLIENTE | ATENDENTE | SISTEMA
+  direcao    String // inbound | outbound
   tipo       String    @default("text") // text | image | audio | document
   texto      String?
   arquivoUrl String?   @map("arquivo_url")
@@ -1292,7 +1340,7 @@ model Mensagem {
 /// Log de webhooks recebidos (observabilidade / idempotencia).
 model WebhookLog {
   id         String   @id @default(uuid())
-  fonte      String   // meta | vai
+  fonte      String // meta | vai
   payload    Json
   processado Boolean  @default(false)
   conversaId String?  @map("conversa_id")
@@ -1312,7 +1360,7 @@ model Comunicado {
   titulo       String
   corpo        String
   fixado       Boolean  @default(false)
-  criadoEm    DateTime @default(now()) @map("criado_em")
+  criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   autorId String?  @map("autor_id")
@@ -1694,14 +1742,14 @@ model NpsCliente {
 /// Pesquisa (survey) criada pelo admin e enviada aos clientes (req. l.44-46).
 /// O cliente responde diretamente pelo portal.
 model Pesquisa {
-  id          String             @id @default(uuid())
-  titulo      String
-  descricao   String?
-  ativa       Boolean            @default(true)
-  criadoEm    DateTime           @default(now()) @map("criado_em")
-  atualizadoEm DateTime          @updatedAt @map("atualizado_em")
+  id           String   @id @default(uuid())
+  titulo       String
+  descricao    String?
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  respostas   RespostaPesquisa[]
+  respostas RespostaPesquisa[]
 
   @@map("pesquisa")
 }
