@@ -1,0 +1,40 @@
+// DTO de criacao de contrato a partir do negocio (Lead) — "Criar Contrato".
+// Alem do tipo (COM/SEM Marketing), coleta os campos comerciais que viram tags
+// no .docx (duracao, desconto, forma de pagamento, dia, data de assinatura).
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumberString,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
+
+export class CriarContratoLeadDto {
+  @IsIn(['COM_MARKETING', 'SEM_MARKETING'])
+  tipo!: 'COM_MARKETING' | 'SEM_MARKETING';
+
+  @IsOptional() @IsInt() @IsIn([3, 6, 12])
+  duracaoMeses?: number;
+
+  @IsOptional() @IsInt() @IsIn([0, 10, 20, 30])
+  descontoPct?: number;
+
+  @IsOptional() @IsIn(['BOLETO_PIX', 'CARTAO'])
+  formaPagamento?: 'BOLETO_PIX' | 'CARTAO';
+
+  @IsOptional() @IsInt() @Min(1) @Max(31)
+  diaPagamento?: number;
+
+  @IsOptional() @IsDateString()
+  dataAssinatura?: string;
+
+  // Plano p/ valor mensal; se ausente usa o valor do negocio (soma dos itens).
+  @IsOptional() @IsUUID()
+  planoId?: string;
+
+  @IsOptional() @IsNumberString()
+  valorMensal?: string;
+}

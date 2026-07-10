@@ -31,8 +31,8 @@ interface Lead {
   produtos?: LeadProduto[];
 }
 interface ItemCatalogo { id: string; nome: string; valor: string; ativo: boolean }
-interface LeadPlano { plano: { id: string; nome: string; valor: string }; quantidade: number }
-interface LeadProduto { produto: { id: string; nome: string; valor: string }; quantidade: number }
+interface LeadPlano { plano: { id: string; nome: string; valor: string; entregaveis?: unknown }; quantidade: number }
+interface LeadProduto { produto: { id: string; nome: string; valor: string; descricao?: string | null }; quantidade: number }
 interface Nota { id: string; texto: string; criadoEm: string; autor?: { nome: string } | null }
 interface Historico { id: string; acao: string; de: string | null; para: string | null; criadoEm: string; autor?: { nome: string } | null }
 interface Atividade { id: string; titulo: string; tipo: TipoAtividade; status: StatusAtividade; vencimento: string | null; horaFim?: string | null; notas?: string | null; lead?: { id: string } | null }
@@ -126,6 +126,8 @@ const IcoWhats = () => <Ico><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0
 const IcoInstagram = () => <Ico><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></Ico>;
 const IcoLinkedin = () => <Ico><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></Ico>;
 const IcoCirculo = () => <Ico><circle cx="12" cy="12" r="10" /></Ico>;
+const IcoCadastro = () => <Ico size={15}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M9 12h6M9 16h4" /></Ico>;
+const IcoDoc = () => <Ico size={15}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></Ico>;
 const TIPO_ICONE: Record<TipoAtividade, ReactNode> = {
   REUNIAO: <IcoUsers />, LIGACAO: <IcoTelefone />, VIDEOCHAMADA: <IcoVideo />, EMAIL: <IcoMail />,
   WHATSAPP: <IcoWhats />, INSTAGRAM: <IcoInstagram />, LINKEDIN: <IcoLinkedin />, OUTRO: <IcoCirculo />,
@@ -144,6 +146,49 @@ interface Props {
 
 interface CampoEdit { campo: 'valor' | 'previsao' | 'contato' | 'empresa' | 'telefone' | 'email'; label: string; tipo: 'text' | 'number' | 'date'; valor: string }
 interface AtivForm { id?: string; tipo: TipoAtividade; titulo: string; data: string; horaInicio: string; horaFim: string; notas: string; feito: boolean }
+
+// ── Cadastro Completo (captação de dados p/ contrato) ────────────────────────
+interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string }
+const CADASTRO_CAMPOS: CampoCadastro[] = [
+  { chave: 'razaoSocial', rotulo: 'Razão Social *', ajuda: 'Adicione a razão social conforme aparece no seu contrato social.' },
+  { chave: 'nomeFantasia', rotulo: 'Nome Fantasia *' },
+  { chave: 'cnpj', rotulo: 'CNPJ *' },
+  { chave: 'nomeSocio', rotulo: 'Nome do Sócio(a) *' },
+  { chave: 'cpfSocio', rotulo: 'CPF Sócio *' },
+  { chave: 'dataNascimentoSocio', rotulo: 'Data de Nascimento (Sócio) *' },
+  { chave: 'profissao', rotulo: 'Sua Profissão *' },
+  { chave: 'nacionalidade', rotulo: 'Sua Nacionalidade *' },
+  { chave: 'email', rotulo: 'E-mail *', placeholder: 'Inserir e-mail', tipo: 'email' },
+  { chave: 'whatsappSocio', rotulo: 'WhatsApp Sócio *', placeholder: 'Inserir telefone' },
+  { chave: 'whatsappFinanceiro', rotulo: 'WhatsApp Financeiro *', placeholder: 'Inserir telefone' },
+  { chave: 'cep', rotulo: 'CEP *', ajuda: 'Insira no formato XXXXX-XXX' },
+  { chave: 'endereco', rotulo: 'Endereço *' },
+  { chave: 'numero', rotulo: 'Número *' },
+  { chave: 'complemento', rotulo: 'Complemento *' },
+  { chave: 'bairro', rotulo: 'Bairro *' },
+  { chave: 'cidadeEstado', rotulo: 'Cidade / Estado *' },
+  { chave: 'inscricaoMunicipal', rotulo: 'Inscrição Municipal', ajuda: 'Se não possuir, deixe em branco.' },
+  { chave: 'inscricaoEstadual', rotulo: 'Inscrição Estadual', ajuda: 'Se não possuir, deixe em branco.' },
+];
+
+// ── Criar Contrato ───────────────────────────────────────────────────────────
+type TipoContrato = 'COM_MARKETING' | 'SEM_MARKETING';
+interface ContratoForm { tipo: TipoContrato; duracaoMeses: number; descontoPct: number; formaPagamento: 'BOLETO_PIX' | 'CARTAO'; diaPagamento: string; dataAssinatura: string }
+const CONTRATO_PADRAO: ContratoForm = { tipo: 'COM_MARKETING', duracaoMeses: 12, descontoPct: 0, formaPagamento: 'BOLETO_PIX', diaPagamento: '10', dataAssinatura: '' };
+
+// Descreve o JSON de entregaveis de um plano numa linha legivel (preview da tag {{ENTREGAVEIS}}).
+function descreverEntregaveis(entregaveis: unknown): string {
+  if (entregaveis == null) return '';
+  if (typeof entregaveis === 'string') return entregaveis;
+  if (Array.isArray(entregaveis)) return entregaveis.map((x) => String(x)).join(', ');
+  if (typeof entregaveis === 'object') {
+    return Object.entries(entregaveis as Record<string, unknown>)
+      .map(([k, v]) => (v === true ? k : v === false ? '' : `${k}: ${String(v)}`))
+      .filter(Boolean)
+      .join('; ');
+  }
+  return String(entregaveis);
+}
 
 export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou, onEtiquetasMudou }: Props) {
   const [lead, setLead] = useState<Lead | null>(null);
@@ -172,6 +217,12 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [pessoasVinc, setPessoasVinc] = useState<PessoaVinc[]>([]);
   const [empresasVinc, setEmpresasVinc] = useState<string[]>([]);
   const [carregandoVinc, setCarregandoVinc] = useState(false);
+  const [modalCadastro, setModalCadastro] = useState(false);
+  const [cadastro, setCadastro] = useState<Record<string, string>>({});
+  const [salvandoCadastro, setSalvandoCadastro] = useState(false);
+  const [modalContrato, setModalContrato] = useState(false);
+  const [contratoForm, setContratoForm] = useState<ContratoForm>(CONTRATO_PADRAO);
+  const [gerandoContrato, setGerandoContrato] = useState(false);
 
   async function carregar() {
     setErro(null);
@@ -200,10 +251,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
 
   // Fecha com ESC.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && !editor && !ativForm && !modalEtiquetas && !vincular) onFechar(); }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && !editor && !ativForm && !modalEtiquetas && !vincular && !modalCadastro && !modalContrato) onFechar(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editor, ativForm, modalEtiquetas, vincular, onFechar]);
+  }, [editor, ativForm, modalEtiquetas, vincular, modalCadastro, modalContrato, onFechar]);
 
   const pipelineDoLead =
     pipelines.find((p) => p.id === lead?.pipeline?.id) ??
@@ -306,6 +357,55 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   async function escolherEmpresa(nome: string) {
     await patchLead({ empresa: nome.trim() });
     setVincular(null);
+  }
+
+  // ── Cadastro Completo (dados p/ contrato) ──────────────────────────────────
+  async function abrirCadastro() {
+    setErroAcao(null);
+    const base: Record<string, string> = {};
+    CADASTRO_CAMPOS.forEach((c) => { base[c.chave] = ''; });
+    try {
+      const { data } = await api.get<Record<string, string> | null>(`/comercial/leads/${leadId}/cadastro`);
+      if (data) CADASTRO_CAMPOS.forEach((c) => { const v = (data as Record<string, unknown>)[c.chave]; if (v != null) base[c.chave] = String(v); });
+    } catch { /* sem cadastro ainda */ }
+    // Prefill a partir do negócio quando vazio.
+    if (!base.nomeFantasia && lead?.empresa) base.nomeFantasia = lead.empresa;
+    if (!base.email && lead?.email) base.email = lead.email;
+    setCadastro(base);
+    setModalCadastro(true);
+  }
+  async function salvarCadastro() {
+    setSalvandoCadastro(true);
+    setErroAcao(null);
+    try { await api.put(`/comercial/leads/${leadId}/cadastro`, cadastro); setModalCadastro(false); }
+    catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao salvar cadastro.'); }
+    finally { setSalvandoCadastro(false); }
+  }
+
+  // ── Criar Contrato (gera o .docx a partir do cadastro + planos/produtos) ────
+  function abrirContrato() { setErroAcao(null); setContratoForm(CONTRATO_PADRAO); setModalContrato(true); }
+  async function gerarContrato() {
+    setGerandoContrato(true);
+    setErroAcao(null);
+    const f = contratoForm;
+    const corpo: Record<string, unknown> = {
+      tipo: f.tipo, duracaoMeses: f.duracaoMeses, descontoPct: f.descontoPct, formaPagamento: f.formaPagamento,
+      ...(f.diaPagamento && { diaPagamento: Number(f.diaPagamento) }),
+      ...(f.dataAssinatura && { dataAssinatura: new Date(f.dataAssinatura).toISOString() }),
+    };
+    try {
+      const { data: novo } = await api.post<{ id: string; codigoUnico?: string }>(`/contratos/do-lead/${leadId}`, corpo);
+      const resp = await api.get(`/contratos/${novo.id}/docx`, { responseType: 'blob' });
+      const url = URL.createObjectURL(resp.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contrato-${novo.codigoUnico ?? 'breakr'}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setModalContrato(false);
+      onMudou();
+    } catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao gerar contrato.'); }
+    finally { setGerandoContrato(false); }
   }
 
   // ── Produtos/Planos do negócio ("+ Produtos") ──────────────────────────────
@@ -466,6 +566,9 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                   ))}
                 </div>
               )}
+              <button type="button" onClick={abrirCadastro} style={acaoContrato}><IcoCadastro /> Cadastro Completo</button>
+              <button type="button" onClick={abrirContrato} style={acaoContrato}><IcoDoc /> Criar Contrato</button>
+
               <ResumoLinha icone={<IcoCalendario />} label={<span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Previsão</span>} acao={<button type="button" onClick={() => abrirEditor('previsao')} style={linkBtn}>{lead.previsaoFechamento ? new Date(lead.previsaoFechamento).toLocaleDateString('pt-BR') : 'Definir data'}</button>} />
               <ResumoLinha icone={<IcoRelogio />} label={<span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Na etapa</span>} acao={<span style={{ fontSize: 13, fontWeight: 700, color: 'var(--texto)' }}>{naEtapaDesde ? `${diasDesde(naEtapaDesde)} dias` : '—'}</span>} />
               <ResumoLinha icone={<IcoPercent />} label={<span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Probabilidade</span>} acao={<span style={{ fontSize: 13, fontWeight: 700, color: 'var(--texto)' }}>{PROBABILIDADE[lead.status]}%</span>} />
@@ -740,6 +843,97 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
         </Modal>
       )}
 
+      {/* Cadastro Completo (dados de captação p/ contrato) */}
+      {modalCadastro && (
+        <Modal titulo="Cadastro Completo" onFechar={() => setModalCadastro(false)}
+          rodape={<><Btn variante="secondary" onClick={() => setModalCadastro(false)}>Cancelar</Btn><Btn onClick={salvarCadastro} disabled={salvandoCadastro}>{salvandoCadastro ? 'Salvando…' : 'Salvar Cadastro'}</Btn></>}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+            {CADASTRO_CAMPOS.map((c) => (
+              <div key={c.chave} style={{ minWidth: 0 }}>
+                <label className="brk-campo-label" style={{ display: 'block', marginBottom: 5 }}>{c.rotulo}</label>
+                <input className="brk-input" type={c.tipo ?? 'text'} placeholder={c.placeholder ?? 'Inserir texto'}
+                  value={cadastro[c.chave] ?? ''} onChange={(e) => setCadastro((m) => ({ ...m, [c.chave]: e.target.value }))} style={{ width: '100%' }} />
+                {c.ajuda && <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--texto-fraco)' }}>{c.ajuda}</span>}
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {/* Criar Contrato (gera o .docx a partir do cadastro + planos/produtos) */}
+      {modalContrato && (() => {
+        const entregaveis = [
+          ...(lead?.planos ?? []).map((p) => ({ nome: p.plano.nome, desc: descreverEntregaveis(p.plano.entregaveis) })),
+          ...(lead?.produtos ?? []).map((p) => ({ nome: p.produto.nome, desc: p.produto.descricao ?? '' })),
+        ];
+        return (
+          <Modal titulo="Criar Contrato" onFechar={() => setModalContrato(false)}
+            rodape={<><Btn variante="secondary" onClick={() => setModalContrato(false)}>Cancelar</Btn><Btn onClick={gerarContrato} disabled={gerandoContrato}>{gerandoContrato ? 'Gerando…' : 'Gerar Contrato'}</Btn></>}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Tipo de contrato</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {([['COM_MARKETING', 'Planos COM Marketing'], ['SEM_MARKETING', 'Planos SEM Marketing']] as const).map(([val, lab]) => {
+                    const sel = contratoForm.tipo === val;
+                    return (
+                      <button key={val} type="button" onClick={() => setContratoForm((f) => ({ ...f, tipo: val }))}
+                        style={{ padding: '10px 12px', borderRadius: 9, cursor: 'pointer', fontSize: 12.5, fontWeight: sel ? 700 : 500,
+                          border: `1px solid ${sel ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`, background: sel ? 'color-mix(in srgb, var(--amarelo-fagulha) 14%, transparent)' : 'var(--superficie-2)', color: sel ? 'var(--amarelo-fagulha)' : 'var(--texto-suave)' }}>
+                        {lab}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Duração</span>
+                  <select className="brk-input" value={contratoForm.duracaoMeses} onChange={(e) => setContratoForm((f) => ({ ...f, duracaoMeses: Number(e.target.value) }))} style={{ width: '100%' }}>
+                    {[3, 6, 12].map((m) => <option key={m} value={m}>{m} meses</option>)}
+                  </select>
+                </div>
+                <div>
+                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Desconto</span>
+                  <select className="brk-input" value={contratoForm.descontoPct} onChange={(e) => setContratoForm((f) => ({ ...f, descontoPct: Number(e.target.value) }))} style={{ width: '100%' }}>
+                    {[0, 10, 20, 30].map((d) => <option key={d} value={d}>{d}%</option>)}
+                  </select>
+                </div>
+                <div>
+                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Forma de pagamento</span>
+                  <select className="brk-input" value={contratoForm.formaPagamento} onChange={(e) => setContratoForm((f) => ({ ...f, formaPagamento: e.target.value as 'BOLETO_PIX' | 'CARTAO' }))} style={{ width: '100%' }}>
+                    <option value="BOLETO_PIX">Boleto/PIX</option>
+                    <option value="CARTAO">Cartão de Crédito</option>
+                  </select>
+                </div>
+                <div>
+                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Dia de pagamento</span>
+                  <input className="brk-input" type="number" min={1} max={31} value={contratoForm.diaPagamento} onChange={(e) => setContratoForm((f) => ({ ...f, diaPagamento: e.target.value }))} style={{ width: '100%' }} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Data de assinatura</span>
+                  <input className="brk-input" type="date" value={contratoForm.dataAssinatura} onChange={(e) => setContratoForm((f) => ({ ...f, dataAssinatura: e.target.value }))} style={{ width: '100%' }} />
+                </div>
+              </div>
+              <div>
+                <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Entregáveis do contrato — dos planos/produtos selecionados ({'{{'}ENTREGAVEIS{'}}'})</span>
+                {entregaveis.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Nenhum plano/produto selecionado. Use “+ Produtos” no resumo do negócio.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {entregaveis.map((it, i) => (
+                      <div key={i} style={{ background: 'var(--superficie-2)', border: '1px solid var(--borda)', borderRadius: 9, padding: '8px 10px' }}>
+                        <div style={{ fontSize: 12.5 }}><b style={{ color: 'var(--texto)' }}>{String.fromCharCode(65 + i)}) {it.nome}</b></div>
+                        {it.desc && <div style={{ fontSize: 11.5, color: 'var(--texto-suave)', marginTop: 2 }}>{it.desc}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
       {/* Nova / Editar Atividade */}
       {ativForm && (
         <Modal titulo={ativForm.id ? 'Editar Atividade' : 'Nova Atividade'} onFechar={() => setAtivForm(null)}
@@ -793,6 +987,7 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
 
 const linkBtn: CSSProperties = { border: 'none', background: 'transparent', color: 'var(--amarelo-fagulha)', fontSize: 12.5, cursor: 'pointer', padding: 0, fontWeight: 600 };
 const vincularBtn: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid var(--borda)', background: 'var(--superficie-2)', color: 'var(--texto-suave)', fontSize: 12.5, cursor: 'pointer' };
+const acaoContrato: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid color-mix(in srgb, var(--amarelo-fagulha) 45%, transparent)', background: 'color-mix(in srgb, var(--amarelo-fagulha) 12%, transparent)', color: 'var(--amarelo-fagulha)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' };
 const iconBtn: CSSProperties = { width: 28, height: 28, borderRadius: 7, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-fraco)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const itemVinc: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', borderRadius: 9, border: '1px solid var(--borda)', background: 'var(--superficie-2)', cursor: 'pointer' };
 const avatarVinc: CSSProperties = { width: 28, height: 28, borderRadius: 999, background: 'var(--superficie-4)', color: 'var(--texto-suave)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flex: '0 0 auto' };

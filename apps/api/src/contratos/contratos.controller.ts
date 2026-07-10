@@ -16,6 +16,7 @@ import { Cargos } from '../common/rbac/cargos.decorator';
 import { Cargo } from '@breakr/shared';
 import { ContratosService } from './contratos.service';
 import { CriarContratoDto } from './dto/criar-contrato.dto';
+import { CriarContratoLeadDto } from './dto/criar-contrato-lead.dto';
 
 @Controller('contratos')
 @UseGuards(JwtAuthGuard)
@@ -40,6 +41,32 @@ export class ContratosController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS, Cargo.JURIDICO)
   criar(@Body() dto: CriarContratoDto) {
     return this.contratosService.criar(dto);
+  }
+
+  // POST /contratos/do-lead/:leadId — cria contrato a partir do negocio ("Criar Contrato").
+  @Post('do-lead/:leadId')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS, Cargo.JURIDICO)
+  criarDoLead(
+    @Param('leadId', ParseUUIDPipe) leadId: string,
+    @Body() dto: CriarContratoLeadDto,
+  ) {
+    return this.contratosService.criarDoLead(leadId, dto);
+  }
+
+  // GET /contratos/:id/docx — download do contrato .docx gerado pelo sistema.
+  @Get(':id/docx')
+  async downloadDocx(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, nomeArquivo } = await this.contratosService.gerarDocx(id);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+    res.send(buffer);
   }
 
   // GET /contratos/:id/pdf — download do PDF nativo gerado pelo sistema.

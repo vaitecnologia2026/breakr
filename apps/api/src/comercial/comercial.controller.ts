@@ -22,6 +22,7 @@ import { CriarLeadDto } from './dto/criar-lead.dto';
 import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
 import { DefinirItensNegocioDto } from './dto/definir-itens-negocio.dto';
 import { CriarNotaLeadDto } from './dto/criar-nota-lead.dto';
+import { SalvarCadastroContratoDto } from './dto/salvar-cadastro-contrato.dto';
 import { MoverStatusLeadDto } from './dto/mover-status-lead.dto';
 import { AtribuirResponsavelLeadDto } from './dto/atribuir-responsavel-lead.dto';
 import { MoverEtapaLeadDto } from './dto/pipeline.dto';
@@ -76,6 +77,23 @@ export class ComercialController {
   @Get(':id/historico')
   listarHistorico(@Param('id', ParseUUIDPipe) id: string) {
     return this.comercialService.listarHistorico(id);
+  }
+
+  // GET /comercial/leads/:id/cadastro — cadastro completo do negocio (p/ contrato).
+  @Get(':id/cadastro')
+  obterCadastro(@Param('id', ParseUUIDPipe) id: string) {
+    return this.comercialService.obterCadastro(id);
+  }
+
+  // PUT /comercial/leads/:id/cadastro — cria/atualiza o cadastro completo.
+  @Put(':id/cadastro')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  salvarCadastro(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SalvarCadastroContratoDto,
+  ) {
+    return this.comercialService.salvarCadastro(id, dto);
   }
 
   // PATCH /comercial/leads/:id — atualiza os campos do negocio (RESUMO).

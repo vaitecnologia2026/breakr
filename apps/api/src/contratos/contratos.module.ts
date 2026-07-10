@@ -9,11 +9,12 @@ import { FaturasModule } from '../faturas/faturas.module';
 import { ContratosService } from './contratos.service';
 import { ContratosController } from './contratos.controller';
 import { ContratoPdfService } from './contrato-pdf.service';
+import { ContratoDocxService } from './contrato-docx.service';
 
 @Module({
   imports: [IntegracoesModule, AutomacaoModule, NotificacoesModule, FaturasModule],
   controllers: [ContratosController],
-  providers: [ContratosService, ContratoPdfService],
-  exports: [ContratosService, ContratoPdfService],
+  providers: [ContratosService, ContratoPdfService, ContratoDocxService],
+  exports: [ContratosService, ContratoPdfService, ContratoDocxService],
 })
 export class ContratosModule {}
