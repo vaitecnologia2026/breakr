@@ -148,7 +148,7 @@ export class ComercialService {
         pipeline: { select: { id: true, nome: true } },
         etapa: { select: { id: true, nome: true, status: true } },
         etiquetas: { include: { etiqueta: true } },
-        planos: { include: { plano: { select: { id: true, nome: true, valor: true, entregaveis: true } } } },
+        planos: { include: { plano: { select: { id: true, nome: true, valor: true, entregaveis: true, produtos: { select: { produto: { select: { id: true, nome: true, descricao: true } } } } } } } },
         produtos: { include: { produto: { select: { id: true, nome: true, valor: true, descricao: true } } } },
       },
     });

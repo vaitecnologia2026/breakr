@@ -160,11 +160,11 @@ export class ContratosService {
       where: { id },
       include: {
         cliente: true,
-        plano: true,
+        plano: { include: { produtos: { include: { produto: true } } } },
         lead: {
           include: {
             cadastroContrato: true,
-            planos: { include: { plano: true } },
+            planos: { include: { plano: { include: { produtos: { include: { produto: true } } } } } },
             produtos: { include: { produto: true } },
           },
         },
@@ -176,16 +176,28 @@ export class ContratosService {
 
     const cad = contrato.lead?.cadastroContrato ?? null;
 
-    // Entregaveis = planos + produtos do negocio (nome + descricao).
+    // Entregaveis = os PRODUTOS que compoem cada plano selecionado (nao o nome do
+    // plano) + os produtos avulsos do negocio. Se um plano nao tiver produtos
+    // vinculados, cai para o proprio plano (para nao ficar vazio).
     const entregaveis: EntregavelContrato[] = [];
     for (const lp of contrato.lead?.planos ?? []) {
-      entregaveis.push({ nome: lp.plano.nome, descricao: this.descreverEntregaveis(lp.plano.entregaveis) });
+      const prods = lp.plano.produtos ?? [];
+      if (prods.length) {
+        for (const pp of prods) entregaveis.push({ nome: pp.produto.nome, descricao: pp.produto.descricao });
+      } else {
+        entregaveis.push({ nome: lp.plano.nome, descricao: this.descreverEntregaveis(lp.plano.entregaveis) });
+      }
     }
     for (const pr of contrato.lead?.produtos ?? []) {
       entregaveis.push({ nome: pr.produto.nome, descricao: pr.produto.descricao });
     }
     if (entregaveis.length === 0 && contrato.plano) {
-      entregaveis.push({ nome: contrato.plano.nome, descricao: this.descreverEntregaveis(contrato.plano.entregaveis) });
+      const prods = contrato.plano.produtos ?? [];
+      if (prods.length) {
+        for (const pp of prods) entregaveis.push({ nome: pp.produto.nome, descricao: pp.produto.descricao });
+      } else {
+        entregaveis.push({ nome: contrato.plano.nome, descricao: this.descreverEntregaveis(contrato.plano.entregaveis) });
+      }
     }
 
     const buffer = this.docx.gerar((contrato.tipoContrato as TipoContrato) ?? 'COM_MARKETING', {

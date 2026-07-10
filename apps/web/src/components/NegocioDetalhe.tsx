@@ -31,7 +31,7 @@ interface Lead {
   produtos?: LeadProduto[];
 }
 interface ItemCatalogo { id: string; nome: string; valor: string; ativo: boolean }
-interface LeadPlano { plano: { id: string; nome: string; valor: string; entregaveis?: unknown }; quantidade: number }
+interface LeadPlano { plano: { id: string; nome: string; valor: string; entregaveis?: unknown; produtos?: { produto: { id: string; nome: string; descricao?: string | null } }[] }; quantidade: number }
 interface LeadProduto { produto: { id: string; nome: string; valor: string; descricao?: string | null }; quantidade: number }
 interface Nota { id: string; texto: string; criadoEm: string; autor?: { nome: string } | null }
 interface Historico { id: string; acao: string; de: string | null; para: string | null; criadoEm: string; autor?: { nome: string } | null }
@@ -863,7 +863,9 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
       {/* Criar Contrato (gera o .docx a partir do cadastro + planos/produtos) */}
       {modalContrato && (() => {
         const entregaveis = [
-          ...(lead?.planos ?? []).map((p) => ({ nome: p.plano.nome, desc: descreverEntregaveis(p.plano.entregaveis) })),
+          ...(lead?.planos ?? []).flatMap((p) => (p.plano.produtos && p.plano.produtos.length)
+            ? p.plano.produtos.map((pp) => ({ nome: pp.produto.nome, desc: pp.produto.descricao ?? '' }))
+            : [{ nome: p.plano.nome, desc: descreverEntregaveis(p.plano.entregaveis) }]),
           ...(lead?.produtos ?? []).map((p) => ({ nome: p.produto.nome, desc: p.produto.descricao ?? '' })),
         ];
         return (
