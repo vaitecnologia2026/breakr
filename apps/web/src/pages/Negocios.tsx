@@ -56,13 +56,25 @@ const STATUS_LABEL_PADRAO: Record<StatusLead, string> = {
   PERDIDO: 'Perdido',
 };
 
-// Configuração de uma coluna: um status do funil + um rótulo editável.
+// Configuração de uma coluna: id único + um status do funil + um rótulo editável.
+// O `id` desacopla a coluna do status — permite VÁRIAS colunas (inclusive
+// apontando para o mesmo status) e reordenação livre. O `status` continua ligando
+// a coluna ao funil do backend (drag-and-drop e PATCH permanecem idênticos).
 interface ColunaCfg {
+  id: string;
   status: StatusLead;
   titulo: string;
 }
 
-const COLUNAS_PADRAO: ColunaCfg[] = TODOS_STATUS.map((s) => ({ status: s, titulo: STATUS_LABEL_PADRAO[s] }));
+// Gera um id único para uma coluna (executa no navegador).
+function novoId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch { /* ignora */ }
+  return `col-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+const COLUNAS_PADRAO: ColunaCfg[] = TODOS_STATUS.map((s) => ({ id: s, status: s, titulo: STATUS_LABEL_PADRAO[s] }));
 
 // Persistência local da configuração das colunas (por navegador; não toca no backend).
 const LS_COLUNAS = 'brk-negocios-colunas';
@@ -73,9 +85,17 @@ function carregarColunasSalvas(): ColunaCfg[] {
     if (!raw) return COLUNAS_PADRAO;
     const arr = JSON.parse(raw) as unknown;
     if (!Array.isArray(arr)) return COLUNAS_PADRAO;
-    const valido = arr.filter(
-      (c): c is ColunaCfg => !!c && typeof (c as ColunaCfg).titulo === 'string' && TODOS_STATUS.includes((c as ColunaCfg).status),
-    );
+    const vistos = new Set<string>();
+    const valido: ColunaCfg[] = [];
+    for (const c of arr) {
+      const cc = c as Partial<ColunaCfg>;
+      if (!cc || typeof cc.titulo !== 'string' || !TODOS_STATUS.includes(cc.status as StatusLead)) continue;
+      // Migra configs antigas (sem id) e garante id único.
+      let id = typeof cc.id === 'string' && cc.id ? cc.id : novoId();
+      while (vistos.has(id)) id = novoId();
+      vistos.add(id);
+      valido.push({ id, status: cc.status as StatusLead, titulo: cc.titulo });
+    }
     return valido.length ? valido : COLUNAS_PADRAO;
   } catch {
     return COLUNAS_PADRAO;
@@ -158,13 +178,15 @@ const IcoEmpresa = () => <Ico><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" 
 const IcoAlerta = () => <Ico><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></Ico>;
 const IcoEditar = () => <Ico><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></Ico>;
 const IcoLixeira = () => <Ico><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></Ico>;
+const IcoEsquerda = () => <Ico><polyline points="15 18 9 12 15 6" /></Ico>;
+const IcoDireita = () => <Ico><polyline points="9 18 15 12 9 6" /></Ico>;
 
 // Estado do editor de coluna (modal de adicionar/editar).
 interface EditorColuna {
   modo: 'add' | 'edit';
   status: StatusLead;
   titulo: string;
-  alvo?: StatusLead; // status original da coluna sendo editada
+  alvoId?: string; // id da coluna sendo editada
 }
 
 export function Negocios() {
@@ -176,7 +198,7 @@ export function Negocios() {
   const [erro, setErro] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const arrastando = useRef<string | null>(null);
-  const [alvo, setAlvo] = useState<StatusLead | null>(null);
+  const [alvo, setAlvo] = useState<string | null>(null); // id da coluna sob o cursor no drag
 
   // Persiste a configuração das colunas no navegador a cada mudança.
   useEffect(() => {
@@ -226,24 +248,15 @@ export function Negocios() {
     }
   }
 
-  // ── Gerência de colunas (adicionar / editar / excluir / restaurar) ───────────
-  const statusDisponiveis = TODOS_STATUS.filter((s) => !colunas.some((c) => c.status === s));
-
-  // Status oferecidos no seletor do editor: os livres + (ao editar) o próprio.
-  function opcoesStatusEditor(): StatusLead[] {
-    const usados = new Set(colunas.map((c) => c.status));
-    if (editor?.modo === 'edit' && editor.alvo) usados.delete(editor.alvo);
-    return TODOS_STATUS.filter((s) => !usados.has(s));
-  }
+  // ── Gerência de colunas (adicionar / editar / excluir / mover / restaurar) ───
 
   function abrirAdicionar() {
-    if (statusDisponiveis.length === 0) return;
-    const s = statusDisponiveis[0];
+    const s = TODOS_STATUS[0];
     setEditor({ modo: 'add', status: s, titulo: STATUS_LABEL_PADRAO[s] });
   }
 
   function abrirEditar(col: ColunaCfg) {
-    setEditor({ modo: 'edit', status: col.status, titulo: col.titulo, alvo: col.status });
+    setEditor({ modo: 'edit', status: col.status, titulo: col.titulo, alvoId: col.id });
   }
 
   function salvarEditor() {
@@ -251,19 +264,35 @@ export function Negocios() {
     const titulo = editor.titulo.trim();
     if (!titulo) return;
     if (editor.modo === 'add') {
-      setColunas((cs) => (cs.some((c) => c.status === editor.status) ? cs : [...cs, { status: editor.status, titulo }]));
+      setColunas((cs) => [...cs, { id: novoId(), status: editor.status, titulo }]);
     } else {
-      setColunas((cs) => cs.map((c) => (c.status === editor.alvo ? { status: editor.status, titulo } : c)));
+      setColunas((cs) => cs.map((c) => (c.id === editor.alvoId ? { ...c, status: editor.status, titulo } : c)));
     }
     setEditor(null);
   }
 
-  function excluirColuna(status: StatusLead) {
+  function excluirColuna(id: string) {
     if (!window.confirm('Excluir esta coluna? Os negócios com este status deixarão de aparecer no quadro (não serão apagados).')) return;
-    setColunas((cs) => cs.filter((c) => c.status !== status));
+    setColunas((cs) => cs.filter((c) => c.id !== id));
+  }
+
+  // Reordena a coluna uma posição para a esquerda (-1) ou direita (+1).
+  function moverColuna(id: string, dir: -1 | 1) {
+    setColunas((cs) => {
+      const i = cs.findIndex((c) => c.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= cs.length) return cs;
+      const novo = [...cs];
+      [novo[i], novo[j]] = [novo[j], novo[i]];
+      return novo;
+    });
   }
 
   const total = leads.length;
+  // Cada negócio aparece só na 1ª coluna (na ordem) que tem o status dele — assim
+  // colunas extras com o mesmo status não duplicam os cards.
+  const primeiraColDoStatus = new Map<StatusLead, string>();
+  colunas.forEach((c) => { if (!primeiraColDoStatus.has(c.status)) primeiraColDoStatus.set(c.status, c.id); });
 
   return (
     <PaginaShell titulo="Negócios" subtitulo="Pipeline Kanban — arraste os cards entre as etapas">
@@ -277,35 +306,38 @@ export function Negocios() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 12.5, color: 'var(--texto-suave)', fontWeight: 600 }}>{total} negócios</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Btn variante="secondary" tamanho="sm" onClick={abrirAdicionar} disabled={statusDisponiveis.length === 0}>+ Coluna</Btn>
+              <Btn variante="secondary" tamanho="sm" onClick={abrirAdicionar}>+ Coluna</Btn>
               <Btn variante="secondary" tamanho="sm" onClick={() => setColunas(COLUNAS_PADRAO)}>Restaurar colunas</Btn>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
-            {colunas.map((col) => {
-              const doStatus = leads.filter((l) => l.status === col.status);
+            {colunas.map((col, idx) => {
+              const ehPrimeira = primeiraColDoStatus.get(col.status) === col.id;
+              const doStatus = ehPrimeira ? leads.filter((l) => l.status === col.status) : [];
               const soma = doStatus.reduce((acc, l) => acc + (l.valorEstimado ? Number(l.valorEstimado) : 0), 0);
               return (
                 <div
-                  key={col.status}
-                  onDragOver={(e) => { e.preventDefault(); if (alvo !== col.status) setAlvo(col.status); }}
-                  onDragLeave={(e) => { if (e.currentTarget === e.target) setAlvo((a) => (a === col.status ? null : a)); }}
+                  key={col.id}
+                  onDragOver={(e) => { e.preventDefault(); if (alvo !== col.id) setAlvo(col.id); }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) setAlvo((a) => (a === col.id ? null : a)); }}
                   onDrop={() => aoSoltar(col.status)}
                   style={{
                     flex: '0 0 264px', background: 'var(--superficie-2)', borderRadius: 12, padding: 10,
-                    border: `1px solid ${alvo === col.status ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`,
+                    border: `1px solid ${alvo === col.id ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`,
                     transition: 'border-color 0.12s ease', display: 'flex', flexDirection: 'column',
                   }}
                 >
-                  {/* Cabeçalho da coluna: etapa + contagem, ações (editar/excluir) e soma abaixo. */}
+                  {/* Cabeçalho da coluna: etapa + contagem, ações (mover/editar/excluir) e soma abaixo. */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--texto)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.titulo}</span>
                       <span style={{ background: 'var(--superficie-4)', borderRadius: 999, fontSize: 10.5, fontWeight: 700, padding: '1px 7px', color: 'var(--texto-suave)', flex: '0 0 auto' }}>{doStatus.length}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto' }}>
+                      <button type="button" title="Mover para a esquerda" onClick={() => moverColuna(col.id, -1)} disabled={idx === 0} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.35 : 1 }}><IcoEsquerda /></button>
+                      <button type="button" title="Mover para a direita" onClick={() => moverColuna(col.id, 1)} disabled={idx === colunas.length - 1} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: idx === colunas.length - 1 ? 'default' : 'pointer', opacity: idx === colunas.length - 1 ? 0.35 : 1 }}><IcoDireita /></button>
                       <button type="button" title="Editar coluna" onClick={() => abrirEditar(col)} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: 'pointer' }}><IcoEditar /></button>
-                      <button type="button" title="Excluir coluna" onClick={() => excluirColuna(col.status)} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: 'pointer' }}><IcoLixeira /></button>
+                      <button type="button" title="Excluir coluna" onClick={() => excluirColuna(col.id)} style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: 'var(--texto-fraco)', borderRadius: 6, cursor: 'pointer' }}><IcoLixeira /></button>
                     </div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--texto-fraco)', marginTop: 2, marginBottom: 10 }}>{formatValor(String(soma))}</div>
@@ -389,10 +421,10 @@ export function Negocios() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Campo rotulo="Nome da coluna" value={editor.titulo} onChange={(e) => setEditor((ed) => (ed ? { ...ed, titulo: e.target.value } : ed))} placeholder="Ex.: Reunião agendada" autoFocus />
             <CampoSelect rotulo="Etapa do funil" value={editor.status} onChange={(e) => setEditor((ed) => (ed ? { ...ed, status: e.target.value as StatusLead } : ed))}>
-              {opcoesStatusEditor().map((s) => <option key={s} value={s}>{STATUS_LABEL_PADRAO[s]}</option>)}
+              {TODOS_STATUS.map((s) => <option key={s} value={s}>{STATUS_LABEL_PADRAO[s]}</option>)}
             </CampoSelect>
             <p style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
-              A etapa liga a coluna ao funil do backend — ao arrastar um card para cá, o negócio recebe esse status. Cada etapa só pode estar em uma coluna.
+              A etapa liga a coluna ao funil do backend — ao arrastar um card para cá, o negócio recebe esse status. Os cards de uma etapa aparecem na primeira coluna que a usa.
             </p>
           </div>
         </Modal>
