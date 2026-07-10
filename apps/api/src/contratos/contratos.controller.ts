@@ -54,6 +54,15 @@ export class ContratosController {
     return this.contratosService.criarDoLead(leadId, dto);
   }
 
+  // POST /contratos/:id/enviar-assinatura-docx — envia o .docx do contrato ao
+  // Autentique (assinatura), para o contato do Cadastro Completo.
+  @Post(':id/enviar-assinatura-docx')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  enviarContratoAssinatura(@Param('id', ParseUUIDPipe) id: string) {
+    return this.contratosService.enviarContratoAssinatura(id);
+  }
+
   // GET /contratos/:id/docx — download do contrato .docx gerado pelo sistema.
   @Get(':id/docx')
   async downloadDocx(

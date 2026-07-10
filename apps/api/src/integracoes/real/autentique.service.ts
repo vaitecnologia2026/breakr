@@ -24,12 +24,78 @@ export class AutentiqueService implements AutentiquePort {
       positions: [{ page: 1, x: i === 0 ? 20 : 60, y: 80, z: 1 }],
     }));
 
+    // Envio de arquivo generico (ex.: .docx do contrato) tem prioridade.
+    if (input.arquivoBase64) {
+      return this.enviarComArquivo(input);
+    }
     // Se vier base64, converte para Buffer e manda como multipart.
     // Se vier URL, Autentique faz o download direto.
     if (input.pdfBase64) {
       return this.enviarComBase64(input, signatarios);
     }
     return this.enviarComUrl(input, signatarios);
+  }
+
+  // Envia um arquivo (ex.: .docx) via multipart `file: Upload!` — mesma logica do
+  // fluxo oficial: mensagem, lembrete diario, prazo de 7 dias e 2 signatarios.
+  private async enviarComArquivo(
+    input: AutentiqueAssinaturaInput,
+  ): Promise<AutentiqueDocumento> {
+    const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .replace(/\.\d+Z$/, '.000Z');
+    const operations = JSON.stringify({
+      query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
+        createDocument(document: $document, signers: $signers, file: $file) {
+          id name signatures { public_id name email link { short_link } }
+        }
+      }`,
+      variables: {
+        document: {
+          name: input.nomeDocumento,
+          ...(input.mensagem ? { message: input.mensagem } : {}),
+          reminder: 'DAILY',
+          sortable: false,
+          refusable: false,
+          footer: 'BOTTOM',
+          deadline_at: deadline,
+          new_signature_style: true,
+          ignore_cpf: false,
+          configs: { notification_finished: true, notification_signed: false },
+          locale: { language: 'pt-BR', country: 'BR', timezone: 'America/Sao_Paulo', date_format: 'DD_MM_YYYY' },
+        },
+        signers: input.signatarios.map((s) => ({ name: s.nome, email: s.email, action: 'SIGN' })),
+        file: null,
+      },
+    });
+    const map = JSON.stringify({ '0': ['variables.file'] });
+    const buffer = Buffer.from(input.arquivoBase64 ?? '', 'base64');
+    const form = new FormData();
+    form.append('operations', operations);
+    form.append('map', map);
+    form.append(
+      '0',
+      new Blob([buffer], { type: input.mimeType ?? 'application/pdf' }),
+      input.nomeArquivo ?? `${input.nomeDocumento}.pdf`,
+    );
+
+    const resp = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.token}` },
+      body: form,
+    });
+    if (!resp.ok) {
+      throw new Error(`Autentique upload ${resp.status}`);
+    }
+    const json = (await resp.json()) as { data?: { createDocument: AutentiqueDocArquivo }; errors?: unknown[] };
+    if (json.errors?.length) throw new Error(`Autentique: ${JSON.stringify(json.errors)}`);
+    if (!json.data?.createDocument) throw new Error('Autentique: resposta sem data');
+    const cd = json.data.createDocument;
+    return {
+      id: cd.id,
+      status: 'PENDENTE',
+      linkAssinatura: cd.signatures?.find((s) => s.link?.short_link)?.link?.short_link,
+    };
   }
 
   private async enviarComUrl(
@@ -134,4 +200,10 @@ interface AutentiqueDocRaw {
   id: string;
   name: string;
   signers?: Array<{ link?: { short_link?: string; url?: string } }>;
+}
+
+interface AutentiqueDocArquivo {
+  id: string;
+  name?: string;
+  signatures?: Array<{ link?: { short_link?: string } }>;
 }

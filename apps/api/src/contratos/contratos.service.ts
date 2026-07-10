@@ -1,7 +1,7 @@
 // Servico de contratos (M12) — porta de entrada do pipeline.
 // Fluxo: cria (RASCUNHO) -> envia p/ assinatura (Autentique) -> assinado cai
 // em EM_REVISAO (revisao da Franciela) -> EM_VIGOR dispara a 1a cobranca.
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Contrato, Prisma } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -218,6 +218,53 @@ export class ContratosService {
       dataAssinatura: contrato.dataAssinatura,
     });
     return { buffer, nomeArquivo: `contrato-${contrato.codigoUnico}.docx` };
+  }
+
+  // Envia o contrato (.docx gerado) para assinatura no Autentique, para o contato
+  // cadastrado no negocio (Cadastro Completo). Reaproveita o gerarDocx e o token
+  // configurado em Configuracoes -> Integracoes. Segue a logica do fluxo oficial.
+  async enviarContratoAssinatura(id: string): Promise<Contrato> {
+    const contrato = await this.prisma.contrato.findUnique({
+      where: { id },
+      include: { cliente: true, lead: { include: { cadastroContrato: true } } },
+    });
+    if (!contrato) {
+      throw new NotFoundException('Contrato nao encontrado');
+    }
+
+    const cad = contrato.lead?.cadastroContrato ?? null;
+    const nomeSignatario = cad?.nomeSocio?.trim() || contrato.cliente.nomeFantasia;
+    const emailSignatario = (cad?.email?.trim() || contrato.cliente.email || contrato.lead?.email || '').trim();
+    if (!emailSignatario) {
+      throw new BadRequestException('Informe o e-mail no Cadastro Completo antes de enviar para assinatura.');
+    }
+
+    const { buffer, nomeArquivo } = await this.gerarDocx(id);
+
+    const doc = await this.autentique.enviarParaAssinatura({
+      nomeDocumento: `Contrato ${contrato.codigoUnico} — ${contrato.cliente.nomeFantasia}`,
+      arquivoBase64: buffer.toString('base64'),
+      nomeArquivo,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      mensagem: `Olá, ${nomeSignatario}. Segue nosso contrato para assinatura. Qualquer dúvida, estou à disposição, atenciosamente: Franciele.`,
+      signatarios: [
+        { nome: nomeSignatario, email: emailSignatario },
+        { nome: 'Gustavo Costa', email: 'financeiro@breakr.com.br' },
+      ],
+    });
+
+    const atualizado = await this.prisma.contrato.update({
+      where: { id },
+      data: {
+        autentiqueId: doc.id,
+        docUrl: doc.linkAssinatura,
+        status: 'AGUARDANDO_ASSINATURA',
+      },
+    });
+
+    await this.engine.dispatch('contrato.enviado_assinatura', { contratoId: id });
+
+    return atualizado;
   }
 
   // Renderiza o JSON de entregaveis do plano numa descricao legivel.
