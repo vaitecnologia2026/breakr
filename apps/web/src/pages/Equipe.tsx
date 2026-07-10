@@ -6,6 +6,7 @@ import {
   Carregando, ErroEstado, Vazio, Badge, Alerta, Th, Td,
 } from '../components/ui';
 import { CATALOGO_MENUS } from '../components/Sidebar';
+import { CATALOGO_BLOCOS } from '../lib/permissoes';
 
 type Cargo =
   | 'SUPERADMIN' | 'ADMIN' | 'COMERCIAL' | 'CS' | 'ESTRATEGISTA'
@@ -465,6 +466,30 @@ export function Equipe() {
                     {g.itens.map((it) => (
                       <label key={`${g.grupo}:${it.para}`} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
                         <input type="checkbox" checked={perfilPermissoes.includes(it.para)} onChange={() => togglePermissao(it.para)} />
+                        <span style={{ color: 'var(--texto)' }}>{it.rotulo}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <span className="brk-campo-label" style={{ display: 'block', marginBottom: 4 }}>
+              Informações internas (dashboard, métricas e gestão à vista)
+            </span>
+            <div style={{ fontSize: 11.5, color: 'var(--texto-fraco)', marginBottom: 8 }}>
+              Deixe uma categoria toda desmarcada para liberar tudo dela. Marque itens para restringir só aos escolhidos.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
+              {CATALOGO_BLOCOS.map((g) => (
+                <div key={g.id}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--texto-fraco)', marginBottom: 6 }}>{g.grupo}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {g.itens.map((it) => (
+                      <label key={it.chave} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={perfilPermissoes.includes(it.chave)} onChange={() => togglePermissao(it.chave)} />
                         <span style={{ color: 'var(--texto)' }}>{it.rotulo}</span>
                       </label>
                     ))}
