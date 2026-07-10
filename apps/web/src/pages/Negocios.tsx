@@ -418,7 +418,7 @@ export function Negocios() {
           </div>
 
           {visao === 'kanban' ? (
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
+            <div className="brk-kanban-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
               {etapas.length === 0 ? (
                 <div style={{ color: 'var(--texto-fraco)', fontSize: 13, padding: 16 }}>Este pipeline não tem etapas. Use “+ Coluna”.</div>
               ) : etapas.map((et, idx) => {
