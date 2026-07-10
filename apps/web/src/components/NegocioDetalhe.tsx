@@ -9,11 +9,11 @@
 // Mantem o mesmo design system (tokens) do restante do app.
 import { useEffect, useState, type ReactNode, type CSSProperties } from 'react';
 import { api } from '../lib/api';
-import { Modal, Campo, CampoSelect, Btn } from './ui';
+import { Modal, Campo, Btn } from './ui';
 import { MensagemErro } from './primitivos';
 
 type StatusLead = 'NOVO' | 'CONTATADO' | 'QUALIFICADO' | 'PROPOSTA' | 'GANHO' | 'PERDIDO';
-type TipoAtividade = 'LIGACAO' | 'WHATSAPP' | 'EMAIL' | 'INSTAGRAM' | 'REUNIAO' | 'OUTRO';
+type TipoAtividade = 'LIGACAO' | 'WHATSAPP' | 'EMAIL' | 'INSTAGRAM' | 'REUNIAO' | 'OUTRO' | 'VIDEOCHAMADA' | 'LINKEDIN';
 type StatusAtividade = 'PENDENTE' | 'CONCLUIDA';
 
 interface Etapa { id: string; nome: string; ordem: number; status: StatusLead }
@@ -35,15 +35,15 @@ interface LeadPlano { plano: { id: string; nome: string; valor: string }; quanti
 interface LeadProduto { produto: { id: string; nome: string; valor: string }; quantidade: number }
 interface Nota { id: string; texto: string; criadoEm: string; autor?: { nome: string } | null }
 interface Historico { id: string; acao: string; de: string | null; para: string | null; criadoEm: string; autor?: { nome: string } | null }
-interface Atividade { id: string; titulo: string; tipo: TipoAtividade; status: StatusAtividade; vencimento: string | null; notas?: string | null; lead?: { id: string } | null }
+interface Atividade { id: string; titulo: string; tipo: TipoAtividade; status: StatusAtividade; vencimento: string | null; horaFim?: string | null; notas?: string | null; lead?: { id: string } | null }
 
 const STATUS_LABEL: Record<StatusLead, string> = {
   NOVO: 'Entrada de Leads', CONTATADO: 'Tentando contato', QUALIFICADO: 'Qualificado',
   PROPOSTA: 'Proposta', GANHO: 'Ganho', PERDIDO: 'Perdido',
 };
 const PROBABILIDADE: Record<StatusLead, number> = { NOVO: 10, CONTATADO: 25, QUALIFICADO: 50, PROPOSTA: 75, GANHO: 100, PERDIDO: 0 };
-const TIPO_LABEL: Record<TipoAtividade, string> = { LIGACAO: 'Ligação', WHATSAPP: 'WhatsApp', EMAIL: 'E-mail', INSTAGRAM: 'Instagram', REUNIAO: 'Reunião', OUTRO: 'Tarefa' };
-const TIPOS: TipoAtividade[] = ['LIGACAO', 'WHATSAPP', 'EMAIL', 'INSTAGRAM', 'REUNIAO', 'OUTRO'];
+const TIPO_LABEL: Record<TipoAtividade, string> = { REUNIAO: 'Reunião', LIGACAO: 'Ligação', VIDEOCHAMADA: 'Videochamada', EMAIL: 'E-mail', WHATSAPP: 'WhatsApp', INSTAGRAM: 'Instagram', LINKEDIN: 'LinkedIn', OUTRO: 'Outro' };
+const TIPOS: TipoAtividade[] = ['REUNIAO', 'LIGACAO', 'VIDEOCHAMADA', 'EMAIL', 'WHATSAPP', 'INSTAGRAM', 'LINKEDIN', 'OUTRO'];
 
 function formatValor(v: string | null): string {
   const n = v ? Number(v) : 0;
@@ -67,11 +67,17 @@ function fmtDataHora(iso: string | null): string {
   const d = new Date(iso);
   return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 }
-function toLocalInput(iso?: string | null): string {
+function toDateInput(iso?: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toTimeInput(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function soDigitos(s?: string | null): string { return (s ?? '').replace(/\D/g, ''); }
 
@@ -94,6 +100,16 @@ const IcoSeta = () => <Ico size={13}><line x1="5" y1="12" x2="19" y2="12" /><pol
 const IcoLink = () => <Ico size={12}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></Ico>;
 const IcoOk = () => <Ico size={13}><polyline points="20 6 9 17 4 12" /></Ico>;
 const IcoChevron = () => <Ico size={13}><polyline points="6 9 12 15 18 9" /></Ico>;
+const IcoUsers = () => <Ico><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Ico>;
+const IcoVideo = () => <Ico><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></Ico>;
+const IcoWhats = () => <Ico><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></Ico>;
+const IcoInstagram = () => <Ico><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></Ico>;
+const IcoLinkedin = () => <Ico><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></Ico>;
+const IcoCirculo = () => <Ico><circle cx="12" cy="12" r="10" /></Ico>;
+const TIPO_ICONE: Record<TipoAtividade, ReactNode> = {
+  REUNIAO: <IcoUsers />, LIGACAO: <IcoTelefone />, VIDEOCHAMADA: <IcoVideo />, EMAIL: <IcoMail />,
+  WHATSAPP: <IcoWhats />, INSTAGRAM: <IcoInstagram />, LINKEDIN: <IcoLinkedin />, OUTRO: <IcoCirculo />,
+};
 
 type Aba = 'atividades' | 'notas' | 'historico' | 'ligacoes' | 'whatsapp' | 'email';
 
@@ -107,7 +123,7 @@ interface Props {
 }
 
 interface CampoEdit { campo: 'valor' | 'previsao' | 'contato' | 'empresa' | 'telefone' | 'email'; label: string; tipo: 'text' | 'number' | 'date'; valor: string }
-interface AtivForm { id?: string; titulo: string; tipo: TipoAtividade; vencimento: string; notas: string }
+interface AtivForm { id?: string; tipo: TipoAtividade; titulo: string; data: string; horaInicio: string; horaFim: string; notas: string; feito: boolean }
 
 export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou, onEtiquetasMudou }: Props) {
   const [lead, setLead] = useState<Lead | null>(null);
@@ -265,19 +281,31 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   }
 
   // ── Atividades ─────────────────────────────────────────────────────────────
-  function abrirAddAtiv() { setAtivForm({ titulo: '', tipo: 'LIGACAO', vencimento: '', notas: '' }); }
-  function abrirEditAtiv(a: Atividade) { setAtivForm({ id: a.id, titulo: a.titulo, tipo: a.tipo, vencimento: toLocalInput(a.vencimento), notas: a.notas ?? '' }); }
+  function abrirAddAtiv() { setAtivForm({ tipo: 'LIGACAO', titulo: '', data: '', horaInicio: '', horaFim: '', notas: '', feito: false }); }
+  function abrirEditAtiv(a: Atividade) { setAtivForm({ id: a.id, tipo: a.tipo, titulo: a.titulo, data: toDateInput(a.vencimento), horaInicio: toTimeInput(a.vencimento), horaFim: toTimeInput(a.horaFim), notas: a.notas ?? '', feito: a.status === 'CONCLUIDA' }); }
   async function salvarAtiv() {
     if (!ativForm || !ativForm.titulo.trim()) return;
+    const f = ativForm;
+    let vencimento: string | undefined;
+    let horaFim: string | undefined;
+    if (f.data) {
+      vencimento = new Date(`${f.data}T${f.horaInicio || '00:00'}`).toISOString();
+      if (f.horaFim) horaFim = new Date(`${f.data}T${f.horaFim}`).toISOString();
+    }
     const corpo: Record<string, unknown> = {
-      titulo: ativForm.titulo.trim(), tipo: ativForm.tipo,
-      ...(ativForm.vencimento && { vencimento: new Date(ativForm.vencimento).toISOString() }),
-      ...(ativForm.notas.trim() && { notas: ativForm.notas.trim() }),
+      titulo: f.titulo.trim(), tipo: f.tipo,
+      ...(vencimento && { vencimento }),
+      ...(horaFim && { horaFim }),
+      ...(f.notas.trim() && { notas: f.notas.trim() }),
       leadId,
     };
     try {
-      if (ativForm.id) await api.patch(`/comercial/atividades/${ativForm.id}`, corpo);
-      else await api.post('/comercial/atividades', corpo);
+      if (f.id) {
+        await api.patch(`/comercial/atividades/${f.id}`, { ...corpo, status: f.feito ? 'CONCLUIDA' : 'PENDENTE' });
+      } else {
+        const { data: nova } = await api.post<{ id: string }>('/comercial/atividades', corpo);
+        if (f.feito && nova?.id) await api.patch(`/comercial/atividades/${nova.id}`, { status: 'CONCLUIDA' });
+      }
       setAtivForm(null); await carregar(); onMudou();
     } catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao salvar atividade.'); }
   }
@@ -607,19 +635,50 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
         </Modal>
       )}
 
-      {/* Editor de atividade */}
+      {/* Nova / Editar Atividade */}
       {ativForm && (
-        <Modal titulo={ativForm.id ? 'Editar atividade' : 'Nova atividade'} onFechar={() => setAtivForm(null)}
-          rodape={<><Btn variante="secondary" onClick={() => setAtivForm(null)}>Cancelar</Btn><Btn onClick={salvarAtiv} disabled={!ativForm.titulo.trim()}>Salvar</Btn></>}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Campo rotulo="Título" value={ativForm.titulo} onChange={(e) => setAtivForm((f) => (f ? { ...f, titulo: e.target.value } : f))} placeholder="Ex.: Dia 1 - Instagram 1" autoFocus />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <CampoSelect rotulo="Tipo" value={ativForm.tipo} onChange={(e) => setAtivForm((f) => (f ? { ...f, tipo: e.target.value as TipoAtividade } : f))}>
-                {TIPOS.map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
-              </CampoSelect>
-              <Campo rotulo="Data/hora" type="datetime-local" value={ativForm.vencimento} onChange={(e) => setAtivForm((f) => (f ? { ...f, vencimento: e.target.value } : f))} />
+        <Modal titulo={ativForm.id ? 'Editar Atividade' : 'Nova Atividade'} onFechar={() => setAtivForm(null)}
+          rodape={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--texto-suave)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={ativForm.feito} onChange={(e) => setAtivForm((f) => (f ? { ...f, feito: e.target.checked } : f))} style={{ width: 16, height: 16, accentColor: 'var(--amarelo-fagulha)', cursor: 'pointer' }} />
+                Marcar como feito
+              </label>
+              <Btn onClick={salvarAtiv} disabled={!ativForm.titulo.trim()} style={{ width: '100%' }}>Salvar Atividade</Btn>
             </div>
-            <Campo rotulo="Nota / link" value={ativForm.notas} onChange={(e) => setAtivForm((f) => (f ? { ...f, notas: e.target.value } : f))} placeholder="Descrição ou link (https://…)" />
+          }>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Tipo</span>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {TIPOS.map((t) => {
+                  const sel = ativForm.tipo === t;
+                  return (
+                    <button key={t} type="button" onClick={() => setAtivForm((f) => (f ? { ...f, tipo: t } : f))}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 11px', borderRadius: 9, cursor: 'pointer', fontSize: 12.5, fontWeight: sel ? 700 : 500,
+                        border: `1px solid ${sel ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`, background: sel ? 'color-mix(in srgb, var(--amarelo-fagulha) 14%, transparent)' : 'var(--superficie-2)', color: sel ? 'var(--amarelo-fagulha)' : 'var(--texto-suave)' }}>
+                      {TIPO_ICONE[t]} {TIPO_LABEL[t]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Campo rotulo="Título *" value={ativForm.titulo} onChange={(e) => setAtivForm((f) => (f ? { ...f, titulo: e.target.value } : f))} placeholder="Ex.: Ligação" autoFocus />
+            <div>
+              <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Data e horário</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="date" className="brk-input" value={ativForm.data} onChange={(e) => setAtivForm((f) => (f ? { ...f, data: e.target.value } : f))} style={{ flex: 1, minWidth: 0 }} />
+                <input type="time" className="brk-input" value={ativForm.horaInicio} onChange={(e) => setAtivForm((f) => (f ? { ...f, horaInicio: e.target.value } : f))} style={{ width: 96, flex: '0 0 auto' }} />
+                <span style={{ color: 'var(--texto-fraco)' }}>–</span>
+                <input type="time" className="brk-input" value={ativForm.horaFim} onChange={(e) => setAtivForm((f) => (f ? { ...f, horaFim: e.target.value } : f))} style={{ width: 96, flex: '0 0 auto' }} />
+              </div>
+              <span style={{ display: 'block', marginTop: 6, fontSize: 11.5, color: 'var(--texto-fraco)' }}>Deixe a hora em branco para um lembrete sem horário.</span>
+            </div>
+            <div>
+              <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Notas</span>
+              <textarea value={ativForm.notas} onChange={(e) => setAtivForm((f) => (f ? { ...f, notas: e.target.value } : f))} placeholder="Observações opcionais..." rows={3}
+                className="brk-input" style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }} />
+            </div>
           </div>
         </Modal>
       )}
