@@ -113,6 +113,13 @@ export function Agendamento() {
   const colaboradoresVisiveis = colaboradores.filter((c) => visiveis.has(c.id));
   const hoje = inicioDoDia(new Date());
 
+  // Larguras por vista. Na Semana as 7 colunas dividem a largura disponivel
+  // (piso 0 => encolhem para caber a semana toda, sem scroll horizontal). Na
+  // vista Dia mantem colunas largas com scroll quando necessario.
+  const larguraColab = vista === 'DIA' ? 220 : 168;
+  const minCelDia = vista === 'DIA' ? 260 : 0;
+  const larguraGrade = vista === 'DIA' ? 420 : larguraColab;
+
   function eventosDe(colId: string, dia: Date) {
     return eventos
       .filter((e) => (e.responsavel?.id ?? e.responsavelId) === colId && mesmaData(new Date(e.inicio), dia))
@@ -258,15 +265,15 @@ export function Agendamento() {
               cores={corPorColaborador} onDia={(d) => { setRef(inicioDoDia(d)); setVista('DIA'); }} onEvento={setDetalhe} />
           ) : (
             <div style={{ overflowX: 'auto' }} className="brk-kanban-scroll">
-              <div style={{ minWidth: vista === 'DIA' ? 420 : 900 }}>
+              <div style={{ minWidth: larguraGrade }}>
                 {/* Cabeçalho de dias */}
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--borda)', position: 'sticky', top: 0, background: 'var(--superficie-2)', zIndex: 3 }}>
-                  <div style={{ ...colColab, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center' }}>Colaboradores</div>
-                  <div style={{ flex: 1, display: 'flex' }}>
+                  <div style={{ ...colColab, width: larguraColab, minWidth: larguraColab, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center' }}>Colaboradores</div>
+                  <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
                     {diasSemana.map((d, i) => {
                       const eHoje = mesmaData(d, hoje);
                       return (
-                        <div key={i} style={{ flex: 1, minWidth: vista === 'DIA' ? 260 : 116, textAlign: 'center', padding: '8px 4px', borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 8%, transparent)' : 'transparent' }}>
+                        <div key={i} style={{ flex: 1, minWidth: minCelDia, textAlign: 'center', padding: '8px 4px', borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 8%, transparent)' : 'transparent' }}>
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: eHoje ? 'var(--amarelo-fagulha)' : 'var(--texto-fraco)' }}>{DIAS_CURTO[d.getDay()]}</div>
                           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 999, marginTop: 2, fontSize: 13, fontWeight: 700, background: eHoje ? 'var(--amarelo-fagulha)' : 'transparent', color: eHoje ? '#1a1200' : 'var(--texto)' }}>{d.getDate()}</div>
                         </div>
@@ -282,7 +289,7 @@ export function Agendamento() {
                   const cor = corPorColaborador[c.id];
                   return (
                     <div key={c.id} style={{ display: 'flex', borderBottom: '1px solid var(--borda)' }}>
-                      <div style={{ ...colColab, display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px' }}>
+                      <div style={{ ...colColab, width: larguraColab, minWidth: larguraColab, display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px' }}>
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                           <Avatar nome={c.nome} userId={c.id} size={34} />
                           <span style={{ position: 'absolute', bottom: -2, right: -2, width: 11, height: 11, borderRadius: 999, background: cor, border: '2px solid var(--superficie)' }} />
@@ -292,13 +299,13 @@ export function Agendamento() {
                           <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)', background: 'var(--superficie-3)', padding: '1px 7px', borderRadius: 999, display: 'inline-block', marginTop: 3 }}>{c.cargo}</span>
                         </div>
                       </div>
-                      <div style={{ flex: 1, display: 'flex' }}>
+                      <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
                         {diasSemana.map((d, i) => {
                           const eHoje = mesmaData(d, hoje);
                           const doDia = eventosDe(c.id, d);
                           return (
                             <div key={i} onClick={() => abrirCriar(c.id, d)} title="Clique para criar"
-                              style={{ flex: 1, minWidth: vista === 'DIA' ? 260 : 116, minHeight: 92, padding: 6, borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 5%, transparent)' : 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                              style={{ flex: 1, minWidth: minCelDia, minHeight: 92, padding: 6, borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 5%, transparent)' : 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5 }}>
                               {doDia.map((ev) => (
                                 <CardEvento key={ev.id} ev={ev} cor={ev.cor || cor} onClick={(e) => { e.stopPropagation(); setDetalhe(ev); }} />
                               ))}
