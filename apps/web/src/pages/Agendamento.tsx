@@ -266,7 +266,7 @@ export function Agendamento() {
               mesAtual={ref.getMonth()} hoje={hoje} eventos={eventos} visiveis={visiveis}
               cores={corPorColaborador} onDia={(d) => { setRef(inicioDoDia(d)); setVista('DIA'); }} onEvento={setDetalhe} />
           ) : (
-            <div style={{ overflowX: 'auto' }} className="brk-kanban-scroll">
+            <div style={{ overflowX: 'auto', width: '100%', maxWidth: '100%' }} className="brk-kanban-scroll">
               <div style={{ minWidth: larguraGrade }}>
                 {/* Cabeçalho de dias */}
                 <div style={{ display: 'grid', gridTemplateColumns: colTemplate, borderBottom: '1px solid var(--borda)', position: 'sticky', top: 0, background: 'var(--superficie-2)', zIndex: 3 }}>
