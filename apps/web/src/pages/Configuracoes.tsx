@@ -18,6 +18,7 @@ interface ConfigIntegracoes {
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
+  google: { configurado: boolean; calendarId: string | null; email: string | null };
 }
 
 /* ── Aba IA ── */
@@ -174,6 +175,7 @@ function AbaIntegracoes() {
     speedApiKey: '', autentiqueToken: '',
     whatsappToken: '', whatsappInstancia: '',
     vaicrmToken: '', vaicrmEmail: '', vaicrmSenha: '',
+    googleServiceAccount: '', googleCalendarId: '', googleImpersonateEmail: '',
   });
   const [salvando, setSalvando] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
@@ -183,7 +185,7 @@ function AbaIntegracoes() {
     try {
       const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
       setConfig(data);
-      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '' });
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '' });
     } catch { setErroCarga('Erro ao carregar integrações.'); }
     finally { setCarregando(false); }
   }
@@ -203,6 +205,9 @@ function AbaIntegracoes() {
         ...(form.vaicrmToken && { vaicrmToken: form.vaicrmToken }),
         ...(form.vaicrmEmail && { vaicrmEmail: form.vaicrmEmail }),
         ...(form.vaicrmSenha && { vaicrmSenha: form.vaicrmSenha }),
+        ...(form.googleServiceAccount && { googleServiceAccount: form.googleServiceAccount }),
+        googleCalendarId: form.googleCalendarId,
+        googleImpersonateEmail: form.googleImpersonateEmail,
       });
       await carregar();
       setFeedback({ tipo: 'sucesso', msg: 'Integrações salvas com sucesso.' });
@@ -318,6 +323,39 @@ function AbaIntegracoes() {
             placeholder={config?.vaicrm.temSenha ? 'Cole para substituir' : 'Senha do login VAI CRM'}
             value={form.vaicrmSenha}
             onChange={(e) => setForm((f) => ({ ...f, vaicrmSenha: e.target.value }))}
+          />
+        </>
+      ),
+    },
+    {
+      chave: 'google',
+      nome: 'Google Agenda — Meet',
+      descricao: 'Gera automaticamente um link do Google Meet ao criar um agendamento de vídeo. Cole o JSON da Conta de Serviço (Service Account) com a API do Google Calendar habilitada e delegação domain-wide.',
+      campos: (
+        <>
+          <div className="brk-campo">
+            <label className="brk-campo-label">JSON da Service Account</label>
+            <textarea
+              className="brk-input" rows={4} autoComplete="off"
+              placeholder={config?.google.configurado ? 'Cole para substituir' : '{ "type": "service_account", "client_email": "…", "private_key": "…" }'}
+              value={form.googleServiceAccount}
+              onChange={(e) => setForm((f) => ({ ...f, googleServiceAccount: e.target.value }))}
+              style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </div>
+          <Campo
+            rotulo="ID do calendário"
+            autoComplete="off"
+            placeholder="agenda@empresa.com (ou 'primary')"
+            value={form.googleCalendarId}
+            onChange={(e) => setForm((f) => ({ ...f, googleCalendarId: e.target.value }))}
+          />
+          <Campo
+            rotulo="E-mail para impersonar (domain-wide)"
+            autoComplete="off"
+            placeholder="usuario@empresa.com"
+            value={form.googleImpersonateEmail}
+            onChange={(e) => setForm((f) => ({ ...f, googleImpersonateEmail: e.target.value }))}
           />
         </>
       ),
