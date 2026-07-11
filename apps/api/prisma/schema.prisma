@@ -1790,6 +1790,8 @@ model Agendamento {
   local         String?
   observacao    String?
   cor           String? // opcional; se vazio, deriva a cor do colaborador
+  // Ids dos colaboradores convidados para a reuniao (alem do responsavel).
+  convidadosIds String[] @map("convidados_ids")
   // Link do Google Meet gerado ao criar o agendamento (integracao Google Agenda).
   meetLink        String? @map("meet_link")
   googleEventId   String? @map("google_event_id")

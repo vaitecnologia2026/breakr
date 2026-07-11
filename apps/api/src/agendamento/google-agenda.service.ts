@@ -234,7 +234,7 @@ export class GoogleAgendaService {
 
   // Cria um evento no Google Agenda com Google Meet e devolve o link. Retorna
   // null quando nao configurado/nao conectado ou em erro (best-effort).
-  async criarEventoMeet(dados: { titulo: string; inicioIso: string; fimIso: string; descricao?: string | null }): Promise<ResultadoMeet | null> {
+  async criarEventoMeet(dados: { titulo: string; inicioIso: string; fimIso: string; descricao?: string | null; attendees?: string[] }): Promise<ResultadoMeet | null> {
     const cfg = await this.lerConfig();
     const cred = this.parseCredencial(cfg.serviceAccountJson);
     if (!cred) return null;
@@ -259,6 +259,9 @@ export class GoogleAgendaService {
         description: dados.descricao ?? undefined,
         start: { dateTime: dados.inicioIso, timeZone: TIME_ZONE },
         end: { dateTime: dados.fimIso, timeZone: TIME_ZONE },
+        ...(dados.attendees && dados.attendees.length
+          ? { attendees: dados.attendees.map((email) => ({ email })) }
+          : {}),
         conferenceData: {
           createRequest: {
             requestId: randomUUID(),

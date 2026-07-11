@@ -18,6 +18,7 @@ interface Evento {
   tipo: 'VIDEO' | 'PRESENCIAL' | 'OUTRO'; comCliente: boolean;
   local: string | null; observacao: string | null; cor: string | null;
   meetLink?: string | null; googleHtmlLink?: string | null;
+  convidadosIds?: string[];
   responsavel: { id: string; nome: string; cargo: string; fotoUrl: string | null } | null;
   responsavelId?: string;
 }
@@ -148,8 +149,8 @@ export function Agendamento() {
     return `${ini.getDate()} ${MESES[ini.getMonth()]} - ${fim.getDate()} ${MESES[fim.getMonth()]}, ${fim.getFullYear()}`;
   }, [ref, vista]);
 
-  const [novo, setNovo] = useState<{ titulo: string; responsavelId: string; inicio: string; fim: string; tipo: string; comCliente: boolean; local: string; observacao: string }>(
-    { titulo: '', responsavelId: '', inicio: '', fim: '', tipo: 'VIDEO', comCliente: false, local: '', observacao: '' },
+  const [novo, setNovo] = useState<{ titulo: string; responsavelId: string; inicio: string; fim: string; tipo: string; comCliente: boolean; local: string; observacao: string; convidadosIds: string[] }>(
+    { titulo: '', responsavelId: '', inicio: '', fim: '', tipo: 'VIDEO', comCliente: false, local: '', observacao: '', convidadosIds: [] },
   );
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
@@ -163,7 +164,7 @@ export function Agendamento() {
     setNovo({
       titulo: '', responsavelId: colId ?? colaboradores[0]?.id ?? '',
       inicio: paraInputLocal(base), fim: paraInputLocal(fim),
-      tipo: 'VIDEO', comCliente: false, local: '', observacao: '',
+      tipo: 'VIDEO', comCliente: false, local: '', observacao: '', convidadosIds: [],
     });
     setModalCriar(true);
   }
@@ -183,6 +184,7 @@ export function Agendamento() {
         fim: new Date(novo.fim).toISOString(),
         tipo: novo.tipo,
         comCliente: novo.comCliente,
+        ...(novo.convidadosIds.length && { convidadosIds: novo.convidadosIds }),
         ...(novo.local.trim() && { local: novo.local.trim() }),
         ...(novo.observacao.trim() && { observacao: novo.observacao.trim() }),
       });
@@ -328,10 +330,25 @@ export function Agendamento() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {erroForm && <Alerta tipo="erro">{erroForm}</Alerta>}
             <Campo rotulo="Título" placeholder="Ex.: Reunião com cliente" value={novo.titulo} onChange={(e) => setNovo((n) => ({ ...n, titulo: e.target.value }))} />
-            <CampoSelect rotulo="Colaborador" value={novo.responsavelId} onChange={(e) => setNovo((n) => ({ ...n, responsavelId: e.target.value }))}>
+            <CampoSelect rotulo="Colaborador" value={novo.responsavelId} onChange={(e) => setNovo((n) => ({ ...n, responsavelId: e.target.value, convidadosIds: n.convidadosIds.filter((id) => id !== e.target.value) }))}>
               <option value="">Selecione…</option>
               {colaboradores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </CampoSelect>
+            <div className="brk-campo">
+              <label className="brk-campo-label">Convidados (opcional)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 150, overflowY: 'auto', border: '1px solid var(--borda)', borderRadius: 8, padding: 6 }} className="brk-kanban-scroll">
+                {colaboradores.filter((c) => c.id !== novo.responsavelId).map((c) => {
+                  const marcado = novo.convidadosIds.includes(c.id);
+                  return (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px', borderRadius: 6, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={marcado} onChange={() => setNovo((n) => ({ ...n, convidadosIds: n.convidadosIds.includes(c.id) ? n.convidadosIds.filter((id) => id !== c.id) : [...n.convidadosIds, c.id] }))} style={{ width: 14, height: 14 }} />
+                      <span style={{ fontSize: 13, color: 'var(--texto-suave)' }}>{c.nome}</span>
+                    </label>
+                  );
+                })}
+                {colaboradores.filter((c) => c.id !== novo.responsavelId).length === 0 && <span style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Nenhum outro colaborador.</span>}
+              </div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Campo rotulo="Início" type="datetime-local" value={novo.inicio} onChange={(e) => setNovo((n) => ({ ...n, inicio: e.target.value }))} />
               <Campo rotulo="Fim" type="datetime-local" value={novo.fim} onChange={(e) => setNovo((n) => ({ ...n, fim: e.target.value }))} />
@@ -363,6 +380,9 @@ export function Agendamento() {
           rodape={<><Btn variante="secondary" onClick={() => setDetalhe(null)}>Fechar</Btn><Btn variante="danger" onClick={() => excluir(detalhe.id)}>Excluir</Btn></>}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13.5, color: 'var(--texto-suave)' }}>
             <div><b style={{ color: 'var(--texto)' }}>Colaborador:</b> {detalhe.responsavel?.nome ?? '—'}</div>
+            {detalhe.convidadosIds && detalhe.convidadosIds.length > 0 && (
+              <div><b style={{ color: 'var(--texto)' }}>Convidados:</b> {detalhe.convidadosIds.map((id) => colaboradores.find((c) => c.id === id)?.nome ?? id).join(', ')}</div>
+            )}
             <div><b style={{ color: 'var(--texto)' }}>Quando:</b> {new Date(detalhe.inicio).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })} · {hhmm(detalhe.inicio)} – {hhmm(detalhe.fim)}</div>
             <div><b style={{ color: 'var(--texto)' }}>Tipo:</b> {detalhe.tipo === 'VIDEO' ? 'Vídeo (online)' : detalhe.tipo === 'PRESENCIAL' ? 'Presencial' : 'Outro'}{detalhe.comCliente ? ' · Com cliente' : ''}</div>
             {detalhe.local && <div><b style={{ color: 'var(--texto)' }}>Local:</b> {detalhe.local}</div>}
