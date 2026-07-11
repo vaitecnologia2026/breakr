@@ -100,6 +100,15 @@ export class GoogleAgendaService {
     return Buffer.from(input).toString('base64url');
   }
 
+  // Um ID de calendario valido e 'primary' ou um e-mail (calendario pessoal ou
+  // ...@group.calendar.google.com). Valor invalido (ex.: client_id colado por
+  // engano no campo "ID do calendario") cai para o fallback, evitando 404 "Not Found".
+  private resolverCalendarId(id: string | null, fallback: string): string {
+    if (id && (id === 'primary' || id.includes('@'))) return id;
+    if (id) this.logger.warn(`ID de calendario invalido ("${id}"); usando "${fallback}".`);
+    return fallback;
+  }
+
   // ── Service Account: gera access_token assinando um JWT (RS256) ──
   private async accessTokenServiceAccount(clientEmail: string, privateKey: string, impersonateEmail: string | null): Promise<string> {
     const agora = Math.floor(Date.now() / 1000);
@@ -239,10 +248,10 @@ export class GoogleAgendaService {
           return null;
         }
         token = await this.accessTokenOAuth(cred, cfg.refreshToken);
-        calendarId = cfg.calendarId || 'primary';
+        calendarId = this.resolverCalendarId(cfg.calendarId, 'primary');
       } else {
         token = await this.accessTokenServiceAccount(cred.clientEmail, cred.privateKey, cfg.impersonateEmail);
-        calendarId = cfg.calendarId || cfg.impersonateEmail || 'primary';
+        calendarId = this.resolverCalendarId(cfg.calendarId, cfg.impersonateEmail || 'primary');
       }
 
       const corpo = {
