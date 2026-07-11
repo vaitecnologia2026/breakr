@@ -47,6 +47,7 @@ import { Documentos } from './pages/Documentos';
 import { Desempenho } from './pages/Desempenho';
 import { Financeiro } from './pages/Financeiro';
 import { Agenda } from './pages/Agenda';
+import { Agendamento } from './pages/Agendamento';
 import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
 import { Medalhas } from './pages/Medalhas';
@@ -89,6 +90,7 @@ export function App() {
         <Route path="contatos/pessoas" element={<Pessoas />} />
         <Route path="contatos/empresas" element={<Empresas />} />
         <Route path="atividades" element={<Atividades />} />
+        <Route path="agendamento" element={<Agendamento />} />
         <Route path="metricas" element={<Metricas />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="onboarding" element={<Onboarding />} />
