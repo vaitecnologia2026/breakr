@@ -1,5 +1,6 @@
 // DTO de criacao/edicao de evento do calendario de Agendamento (Comercial).
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsHexColor,
@@ -45,6 +46,12 @@ export class CriarAgendamentoDto {
   @IsOptional()
   @IsHexColor()
   cor?: string;
+
+  // Ids dos colaboradores convidados (alem do responsavel).
+  @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
+  convidadosIds?: string[];
 
   @IsUUID()
   responsavelId!: string;
