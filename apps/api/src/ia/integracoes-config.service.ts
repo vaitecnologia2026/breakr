@@ -12,6 +12,11 @@ interface IntegracaoEntry {
   senha?: string | null;
   // URL do webhook n8n do Asaas (dispara a cobranca ao criar o contrato).
   webhook?: string | null;
+  // Google Agenda (Service Account): JSON da conta de servico, calendario alvo
+  // e e-mail do usuario a impersonar (domain-wide delegation) para gerar o Meet.
+  serviceAccountJson?: string | null;
+  calendarId?: string | null;
+  impersonateEmail?: string | null;
 }
 
 interface Integracoes {
@@ -20,6 +25,7 @@ interface Integracoes {
   autentique: IntegracaoEntry;
   whatsapp: IntegracaoEntry;
   vaicrm: IntegracaoEntry;
+  google: IntegracaoEntry;
 }
 
 interface IntegracoesPublicas {
@@ -28,6 +34,7 @@ interface IntegracoesPublicas {
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
+  google: { configurado: boolean; calendarId: string | null; email: string | null };
 }
 
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
@@ -51,6 +58,7 @@ export class IntegracoesConfigService {
       autentique: integ.autentique ?? {},
       whatsapp: integ.whatsapp ?? {},
       vaicrm: integ.vaicrm ?? {},
+      google: integ.google ?? {},
     };
   }
 
@@ -68,6 +76,22 @@ export class IntegracoesConfigService {
         temSenha: !!integ.vaicrm.senha,
         configurado: !!integ.vaicrm.apiKey || !!(integ.vaicrm.email && integ.vaicrm.senha),
       },
+      google: {
+        configurado: !!integ.google.serviceAccountJson,
+        calendarId: integ.google.calendarId ?? null,
+        email: integ.google.impersonateEmail ?? null,
+      },
+    };
+  }
+
+  // Uso interno (GoogleAgendaService): credenciais BRUTAS do Google Agenda
+  // (nunca expostas por controller). O JSON da Service Account contem a chave privada.
+  async obterGoogleRaw(): Promise<{ serviceAccountJson: string | null; calendarId: string | null; impersonateEmail: string | null }> {
+    const integ = await this.lerParametros();
+    return {
+      serviceAccountJson: integ.google.serviceAccountJson ?? null,
+      calendarId: integ.google.calendarId ?? null,
+      impersonateEmail: integ.google.impersonateEmail ?? null,
     };
   }
 
@@ -92,6 +116,9 @@ export class IntegracoesConfigService {
     vaicrmToken?: string;
     vaicrmEmail?: string;
     vaicrmSenha?: string;
+    googleServiceAccount?: string;
+    googleCalendarId?: string;
+    googleImpersonateEmail?: string;
   }): Promise<IntegracoesPublicas> {
     const integ = await this.lerParametros();
     const limpavel = (v: string | undefined, atual: string | null | undefined) =>
@@ -113,6 +140,11 @@ export class IntegracoesConfigService {
         apiKey: limpavel(dto.vaicrmToken, integ.vaicrm.apiKey),
         email: limpavel(dto.vaicrmEmail, integ.vaicrm.email),
         senha: limpavel(dto.vaicrmSenha, integ.vaicrm.senha),
+      },
+      google: {
+        serviceAccountJson: limpavel(dto.googleServiceAccount, integ.google.serviceAccountJson),
+        calendarId: limpavel(dto.googleCalendarId, integ.google.calendarId),
+        impersonateEmail: limpavel(dto.googleImpersonateEmail, integ.google.impersonateEmail),
       },
     };
 

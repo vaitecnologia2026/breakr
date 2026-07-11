@@ -17,6 +17,7 @@ interface Evento {
   id: string; titulo: string; inicio: string; fim: string;
   tipo: 'VIDEO' | 'PRESENCIAL' | 'OUTRO'; comCliente: boolean;
   local: string | null; observacao: string | null; cor: string | null;
+  meetLink?: string | null; googleHtmlLink?: string | null;
   responsavel: { id: string; nome: string; cargo: string; fotoUrl: string | null } | null;
   responsavelId?: string;
 }
@@ -340,6 +341,12 @@ export function Agendamento() {
               <option value="PRESENCIAL">Presencial</option>
               <option value="OUTRO">Outro</option>
             </CampoSelect>
+            {novo.tipo === 'VIDEO' && (
+              <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center', gap: 6, marginTop: -4 }}>
+                <span style={{ color: 'var(--verde)', display: 'flex' }}><IcoVideo /></span>
+                Um link do Google Meet será gerado automaticamente (se a integração do Google Agenda estiver configurada).
+              </span>
+            )}
             <Switch ativo={novo.comCliente} aoAlternar={(v) => setNovo((n) => ({ ...n, comCliente: v }))} rotulo="Reunião com cliente" />
             <Campo rotulo="Local (opcional)" placeholder="Sala, endereço ou link" value={novo.local} onChange={(e) => setNovo((n) => ({ ...n, local: e.target.value }))} />
             <div className="brk-campo">
@@ -360,6 +367,13 @@ export function Agendamento() {
             <div><b style={{ color: 'var(--texto)' }}>Tipo:</b> {detalhe.tipo === 'VIDEO' ? 'Vídeo (online)' : detalhe.tipo === 'PRESENCIAL' ? 'Presencial' : 'Outro'}{detalhe.comCliente ? ' · Com cliente' : ''}</div>
             {detalhe.local && <div><b style={{ color: 'var(--texto)' }}>Local:</b> {detalhe.local}</div>}
             {detalhe.observacao && <div><b style={{ color: 'var(--texto)' }}>Observação:</b> {detalhe.observacao}</div>}
+            {detalhe.meetLink && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--verde)', display: 'flex' }}><IcoVideo /></span>
+                <b style={{ color: 'var(--texto)' }}>Google Meet:</b>
+                <a href={detalhe.meetLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--azul)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detalhe.meetLink}</a>
+              </div>
+            )}
           </div>
         </Modal>
       )}

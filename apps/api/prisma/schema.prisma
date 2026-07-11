@@ -1790,6 +1790,10 @@ model Agendamento {
   local         String?
   observacao    String?
   cor           String? // opcional; se vazio, deriva a cor do colaborador
+  // Link do Google Meet gerado ao criar o agendamento (integracao Google Agenda).
+  meetLink        String? @map("meet_link")
+  googleEventId   String? @map("google_event_id")
+  googleHtmlLink  String? @map("google_html_link")
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @updatedAt @map("atualizado_em")
 

@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CriarAgendamentoDto } from './dto/criar-agendamento.dto';
+import { GoogleAgendaService } from './google-agenda.service';
 
 const INCLUDE_RESPONSAVEL = {
   responsavel: { select: { id: true, nome: true, cargo: true, fotoUrl: true } },
@@ -10,7 +11,10 @@ const INCLUDE_RESPONSAVEL = {
 
 @Injectable()
 export class AgendamentoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly googleAgenda: GoogleAgendaService,
+  ) {}
 
   // Lista eventos, opcionalmente filtrando por intervalo [inicio, fim] (ISO).
   listar(inicioIso?: string, fimIso?: string) {
@@ -57,10 +61,30 @@ export class AgendamentoService {
       select: { id: true },
     });
     if (!usuario) throw new NotFoundException('Colaborador nao encontrado');
-    return this.prisma.agendamento.create({
+    const criado = await this.prisma.agendamento.create({
       data: this.montarDados(dto),
       include: INCLUDE_RESPONSAVEL,
     });
+
+    // Evento de video (online): tenta gerar o link do Google Meet via Google
+    // Agenda. Best-effort — se a integracao nao estiver configurada ou falhar,
+    // o agendamento fica salvo normalmente (sem link).
+    if ((dto.tipo ?? 'VIDEO') === 'VIDEO') {
+      const meet = await this.googleAgenda.criarEventoMeet({
+        titulo: criado.titulo,
+        inicioIso: criado.inicio.toISOString(),
+        fimIso: criado.fim.toISOString(),
+        descricao: criado.observacao,
+      });
+      if (meet?.meetLink) {
+        return this.prisma.agendamento.update({
+          where: { id: criado.id },
+          data: { meetLink: meet.meetLink, googleEventId: meet.eventId, googleHtmlLink: meet.htmlLink },
+          include: INCLUDE_RESPONSAVEL,
+        });
+      }
+    }
+    return criado;
   }
 
   async atualizar(id: string, dto: CriarAgendamentoDto) {
