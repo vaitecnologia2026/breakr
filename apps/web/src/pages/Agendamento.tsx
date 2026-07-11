@@ -113,11 +113,13 @@ export function Agendamento() {
   const colaboradoresVisiveis = colaboradores.filter((c) => visiveis.has(c.id));
   const hoje = inicioDoDia(new Date());
 
-  // Larguras por vista. Na Semana as 7 colunas dividem a largura disponivel
-  // (piso 0 => encolhem para caber a semana toda, sem scroll horizontal). Na
-  // vista Dia mantem colunas largas com scroll quando necessario.
+  // Larguras por vista. A grade usa CSS grid: 1 coluna fixa de colaboradores +
+  // N colunas de dia em minmax(0,1fr) na Semana => as 7 colunas SEMPRE dividem a
+  // largura disponivel e cabem sem scroll horizontal (nao ha como estourar). Na
+  // vista Dia a coluna do dia tem piso 260px (rola se a area for estreita).
   const larguraColab = vista === 'DIA' ? 220 : 168;
-  const minCelDia = vista === 'DIA' ? 260 : 0;
+  const colFrac = vista === 'DIA' ? 'minmax(260px, 1fr)' : 'minmax(0, 1fr)';
+  const colTemplate = `${larguraColab}px repeat(${diasSemana.length}, ${colFrac})`;
   const larguraGrade = vista === 'DIA' ? 420 : larguraColab;
 
   function eventosDe(colId: string, dia: Date) {
@@ -267,19 +269,17 @@ export function Agendamento() {
             <div style={{ overflowX: 'auto' }} className="brk-kanban-scroll">
               <div style={{ minWidth: larguraGrade }}>
                 {/* Cabeçalho de dias */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--borda)', position: 'sticky', top: 0, background: 'var(--superficie-2)', zIndex: 3 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: colTemplate, borderBottom: '1px solid var(--borda)', position: 'sticky', top: 0, background: 'var(--superficie-2)', zIndex: 3 }}>
                   <div style={{ ...colColab, width: larguraColab, minWidth: larguraColab, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center' }}>Colaboradores</div>
-                  <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
-                    {diasSemana.map((d, i) => {
-                      const eHoje = mesmaData(d, hoje);
-                      return (
-                        <div key={i} style={{ flex: 1, minWidth: minCelDia, textAlign: 'center', padding: '8px 4px', borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 8%, transparent)' : 'transparent' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: eHoje ? 'var(--amarelo-fagulha)' : 'var(--texto-fraco)' }}>{DIAS_CURTO[d.getDay()]}</div>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 999, marginTop: 2, fontSize: 13, fontWeight: 700, background: eHoje ? 'var(--amarelo-fagulha)' : 'transparent', color: eHoje ? '#1a1200' : 'var(--texto)' }}>{d.getDate()}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {diasSemana.map((d, i) => {
+                    const eHoje = mesmaData(d, hoje);
+                    return (
+                      <div key={i} style={{ minWidth: 0, textAlign: 'center', padding: '8px 4px', borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 8%, transparent)' : 'transparent' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: eHoje ? 'var(--amarelo-fagulha)' : 'var(--texto-fraco)' }}>{DIAS_CURTO[d.getDay()]}</div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 999, marginTop: 2, fontSize: 13, fontWeight: 700, background: eHoje ? 'var(--amarelo-fagulha)' : 'transparent', color: eHoje ? '#1a1200' : 'var(--texto)' }}>{d.getDate()}</div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Linhas por colaborador */}
@@ -288,7 +288,7 @@ export function Agendamento() {
                 ) : colaboradoresVisiveis.map((c) => {
                   const cor = corPorColaborador[c.id];
                   return (
-                    <div key={c.id} style={{ display: 'flex', borderBottom: '1px solid var(--borda)' }}>
+                    <div key={c.id} style={{ display: 'grid', gridTemplateColumns: colTemplate, borderBottom: '1px solid var(--borda)' }}>
                       <div style={{ ...colColab, width: larguraColab, minWidth: larguraColab, display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px' }}>
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                           <Avatar nome={c.nome} userId={c.id} size={34} />
@@ -299,20 +299,18 @@ export function Agendamento() {
                           <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)', background: 'var(--superficie-3)', padding: '1px 7px', borderRadius: 999, display: 'inline-block', marginTop: 3 }}>{c.cargo}</span>
                         </div>
                       </div>
-                      <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
-                        {diasSemana.map((d, i) => {
-                          const eHoje = mesmaData(d, hoje);
-                          const doDia = eventosDe(c.id, d);
-                          return (
-                            <div key={i} onClick={() => abrirCriar(c.id, d)} title="Clique para criar"
-                              style={{ flex: 1, minWidth: minCelDia, minHeight: 92, padding: 6, borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 5%, transparent)' : 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                              {doDia.map((ev) => (
-                                <CardEvento key={ev.id} ev={ev} cor={ev.cor || cor} onClick={(e) => { e.stopPropagation(); setDetalhe(ev); }} />
-                              ))}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {diasSemana.map((d, i) => {
+                        const eHoje = mesmaData(d, hoje);
+                        const doDia = eventosDe(c.id, d);
+                        return (
+                          <div key={i} onClick={() => abrirCriar(c.id, d)} title="Clique para criar"
+                            style={{ minWidth: 0, minHeight: 92, padding: 6, borderRight: '1px solid var(--borda)', background: eHoje ? 'color-mix(in srgb, var(--amarelo-fagulha) 5%, transparent)' : 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            {doDia.map((ev) => (
+                              <CardEvento key={ev.id} ev={ev} cor={ev.cor || cor} onClick={(e) => { e.stopPropagation(); setDetalhe(ev); }} />
+                            ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
