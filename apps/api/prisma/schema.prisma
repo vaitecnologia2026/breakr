@@ -161,6 +161,9 @@ model Usuario {
   notasLead     NotaLead[]      @relation("NotaLeadAutor")
   historicoLead HistoricoLead[] @relation("HistoricoLeadAutor")
 
+  // Eventos do calendario de Agendamento (Comercial) sob responsabilidade do usuario
+  agendamentos Agendamento[] @relation("AgendamentoResponsavel")
+
   @@index([departamentoId])
   @@index([perfilId])
   @@map("usuario")
@@ -1772,4 +1775,28 @@ model RespostaPesquisa {
   @@unique([pesquisaId, clienteId])
   @@index([pesquisaId])
   @@map("resposta_pesquisa")
+}
+
+/// Evento do calendario de Agendamento (menu Comercial). Cada evento pertence a
+/// um colaborador (responsavel). tipo VIDEO|PRESENCIAL|OUTRO controla o icone;
+/// comCliente marca reunioes com cliente (icone destacado no card).
+model Agendamento {
+  id            String   @id @default(uuid())
+  titulo        String
+  inicio        DateTime
+  fim           DateTime
+  tipo          String   @default("VIDEO") // VIDEO | PRESENCIAL | OUTRO
+  comCliente    Boolean  @default(false) @map("com_cliente")
+  local         String?
+  observacao    String?
+  cor           String? // opcional; se vazio, deriva a cor do colaborador
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+
+  responsavelId String  @map("responsavel_id")
+  responsavel   Usuario @relation("AgendamentoResponsavel", fields: [responsavelId], references: [id], onDelete: Cascade)
+
+  @@index([responsavelId])
+  @@index([inicio])
+  @@map("agendamento")
 }

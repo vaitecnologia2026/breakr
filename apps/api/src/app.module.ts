@@ -47,6 +47,7 @@ import { DocumentosModule } from './documentos/documentos.module';
 import { DesempenhoModule } from './desempenho/desempenho.module';
 import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
 import { AgendaModule } from './agenda/agenda.module';
+import { AgendamentoModule } from './agendamento/agendamento.module';
 import { ComunicadosClienteModule } from './comunicados-cliente/comunicados-cliente.module';
 import { AgendarModule } from './agendar/agendar.module';
 import { MedalhasModule } from './medalhas/medalhas.module';
@@ -131,6 +132,8 @@ import { PesquisasModule } from './pesquisas/pesquisas.module';
     ContasPagarModule,
     // Agenda interna — feriados, sala presencial, home office.
     AgendaModule,
+    // Calendario de Agendamento (menu Comercial) — eventos por colaborador.
+    AgendamentoModule,
     // Comunicados aos clientes (banner no portal).
     ComunicadosClienteModule,
     // Agendamento público com colaborador (booking) + medalhas (gamificação).
