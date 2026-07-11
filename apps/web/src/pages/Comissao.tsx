@@ -3,8 +3,9 @@
 // MRR, sliders de fechamentos, resultado, breakdown e regras) com o design
 // system Breakr (cards do app). Cálculo 100% no cliente — mesma lógica do
 // arquivo original. As faixas (% e MRR mínimo) são editáveis na tela.
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { PaginaHeader } from '../components/ui';
+import { api } from '../lib/api';
 
 /* ── Parâmetros (iguais ao arquivo) ── */
 const PRICES = [1890, 2790, 4150];
@@ -78,6 +79,9 @@ export function Comissao() {
       `}</style>
 
       <PaginaHeader titulo="Comissão" />
+
+      {/* ── Comissões apuradas (vendas pagas — após confirmação do Asaas) ── */}
+      <ComissoesApuradas />
 
       {/* ── Planos ── */}
       <div className="brk-card brk-card-p" style={cardWrap}>
@@ -213,6 +217,122 @@ export function Comissao() {
           <RuleCard titulo="Lead qualificado" desc="Critério definido previamente. Lead frio ou sem fit não é remunerado." />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Comissões apuradas (dados reais do backend) ── */
+interface VendaApurada { faturaId: string; contratoId: string; cliente: string; valor: number; pagaEm: string | null }
+interface VendedorApurado { vendedorId: string | null; vendedor: string; mrr: number; faixaPct: number; faixaLabel: string; faixaNome: string; comissao: number; vendas: VendaApurada[] }
+interface ApuradasResp { mes: string; inicio: string; fim: string; totalMrr: number; totalComissao: number; totalVendas: number; vendedores: VendedorApurado[] }
+
+function mesAtual() { return new Date().toISOString().slice(0, 7); }
+function fmtData(iso: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function ComissoesApuradas() {
+  const [mes, setMes] = useState<string>(mesAtual());
+  const [dados, setDados] = useState<ApuradasResp | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregando(true);
+    setErro(null);
+    api
+      .get<ApuradasResp>('/comissoes/apuradas', { params: { mes } })
+      .then((r) => { if (ativo) setDados(r.data); })
+      .catch(() => { if (ativo) setErro('Não foi possível carregar as comissões apuradas.'); })
+      .finally(() => { if (ativo) setCarregando(false); });
+    return () => { ativo = false; };
+  }, [mes]);
+
+  return (
+    <div className="brk-card brk-card-p" style={cardWrap}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div>
+          <h3 style={{ ...secTitulo, marginBottom: 2 }}>Comissões apuradas — vendas pagas</h3>
+          <div style={{ fontSize: 11.5, color: C.muted }}>Contratos cujo pagamento foi confirmado pelo Asaas no mês. % retroativo por faixa de MRR do vendedor.</div>
+        </div>
+        <input
+          className="fx-input" type="month" value={mes}
+          onChange={(e) => setMes(e.target.value || mesAtual())}
+          style={{ width: 150 }}
+        />
+      </div>
+
+      {carregando ? (
+        <div style={{ fontSize: 13, color: C.muted, padding: '8px 0' }}>Carregando…</div>
+      ) : erro ? (
+        <div style={{ fontSize: 12.5, padding: '9px 12px', borderRadius: 8, background: 'color-mix(in srgb, var(--vermelho) 12%, transparent)', color: 'var(--vermelho)', border: '1px solid color-mix(in srgb, var(--vermelho) 30%, transparent)' }}>{erro}</div>
+      ) : !dados || dados.vendedores.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: C.muted, padding: '9px 12px', borderRadius: 8, background: 'var(--superficie-2)', border: '1px solid var(--borda)' }}>
+          Nenhuma venda paga neste mês. Assim que o Asaas confirmar um pagamento, a comissão aparece aqui.
+        </div>
+      ) : (
+        <>
+          {/* Totais */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+            <TotalCard rotulo="comissão total" valor={fmt(dados.totalComissao)} cor={C.accent} destaque />
+            <TotalCard rotulo="MRR pago no mês" valor={fmt(dados.totalMrr)} cor={C.green} />
+            <TotalCard rotulo="vendas pagas" valor={String(dados.totalVendas)} cor={C.blue} />
+          </div>
+
+          {/* Por vendedor */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {dados.vendedores.map((v) => {
+              const chave = v.vendedorId ?? '__sem__';
+              const expandido = aberto === chave;
+              return (
+                <div key={chave} style={{ background: 'var(--superficie-2)', border: '1px solid var(--borda)', borderRadius: 8, overflow: 'hidden' }}>
+                  <button
+                    type="button"
+                    onClick={() => setAberto(expandido ? null : chave)}
+                    style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: C.text }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span style={{ fontSize: 11, color: C.muted, width: 10 }}>{expandido ? '▾' : '▸'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.vendedor}</span>
+                      <span style={{ fontSize: 10.5, color: C.muted }}>({v.vendas.length} venda{v.vendas.length > 1 ? 's' : ''})</span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.accent, background: 'color-mix(in srgb, var(--amarelo-fagulha) 14%, transparent)', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>faixa {v.faixaLabel}</span>
+                    <span style={{ fontSize: 12, color: C.green, whiteSpace: 'nowrap' }}>MRR {fmt(v.mrr)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.accent, whiteSpace: 'nowrap', minWidth: 90, textAlign: 'right' }}>{fmt(v.comissao)}</span>
+                  </button>
+                  {expandido && (
+                    <div style={{ borderTop: '1px solid var(--borda)', padding: '4px 12px 8px 32px' }}>
+                      {v.vendas.map((venda) => (
+                        <div key={venda.faturaId} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'center', padding: '6px 0', fontSize: 12, borderBottom: '1px dashed var(--borda)' }}>
+                          <span style={{ color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{venda.cliente}</span>
+                          <span style={{ color: C.muted, whiteSpace: 'nowrap' }}>pago {fmtData(venda.pagaEm)}</span>
+                          <span style={{ color: C.text, whiteSpace: 'nowrap', minWidth: 90, textAlign: 'right' }}>{fmt(venda.valor)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 12 }}>
+            Vendedor = responsável pelo negócio (Lead) que originou o contrato. As faixas seguem as regras abaixo.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TotalCard({ rotulo, valor, cor, destaque }: { rotulo: string; valor: string; cor: string; destaque?: boolean }) {
+  return (
+    <div style={{ background: destaque ? 'color-mix(in srgb, var(--amarelo-fagulha) 10%, transparent)' : 'var(--superficie-2)', border: `1px solid ${destaque ? 'color-mix(in srgb, var(--amarelo-fagulha) 30%, transparent)' : 'var(--borda)'}`, borderRadius: 8, padding: 12 }}>
+      <div style={{ fontSize: 10.5, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{rotulo}</div>
+      <div style={{ fontSize: destaque ? 22 : 18, fontWeight: 700, color: cor, lineHeight: 1 }}>{valor}</div>
     </div>
   );
 }
