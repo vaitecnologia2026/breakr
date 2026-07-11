@@ -48,6 +48,7 @@ import { Desempenho } from './pages/Desempenho';
 import { Financeiro } from './pages/Financeiro';
 import { Agenda } from './pages/Agenda';
 import { Agendamento } from './pages/Agendamento';
+import { Comissao } from './pages/Comissao';
 import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
 import { GoogleCallback } from './pages/GoogleCallback';
@@ -93,6 +94,7 @@ export function App() {
         <Route path="contatos/empresas" element={<Empresas />} />
         <Route path="atividades" element={<Atividades />} />
         <Route path="agendamento" element={<Agendamento />} />
+        <Route path="comissao" element={<Comissao />} />
         <Route path="metricas" element={<Metricas />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="onboarding" element={<Onboarding />} />
