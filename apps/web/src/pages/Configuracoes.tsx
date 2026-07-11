@@ -18,7 +18,7 @@ interface ConfigIntegracoes {
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
-  google: { configurado: boolean; calendarId: string | null; email: string | null };
+  google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
 }
 
 /* ── Aba IA ── */
@@ -215,6 +215,24 @@ function AbaIntegracoes() {
     finally { setSalvando(false); }
   }
 
+  // Feedback ao retornar do consentimento OAuth do Google (/configuracoes?google=...).
+  useEffect(() => {
+    const g = new URLSearchParams(window.location.search).get('google');
+    if (g === 'ok') setFeedback({ tipo: 'sucesso', msg: 'Google Agenda conectado com sucesso.' });
+    else if (g === 'erro') setFeedback({ tipo: 'erro', msg: 'Não foi possível conectar o Google Agenda. Tente novamente.' });
+    if (g) window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
+  async function conectarGoogle() {
+    setFeedback(null);
+    try {
+      const { data } = await api.get<{ url: string }>('/agendamento/google/oauth/url');
+      window.location.href = data.url;
+    } catch (e: any) {
+      setFeedback({ tipo: 'erro', msg: e?.response?.data?.message ?? 'Salve o JSON do cliente OAuth do Google e tente novamente.' });
+    }
+  }
+
   if (carregando) return <Carregando />;
   if (erroCarga) return <ErroEstado mensagem={erroCarga} onTentar={carregar} />;
 
@@ -330,33 +348,41 @@ function AbaIntegracoes() {
     {
       chave: 'google',
       nome: 'Google Agenda — Meet',
-      descricao: 'Gera automaticamente um link do Google Meet ao criar um agendamento de vídeo. Cole o JSON da Conta de Serviço (Service Account) com a API do Google Calendar habilitada e delegação domain-wide.',
+      descricao: 'Gera automaticamente um link do Google Meet ao criar um agendamento de vídeo. Cole o JSON do cliente OAuth Web (recomendado, funciona com conta Google comum) OU de uma Service Account. Depois de salvar o JSON OAuth, clique em "Conectar Google" para autorizar. Habilite a Google Calendar API no projeto.',
       campos: (
         <>
           <div className="brk-campo">
-            <label className="brk-campo-label">JSON da Service Account</label>
+            <label className="brk-campo-label">JSON de credenciais do Google (OAuth Web ou Service Account)</label>
             <textarea
               className="brk-input" rows={4} autoComplete="off"
-              placeholder={config?.google.configurado ? 'Cole para substituir' : '{ "type": "service_account", "client_email": "…", "private_key": "…" }'}
+              placeholder={config?.google.configurado ? 'Cole para substituir' : '{ "web": { "client_id": "…", "client_secret": "…", "redirect_uris": ["…"] } }'}
               value={form.googleServiceAccount}
               onChange={(e) => setForm((f) => ({ ...f, googleServiceAccount: e.target.value }))}
               style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
             />
           </div>
           <Campo
-            rotulo="ID do calendário"
+            rotulo="ID do calendário (opcional)"
             autoComplete="off"
             placeholder="agenda@empresa.com (ou 'primary')"
             value={form.googleCalendarId}
             onChange={(e) => setForm((f) => ({ ...f, googleCalendarId: e.target.value }))}
           />
           <Campo
-            rotulo="E-mail para impersonar (domain-wide)"
+            rotulo="E-mail para impersonar (só Service Account / domain-wide)"
             autoComplete="off"
             placeholder="usuario@empresa.com"
             value={form.googleImpersonateEmail}
             onChange={(e) => setForm((f) => ({ ...f, googleImpersonateEmail: e.target.value }))}
           />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingTop: 4 }}>
+            <Btn variante="secondary" tamanho="sm" type="button" onClick={conectarGoogle} disabled={!config?.google.configurado}>
+              {config?.google.conectado ? 'Reconectar Google' : 'Conectar Google'}
+            </Btn>
+            {config?.google.conectado
+              ? <Badge cor="verde">Conectado{config?.google.contaConectada ? ` — ${config.google.contaConectada}` : ''}</Badge>
+              : <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>Salve o JSON OAuth e clique em Conectar para autorizar.</span>}
+          </div>
         </>
       ),
     },
@@ -467,7 +493,11 @@ function AbaPortal() {
 
 /* ── Componente principal ── */
 export function Configuracoes() {
-  const [aba, setAba] = useState('IA');
+  // Ao voltar do consentimento do Google (/configuracoes?google=ok|erro) abre
+  // direto a aba Integracoes.
+  const [aba, setAba] = useState(() =>
+    new URLSearchParams(window.location.search).has('google') ? 'Integrações' : 'IA',
+  );
 
   return (
     <>

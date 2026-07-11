@@ -12,11 +12,14 @@ interface IntegracaoEntry {
   senha?: string | null;
   // URL do webhook n8n do Asaas (dispara a cobranca ao criar o contrato).
   webhook?: string | null;
-  // Google Agenda (Service Account): JSON da conta de servico, calendario alvo
-  // e e-mail do usuario a impersonar (domain-wide delegation) para gerar o Meet.
+  // Google Agenda: JSON de credenciais do Google (Service Account OU cliente
+  // OAuth Web), calendario alvo e e-mail a impersonar (Service Account). Para o
+  // fluxo OAuth guarda tambem o refresh token e o e-mail da conta conectada.
   serviceAccountJson?: string | null;
   calendarId?: string | null;
   impersonateEmail?: string | null;
+  refreshToken?: string | null;
+  googleEmail?: string | null;
 }
 
 interface Integracoes {
@@ -34,7 +37,7 @@ interface IntegracoesPublicas {
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
-  google: { configurado: boolean; calendarId: string | null; email: string | null };
+  google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
 }
 
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
@@ -80,18 +83,22 @@ export class IntegracoesConfigService {
         configurado: !!integ.google.serviceAccountJson,
         calendarId: integ.google.calendarId ?? null,
         email: integ.google.impersonateEmail ?? null,
+        conectado: !!integ.google.refreshToken,
+        contaConectada: integ.google.googleEmail ?? null,
       },
     };
   }
 
   // Uso interno (GoogleAgendaService): credenciais BRUTAS do Google Agenda
-  // (nunca expostas por controller). O JSON da Service Account contem a chave privada.
-  async obterGoogleRaw(): Promise<{ serviceAccountJson: string | null; calendarId: string | null; impersonateEmail: string | null }> {
+  // (nunca expostas por controller). O JSON contem chave privada / client_secret.
+  async obterGoogleRaw(): Promise<{ serviceAccountJson: string | null; calendarId: string | null; impersonateEmail: string | null; refreshToken: string | null; googleEmail: string | null }> {
     const integ = await this.lerParametros();
     return {
       serviceAccountJson: integ.google.serviceAccountJson ?? null,
       calendarId: integ.google.calendarId ?? null,
       impersonateEmail: integ.google.impersonateEmail ?? null,
+      refreshToken: integ.google.refreshToken ?? null,
+      googleEmail: integ.google.googleEmail ?? null,
     };
   }
 
@@ -145,6 +152,9 @@ export class IntegracoesConfigService {
         serviceAccountJson: limpavel(dto.googleServiceAccount, integ.google.serviceAccountJson),
         calendarId: limpavel(dto.googleCalendarId, integ.google.calendarId),
         impersonateEmail: limpavel(dto.googleImpersonateEmail, integ.google.impersonateEmail),
+        // Preserva a conexao OAuth ja existente (nao vem do formulario de credenciais).
+        refreshToken: integ.google.refreshToken ?? null,
+        googleEmail: integ.google.googleEmail ?? null,
       },
     };
 

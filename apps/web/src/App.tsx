@@ -50,6 +50,7 @@ import { Agenda } from './pages/Agenda';
 import { Agendamento } from './pages/Agendamento';
 import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
+import { GoogleCallback } from './pages/GoogleCallback';
 import { Medalhas } from './pages/Medalhas';
 import { Perfil } from './pages/Perfil';
 import { NotFound } from './pages/NotFound';
@@ -73,6 +74,7 @@ export function App() {
       <Route path="/avaliacao-disc" element={<AvaliacaoDisc />} />
       <Route path="/agendar" element={<AgendarPublico />} />
       <Route path="/avaliar-atendimento/:id" element={<AvaliarAtendimento />} />
+      <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
       <Route
         path="/"
