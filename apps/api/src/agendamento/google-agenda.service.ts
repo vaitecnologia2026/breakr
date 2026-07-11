@@ -193,9 +193,16 @@ export class GoogleAgendaService {
       const txt = await resp.text().catch(() => '');
       throw new BadRequestException(`Falha ao conectar no Google (${resp.status}): ${txt.slice(0, 300)}`);
     }
-    const data = (await resp.json()) as { refresh_token?: string; access_token?: string };
+    const data = (await resp.json()) as { refresh_token?: string; access_token?: string; scope?: string };
     if (!data.refresh_token) {
       throw new BadRequestException('O Google nao retornou refresh_token. Revogue o acesso do app na conta Google e conecte novamente.');
+    }
+    // Sem o escopo do Calendar nao da para criar o evento/Meet. Falha claro aqui
+    // em vez de "conectar" sem permissao e so falhar depois (sem gerar o link).
+    if (!(data.scope ?? '').includes('/auth/calendar')) {
+      throw new BadRequestException(
+        'A permissao do Google Calendar nao foi concedida. No Google Cloud: habilite a "Google Calendar API" e adicione o escopo .../auth/calendar.events na tela de consentimento (Data access / Escopos). Depois clique em Conectar novamente e permita o acesso a Agenda.',
+      );
     }
     let email: string | null = null;
     if (data.access_token) {

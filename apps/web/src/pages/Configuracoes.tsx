@@ -217,9 +217,10 @@ function AbaIntegracoes() {
 
   // Feedback ao retornar do consentimento OAuth do Google (/configuracoes?google=...).
   useEffect(() => {
-    const g = new URLSearchParams(window.location.search).get('google');
+    const qs = new URLSearchParams(window.location.search);
+    const g = qs.get('google');
     if (g === 'ok') setFeedback({ tipo: 'sucesso', msg: 'Google Agenda conectado com sucesso.' });
-    else if (g === 'erro') setFeedback({ tipo: 'erro', msg: 'Não foi possível conectar o Google Agenda. Tente novamente.' });
+    else if (g === 'erro') setFeedback({ tipo: 'erro', msg: qs.get('motivo') || 'Não foi possível conectar o Google Agenda. Tente novamente.' });
     if (g) window.history.replaceState({}, '', window.location.pathname);
   }, []);
 

@@ -20,7 +20,10 @@ export function GoogleCallback() {
     api
       .post('/agendamento/google/oauth/callback', { code })
       .then(() => navigate('/configuracoes?google=ok', { replace: true }))
-      .catch(() => navigate('/configuracoes?google=erro', { replace: true }));
+      .catch((e: any) => {
+        const motivo = e?.response?.data?.message;
+        navigate('/configuracoes?google=erro' + (motivo ? '&motivo=' + encodeURIComponent(motivo) : ''), { replace: true });
+      });
   }, [navigate]);
 
   return (
