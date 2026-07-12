@@ -73,6 +73,14 @@ interface PortalData {
   estrategiaParaAprovar: { id: string; titulo: string; descricao: string | null } | null;
   // Pesquisas do portal pendentes de resposta (req. l.44-46).
   pesquisasPendentes: { id: string; titulo: string; descricao: string | null }[];
+  // Materiais de campanha aguardando aprovação do cliente (Seção 9, Módulo 1).
+  materiaisParaAprovar: {
+    id: string;
+    titulo: string;
+    tipo: string | null;
+    destino: string;
+    campanha: string | null;
+  }[];
 }
 
 /* --------------------------- Helpers locais --------------------------- */
@@ -186,6 +194,9 @@ const MOCK_PORTAL: PortalData = {
   pesquisasPendentes: [
     { id: 'psq1', titulo: 'Como foi seu último mês com a gente?', descricao: 'Sua opinião ajuda a melhorar o atendimento.' },
   ],
+  materiaisParaAprovar: [
+    { id: 'mat1', titulo: 'Criativo de antecipação — Feirão', tipo: 'Criativo', destino: 'TRAFEGO_PAGO', campanha: 'Feirão de Julho' },
+  ],
 };
 
 export function Portal() {
@@ -262,6 +273,13 @@ export function Portal() {
             {dados.conteudosParaAprovar.length > 0 && (
               <CardAprovacoes
                 pecas={dados.conteudosParaAprovar}
+                codigo={codigo ?? ''}
+                aoMudar={() => setVersao((v) => v + 1)}
+              />
+            )}
+            {dados.materiaisParaAprovar.length > 0 && (
+              <CardAprovacoesMateriais
+                materiais={dados.materiaisParaAprovar}
                 codigo={codigo ?? ''}
                 aoMudar={() => setVersao((v) => v + 1)}
               />
@@ -863,6 +881,194 @@ function CardAprovacoes({
         ))}
       </ul>
     </Card>
+  );
+}
+
+/* ------------- Aprovação de materiais de campanha (Seção 9, Módulo 1) --------- */
+
+const DESTINO_MATERIAL_ROTULO: Record<string, string> = {
+  TRAFEGO_PAGO: 'Tráfego pago',
+  ORGANICO: 'Orgânico',
+  IMPRESSAO: 'Impressão',
+};
+
+function CardAprovacoesMateriais({
+  materiais,
+  codigo,
+  aoMudar,
+}: {
+  materiais: PortalData['materiaisParaAprovar'];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  return (
+    <Card>
+      <TituloCard>Materiais para aprovar</TituloCard>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 4 }}>
+        Sua equipe enviou {materiais.length === 1 ? 'um material' : `${materiais.length} materiais`} de campanha para o seu aval.
+      </p>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16, listStyle: 'none' }}>
+        {materiais.map((material) => (
+          <MaterialAprovacao key={material.id} material={material} codigo={codigo} aoMudar={aoMudar} />
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+// Item de aprovação de um material: Aprovar, Aprovar com ressalvas ou Reprovar.
+// O comentário é obrigatório para "com ressalvas" e para reprovar.
+function MaterialAprovacao({
+  material,
+  codigo,
+  aoMudar,
+}: {
+  material: PortalData['materiaisParaAprovar'][number];
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const [comentario, setComentario] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function aprovar(comRessalvas: boolean) {
+    if (comRessalvas && comentario.trim().length < 3) {
+      setErro('Descreva a ressalva para a equipe.');
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/material/${material.id}/aprovar`, {
+        comRessalvas,
+        comentario: comentario.trim() || undefined,
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível aprovar agora. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  async function reprovar() {
+    if (comentario.trim().length < 3) {
+      setErro('Conte para a equipe o que precisa mudar.');
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.post(`/portal/${codigo}/material/${material.id}/reprovar`, {
+        comentario: comentario.trim(),
+      });
+      aoMudar();
+    } catch {
+      setErro('Não foi possível enviar o pedido. Tente novamente.');
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <li
+      style={{
+        border: '1px solid var(--borda)',
+        borderRadius: 12,
+        padding: 16,
+        background: 'var(--superficie-2)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
+          {material.titulo}
+        </span>
+        {material.tipo && <BadgeTipo tipo={material.tipo} />}
+      </div>
+      <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginTop: 6 }}>
+        {material.campanha ? `Campanha: ${material.campanha} · ` : ''}
+        Destino: {DESTINO_MATERIAL_ROTULO[material.destino] ?? material.destino}
+      </p>
+
+      <textarea
+        value={comentario}
+        onChange={(e) => setComentario(e.target.value)}
+        placeholder="Comentário (obrigatório para ressalvas ou reprovar)"
+        rows={2}
+        disabled={enviando}
+        style={{
+          width: '100%',
+          marginTop: 12,
+          background: 'var(--superficie-3)',
+          border: '1px solid var(--borda-forte)',
+          borderRadius: 10,
+          padding: '10px 12px',
+          color: 'var(--texto)',
+          fontSize: 13.5,
+          resize: 'vertical',
+          outline: 'none',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      />
+
+      {erro && <p style={{ fontSize: 12.5, color: '#e2738a', marginTop: 8 }}>{erro}</p>}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => aprovar(false)}
+          disabled={enviando}
+          className="brk-gradient-bg"
+          style={{
+            border: 'none',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 13.5,
+            padding: '9px 16px',
+            borderRadius: 10,
+            cursor: enviando ? 'not-allowed' : 'pointer',
+            opacity: enviando ? 0.6 : 1,
+          }}
+        >
+          {enviando ? 'Enviando…' : 'Aprovar'}
+        </button>
+        <button
+          type="button"
+          onClick={() => aprovar(true)}
+          disabled={enviando}
+          style={{
+            border: '1px solid var(--borda-forte)',
+            background: 'transparent',
+            color: 'var(--texto-suave)',
+            fontWeight: 600,
+            fontSize: 13.5,
+            padding: '9px 16px',
+            borderRadius: 10,
+            cursor: enviando ? 'not-allowed' : 'pointer',
+            opacity: enviando ? 0.6 : 1,
+          }}
+        >
+          Aprovar com ressalvas
+        </button>
+        <button
+          type="button"
+          onClick={reprovar}
+          disabled={enviando}
+          style={{
+            border: '1px solid rgba(224,90,90,0.5)',
+            background: 'transparent',
+            color: '#e2738a',
+            fontWeight: 600,
+            fontSize: 13.5,
+            padding: '9px 16px',
+            borderRadius: 10,
+            cursor: enviando ? 'not-allowed' : 'pointer',
+            opacity: enviando ? 0.6 : 1,
+          }}
+        >
+          Reprovar
+        </button>
+      </div>
+    </li>
   );
 }
 

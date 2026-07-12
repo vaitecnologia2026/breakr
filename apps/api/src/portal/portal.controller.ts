@@ -15,6 +15,8 @@ import { AprovarConteudoDto } from './dto/aprovar-conteudo.dto';
 import { AjusteConteudoDto } from './dto/ajuste-conteudo.dto';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
 import { AprovarEstrategiaDto } from './dto/aprovar-estrategia.dto';
+import { AprovarMaterialDto } from './dto/aprovar-material.dto';
+import { ReprovarMaterialDto } from './dto/reprovar-material.dto';
 
 @Controller('portal')
 export class PortalController {
@@ -82,6 +84,28 @@ export class PortalController {
     @Body() dto: AjusteConteudoDto,
   ) {
     return this.portal.solicitarAjusteEstrategia(codigo, id, dto);
+  }
+
+  // POST /portal/:codigo/material/:id/aprovar — cliente aprova o material da campanha
+  // (com ou sem ressalvas). Briefing Marketing — Secao 9, Modulo 1.
+  @Post(':codigo/material/:id/aprovar')
+  aprovarMaterial(
+    @Param('codigo') codigo: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AprovarMaterialDto,
+  ) {
+    return this.portal.aprovarMaterial(codigo, id, dto);
+  }
+
+  // POST /portal/:codigo/material/:id/reprovar — cliente reprova o material (volta
+  // para ajuste; comentario obrigatorio). Briefing Marketing — Secao 9, Modulo 1.
+  @Post(':codigo/material/:id/reprovar')
+  reprovarMaterial(
+    @Param('codigo') codigo: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReprovarMaterialDto,
+  ) {
+    return this.portal.reprovarMaterial(codigo, id, dto);
   }
 
   // POST /portal/:codigo/pesquisas/:id/responder — cliente responde uma pesquisa (l.46).
