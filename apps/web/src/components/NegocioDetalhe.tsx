@@ -173,8 +173,21 @@ const CADASTRO_CAMPOS: CampoCadastro[] = [
 
 // ── Criar Contrato ───────────────────────────────────────────────────────────
 type TipoContrato = 'COM_MARKETING' | 'SEM_MARKETING';
-interface ContratoForm { tipo: TipoContrato; duracaoMeses: number; descontoPct: number; formaPagamento: 'BOLETO_PIX' | 'CARTAO'; diaPagamento: string; dataAssinatura: string }
-const CONTRATO_PADRAO: ContratoForm = { tipo: 'COM_MARKETING', duracaoMeses: 12, descontoPct: 0, formaPagamento: 'BOLETO_PIX', diaPagamento: '10', dataAssinatura: '' };
+type FormaPagamento = 'CARTAO' | 'PIX' | 'BOLETO';
+interface ContratoForm { tipo: TipoContrato; duracaoMeses: number; descontoPct: number; formaPagamento: FormaPagamento; diaPagamento: string; dataAssinatura: string }
+const CONTRATO_PADRAO: ContratoForm = { tipo: 'COM_MARKETING', duracaoMeses: 12, descontoPct: 0, formaPagamento: 'PIX', diaPagamento: '10', dataAssinatura: '' };
+// Rótulos e opções de forma de pagamento (cobrança no Asaas).
+const FORMAS_PAGAMENTO: { valor: FormaPagamento; rotulo: string }[] = [
+  { valor: 'CARTAO', rotulo: 'Cartão de Crédito' },
+  { valor: 'PIX', rotulo: 'PIX' },
+  { valor: 'BOLETO', rotulo: 'Boleto' },
+];
+const FORMA_PAGAMENTO_ROTULO: Record<string, string> = {
+  CARTAO: 'Cartão de Crédito', PIX: 'PIX', BOLETO: 'Boleto', BOLETO_PIX: 'Boleto/PIX',
+};
+const TIPO_CONTRATO_ROTULO: Record<string, string> = {
+  COM_MARKETING: 'Planos COM Marketing', SEM_MARKETING: 'Planos SEM Marketing',
+};
 
 // Descreve o JSON de entregaveis de um plano numa linha legivel (preview da tag {{ENTREGAVEIS}}).
 function descreverEntregaveis(entregaveis: unknown): string {
@@ -224,6 +237,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [contratoForm, setContratoForm] = useState<ContratoForm>(CONTRATO_PADRAO);
   const [gerandoContrato, setGerandoContrato] = useState(false);
   const [contratoGerado, setContratoGerado] = useState<{ id: string; codigo: string } | null>(null);
+  // Pré-visualização: revisa os dados antes de gerar o contrato.
+  const [previewContrato, setPreviewContrato] = useState(false);
+  const [cadastroPreview, setCadastroPreview] = useState<Record<string, string> | null>(null);
+  const [checandoPreview, setChecandoPreview] = useState(false);
   const [enviandoAssinatura, setEnviandoAssinatura] = useState(false);
   const [linkAssinatura, setLinkAssinatura] = useState<string | null>(null);
 
@@ -386,7 +403,18 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   }
 
   // ── Criar Contrato (gera o .docx a partir do cadastro + planos/produtos) ────
-  function abrirContrato() { setErroAcao(null); setContratoForm(CONTRATO_PADRAO); setContratoGerado(null); setLinkAssinatura(null); setModalContrato(true); }
+  function abrirContrato() { setErroAcao(null); setContratoForm(CONTRATO_PADRAO); setContratoGerado(null); setLinkAssinatura(null); setPreviewContrato(false); setCadastroPreview(null); setModalContrato(true); }
+  // Passo de revisão: busca o Cadastro Completo e abre a pré-visualização dos dados
+  // antes de gerar o contrato (o usuário confere se está tudo preenchido).
+  async function revisarContrato() {
+    setChecandoPreview(true);
+    setErroAcao(null);
+    try {
+      const { data } = await api.get<Record<string, string> | null>(`/comercial/leads/${leadId}/cadastro`);
+      setCadastroPreview(data ?? {});
+    } catch { setCadastroPreview({}); }
+    finally { setChecandoPreview(false); setPreviewContrato(true); }
+  }
   async function gerarContrato() {
     setGerandoContrato(true);
     setErroAcao(null);
@@ -898,10 +926,57 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                   {linkAssinatura === null && <Btn onClick={enviarAssinatura} disabled={enviandoAssinatura}>{enviandoAssinatura ? 'Enviando…' : 'Enviar para assinatura'}</Btn>}
                 </div>
               </div>
+            ) : previewContrato ? (
+              <><Btn variante="secondary" onClick={() => setPreviewContrato(false)} disabled={gerandoContrato}>← Voltar</Btn><Btn onClick={gerarContrato} disabled={gerandoContrato}>{gerandoContrato ? 'Gerando…' : 'Confirmar e gerar contrato'}</Btn></>
             ) : (
-              <><Btn variante="secondary" onClick={() => setModalContrato(false)}>Cancelar</Btn><Btn onClick={gerarContrato} disabled={gerandoContrato}>{gerandoContrato ? 'Gerando…' : 'Gerar Contrato'}</Btn></>
+              <><Btn variante="secondary" onClick={() => setModalContrato(false)}>Cancelar</Btn><Btn onClick={revisarContrato} disabled={checandoPreview}>{checandoPreview ? 'Carregando…' : 'Revisar dados'}</Btn></>
             )}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Pré-visualização dos dados antes de gerar (confere cadastro + termos). */}
+              {previewContrato && (() => {
+                const cad = cadastroPreview ?? {};
+                const faltando = CADASTRO_CAMPOS.filter((c) => c.rotulo.trim().endsWith('*') && !String((cad as Record<string, unknown>)[c.chave] ?? '').trim());
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>Confira os dados abaixo antes de gerar o contrato.</div>
+                    {faltando.length > 0 && (
+                      <div style={{ fontSize: 12.5, color: 'var(--amarelo-fagulha)', background: 'color-mix(in srgb, var(--amarelo-fagulha) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--amarelo-fagulha) 45%, transparent)', borderRadius: 9, padding: '8px 10px' }}>
+                        ⚠ {faltando.length} campo(s) obrigatório(s) do Cadastro Completo em branco: {faltando.map((c) => c.rotulo.replace(' *', '')).join(', ')}. Você ainda pode gerar, mas recomendamos preencher.
+                      </div>
+                    )}
+                    <div>
+                      <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Termos do contrato</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12.5 }}>
+                        <div><b style={{ color: 'var(--texto)' }}>Tipo:</b> <span style={{ color: 'var(--texto-suave)' }}>{TIPO_CONTRATO_ROTULO[contratoForm.tipo] ?? contratoForm.tipo}</span></div>
+                        <div><b style={{ color: 'var(--texto)' }}>Duração:</b> <span style={{ color: 'var(--texto-suave)' }}>{contratoForm.duracaoMeses} meses</span></div>
+                        <div><b style={{ color: 'var(--texto)' }}>Desconto:</b> <span style={{ color: 'var(--texto-suave)' }}>{contratoForm.descontoPct}%</span></div>
+                        <div><b style={{ color: 'var(--texto)' }}>Pagamento:</b> <span style={{ color: 'var(--texto-suave)' }}>{FORMA_PAGAMENTO_ROTULO[contratoForm.formaPagamento] ?? contratoForm.formaPagamento}</span></div>
+                        <div><b style={{ color: 'var(--texto)' }}>Dia:</b> <span style={{ color: 'var(--texto-suave)' }}>{contratoForm.diaPagamento || '—'}</span></div>
+                        <div><b style={{ color: 'var(--texto)' }}>Assinatura:</b> <span style={{ color: 'var(--texto-suave)' }}>{contratoForm.dataAssinatura ? new Date(contratoForm.dataAssinatura).toLocaleDateString('pt-BR') : '—'}</span></div>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Cadastro Completo (dados do cliente)</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        {CADASTRO_CAMPOS.map((c) => {
+                          const v = String((cad as Record<string, unknown>)[c.chave] ?? '').trim();
+                          const obrig = c.rotulo.trim().endsWith('*');
+                          return (
+                            <div key={c.chave} style={{ fontSize: 11.5 }}>
+                              <span style={{ color: 'var(--texto-fraco)' }}>{c.rotulo.replace(' *', '')}: </span>
+                              <span style={{ color: v ? 'var(--texto-suave)' : (obrig ? 'var(--vermelho)' : 'var(--texto-fraco)') }}>{v || (obrig ? 'faltando' : '—')}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>
+                      Ao confirmar, o contrato será gerado (.docx) e a cobrança <b style={{ color: 'var(--texto-suave)' }}>{FORMA_PAGAMENTO_ROTULO[contratoForm.formaPagamento] ?? contratoForm.formaPagamento}</b> será enviada pelo Asaas. Depois você poderá enviá-lo para assinatura.
+                    </div>
+                  </div>
+                );
+              })()}
+              {!previewContrato && (<>
               <div>
                 <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Tipo de contrato</span>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -931,10 +1006,9 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                   </select>
                 </div>
                 <div>
-                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Forma de pagamento</span>
-                  <select className="brk-input" value={contratoForm.formaPagamento} onChange={(e) => setContratoForm((f) => ({ ...f, formaPagamento: e.target.value as 'BOLETO_PIX' | 'CARTAO' }))} style={{ width: '100%' }}>
-                    <option value="BOLETO_PIX">Boleto/PIX</option>
-                    <option value="CARTAO">Cartão de Crédito</option>
+                  <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Forma de pagamento (Asaas)</span>
+                  <select className="brk-input" value={contratoForm.formaPagamento} onChange={(e) => setContratoForm((f) => ({ ...f, formaPagamento: e.target.value as FormaPagamento }))} style={{ width: '100%' }}>
+                    {FORMAS_PAGAMENTO.map((fp) => <option key={fp.valor} value={fp.valor}>{fp.rotulo}</option>)}
                   </select>
                 </div>
                 <div>
@@ -961,6 +1035,7 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                   </div>
                 )}
               </div>
+              </>)}
             </div>
           </Modal>
         );

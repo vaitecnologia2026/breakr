@@ -22,8 +22,10 @@ export class CriarContratoLeadDto {
   @IsOptional() @IsInt() @IsIn([0, 10, 20, 30])
   descontoPct?: number;
 
-  @IsOptional() @IsIn(['BOLETO_PIX', 'CARTAO'])
-  formaPagamento?: 'BOLETO_PIX' | 'CARTAO';
+  // Forma de pagamento da cobranca no Asaas. Mantem BOLETO_PIX (legado) e adiciona
+  // as 3 opcoes explicitas do fluxo "Criar Contrato": Cartao, PIX e Boleto.
+  @IsOptional() @IsIn(['BOLETO_PIX', 'CARTAO', 'PIX', 'BOLETO'])
+  formaPagamento?: 'BOLETO_PIX' | 'CARTAO' | 'PIX' | 'BOLETO';
 
   @IsOptional() @IsInt() @Min(1) @Max(31)
   diaPagamento?: number;
