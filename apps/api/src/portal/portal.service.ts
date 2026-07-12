@@ -11,6 +11,7 @@ import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
+import { PortalRelatorioPdfService } from './portal-relatorio-pdf.service';
 import { SubmeterDemandaDto } from './dto/submeter-demanda.dto';
 
 // Config singleton — mesma linha usada por IntegracoesConfigService/PortalConfigService.
@@ -22,6 +23,7 @@ export class PortalService {
     private readonly prisma: PrismaService,
     private readonly codigoUnicoSvc: CodigoUnicoService,
     private readonly notificacoes: NotificacoesService,
+    private readonly relatorioPdfSvc: PortalRelatorioPdfService,
   ) {}
 
   async obterPorCodigo(codigo: string) {
@@ -117,6 +119,50 @@ export class PortalService {
       },
     });
 
+    // Campanhas de trafego pago do cliente (Briefing Marketing — Secao 9, Modulos 2
+    // e 3). Somente leitura, so do proprio cliente. Anuncios ativos = status ATIVA;
+    // o relatorio agrega todas as campanhas do cliente.
+    const campanhasTrafego = await this.prisma.campanha.findMany({
+      where: { clienteId: cliente.id },
+      orderBy: { criadoEm: 'desc' },
+      select: {
+        id: true,
+        nome: true,
+        objetivo: true,
+        status: true,
+        orcamentoDiario: true,
+        gasto: true,
+        impressoes: true,
+        cliques: true,
+        conversoes: true,
+        criadoEm: true,
+      },
+    });
+    const anunciosAtivos = campanhasTrafego
+      .filter((c) => c.status === 'ATIVA')
+      .map((c) => ({
+        id: c.id,
+        nome: c.nome,
+        objetivo: c.objetivo,
+        status: c.status,
+        orcamentoDiario: c.orcamentoDiario ? c.orcamentoDiario.toString() : null,
+        criadoEm: c.criadoEm,
+      }));
+    const totalImpressoes = campanhasTrafego.reduce((s, c) => s + (c.impressoes ?? 0), 0);
+    const totalCliques = campanhasTrafego.reduce((s, c) => s + (c.cliques ?? 0), 0);
+    const totalConversoes = campanhasTrafego.reduce((s, c) => s + (c.conversoes ?? 0), 0);
+    const totalGasto = campanhasTrafego.reduce((s, c) => s + (c.gasto ? Number(c.gasto) : 0), 0);
+    const relatorioResultados = {
+      totalCampanhas: campanhasTrafego.length,
+      ativos: anunciosAtivos.length,
+      impressoes: totalImpressoes,
+      cliques: totalCliques,
+      ctr: totalImpressoes > 0 ? Math.round((totalCliques / totalImpressoes) * 10000) / 100 : 0,
+      investimento: Math.round(totalGasto * 100) / 100,
+      conversoes: totalConversoes,
+      custoPorResultado: totalConversoes > 0 ? Math.round((totalGasto / totalConversoes) * 100) / 100 : null,
+    };
+
     return {
       cliente: {
         nomeFantasia: cliente.nomeFantasia,
@@ -206,6 +252,9 @@ export class PortalService {
         destino: m.destino,
         campanha: m.campanha?.nome ?? null,
       })),
+      // Anuncios ativos (Secao 9, Modulo 2) e relatorio de resultados (Modulo 3).
+      anunciosAtivos,
+      relatorioResultados,
     };
   }
 
@@ -578,5 +627,43 @@ export class PortalService {
       link: '/campanhas',
     });
     return atualizado;
+  }
+
+  // Gera o relatorio de resultados do cliente em PDF (Briefing Marketing — Secao 12,
+  // item 12). Reune as campanhas de trafego do proprio cliente e agrega os numeros.
+  async gerarRelatorioPdf(codigo: string): Promise<{ buffer: Buffer; nomeArquivo: string }> {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { codigoUnico: codigo },
+      select: { id: true, nomeFantasia: true },
+    });
+    if (!cliente) throw new NotFoundException('Portal nao encontrado');
+
+    const campanhas = await this.prisma.campanha.findMany({
+      where: { clienteId: cliente.id },
+      select: {
+        nome: true, objetivo: true, status: true,
+        gasto: true, impressoes: true, cliques: true, conversoes: true,
+      },
+    });
+    const impressoes = campanhas.reduce((s, c) => s + (c.impressoes ?? 0), 0);
+    const cliques = campanhas.reduce((s, c) => s + (c.cliques ?? 0), 0);
+    const conversoes = campanhas.reduce((s, c) => s + (c.conversoes ?? 0), 0);
+    const investimento = campanhas.reduce((s, c) => s + (c.gasto ? Number(c.gasto) : 0), 0);
+    const ativosLista = campanhas.filter((c) => c.status === 'ATIVA');
+
+    const buffer = await this.relatorioPdfSvc.gerar({
+      clienteNome: cliente.nomeFantasia,
+      geradoEm: new Date(),
+      totalCampanhas: campanhas.length,
+      ativos: ativosLista.length,
+      impressoes,
+      cliques,
+      ctr: impressoes > 0 ? Math.round((cliques / impressoes) * 10000) / 100 : 0,
+      investimento: Math.round(investimento * 100) / 100,
+      conversoes,
+      custoPorResultado: conversoes > 0 ? Math.round((investimento / conversoes) * 100) / 100 : null,
+      anuncios: ativosLista.map((c) => ({ nome: c.nome, objetivo: c.objetivo, status: c.status })),
+    });
+    return { buffer, nomeArquivo: `relatorio-${codigo}.pdf` };
   }
 }

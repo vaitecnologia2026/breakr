@@ -3,10 +3,11 @@ import { Module } from '@nestjs/common';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 import { PortalService } from './portal.service';
 import { PortalController } from './portal.controller';
+import { PortalRelatorioPdfService } from './portal-relatorio-pdf.service';
 
 @Module({
   imports: [NotificacoesModule],
   controllers: [PortalController],
-  providers: [PortalService],
+  providers: [PortalService, PortalRelatorioPdfService],
 })
 export class PortalModule {}

@@ -6,10 +6,13 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { PortalService } from './portal.service';
 import { AprovarConteudoDto } from './dto/aprovar-conteudo.dto';
 import { AjusteConteudoDto } from './dto/ajuste-conteudo.dto';
@@ -21,6 +24,16 @@ import { ReprovarMaterialDto } from './dto/reprovar-material.dto';
 @Controller('portal')
 export class PortalController {
   constructor(private readonly portal: PortalService) {}
+
+  // GET /portal/:codigo/relatorio.pdf — relatorio de resultados do cliente em PDF
+  // (Secao 12, item 12). Antes de :codigo para nao colidir com o slug.
+  @Get(':codigo/relatorio.pdf')
+  @Header('Content-Type', 'application/pdf')
+  async relatorioPdf(@Param('codigo') codigo: string, @Res() res: Response) {
+    const { buffer, nomeArquivo } = await this.portal.gerarRelatorioPdf(codigo);
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+    res.send(buffer);
+  }
 
   // GET /portal/:codigo — visao read-only do cliente.
   @Get(':codigo')
