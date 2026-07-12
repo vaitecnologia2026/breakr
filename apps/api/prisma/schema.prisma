@@ -292,6 +292,11 @@ model Cliente {
   planoId String? @map("plano_id")
   plano   Plano?  @relation(fields: [planoId], references: [id])
 
+  // Pilares contratados pelo cliente (Marketing/Gestao/Financeiro) — Briefing
+  // Marketing (Secao 1 e 2). Independente do plano; base da aprovacao
+  // interdepartamental e do escopo de campanhas.
+  pilares TipoProjeto[] @default([])
+
   // Grupo de WhatsApp do cliente — criado na ativacao (acao do motor).
   whatsappGrupoId String? @map("whatsapp_grupo_id")
 
@@ -325,9 +330,31 @@ model Cliente {
   npsHistorico      NpsCliente[]
   respostasPesquisa RespostaPesquisa[]
 
+  // Historico de troca de squad (Briefing Marketing — Secao 2: troca possivel,
+  // porem registrada com historico).
+  historicoSquad HistoricoSquadCliente[]
+
   @@index([squadId])
   @@index([status])
   @@map("cliente")
+}
+
+/// Historico de troca de squad de um cliente (Briefing Marketing — Secao 2).
+/// Cada mudanca do squad responsavel pelo cliente gera um registro.
+model HistoricoSquadCliente {
+  id           String   @id @default(uuid())
+  clienteId    String   @map("cliente_id")
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  deSquadId    String?  @map("de_squad_id")
+  deSquadNome  String?  @map("de_squad_nome")
+  paraSquadId  String?  @map("para_squad_id")
+  paraSquadNome String? @map("para_squad_nome")
+  autorId      String?  @map("autor_id")
+  autorNome    String?  @map("autor_nome")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  @@index([clienteId])
+  @@map("historico_squad_cliente")
 }
 
 /// Plano contratado (Brasa, Hibrido...). Define valor, ciclo, entregaveis e

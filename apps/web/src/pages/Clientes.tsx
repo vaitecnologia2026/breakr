@@ -17,8 +17,23 @@ interface Cliente {
   codigoUnico: string;
   squadId: string | null;
   planoId: string | null;
+  pilares?: string[];
   criadoEm: string;
   onboarding: { progresso: number; concluido: boolean } | null;
+}
+
+// Pilares contratados (Briefing Marketing — Secao 1/2).
+const PILARES_OPCOES: { valor: string; rotulo: string }[] = [
+  { valor: 'MARKETING', rotulo: 'Marketing' },
+  { valor: 'GESTAO', rotulo: 'Gestão' },
+  { valor: 'FINANCEIRO', rotulo: 'Financeiro' },
+];
+
+interface HistoricoSquad {
+  id: string;
+  deSquadNome: string | null;
+  paraSquadNome: string | null;
+  criadoEm: string;
 }
 
 const STATUS_COR: Record<ClienteStatus, 'verde' | 'amarelo' | 'vermelho' | 'neutro' | 'azul'> = {
@@ -235,9 +250,11 @@ function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente |
   const [telefone, setTelefone] = useState('');
   const [planoId, setPlanoId] = useState(cliente?.planoId ?? '');
   const [squadId, setSquadId] = useState(cliente?.squadId ?? '');
+  const [pilares, setPilares] = useState<string[]>(cliente?.pilares ?? []);
   const [status, setStatus] = useState<ClienteStatus>(cliente?.status ?? ClienteStatus.NOVO);
   const [planos, setPlanos] = useState<{ id: string; nome: string }[]>([]);
   const [squads, setSquads] = useState<{ id: string; nome: string }[]>([]);
+  const [historico, setHistorico] = useState<HistoricoSquad[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
@@ -245,6 +262,21 @@ function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente |
     api.get<{ id: string; nome: string }[]>('/planos').then(({ data }) => setPlanos(data)).catch(() => setPlanos([]));
     api.get<{ id: string; nome: string }[]>('/squads').then(({ data }) => setSquads(data)).catch(() => setSquads([]));
   }, []);
+
+  // Carrega o historico de troca de squad ao editar um cliente existente.
+  useEffect(() => {
+    if (!cliente) return;
+    api
+      .get<HistoricoSquad[]>(`/clientes/${cliente.id}/historico-squad`)
+      .then(({ data }) => setHistorico(data))
+      .catch(() => setHistorico([]));
+  }, [cliente]);
+
+  function togglePilar(valor: string) {
+    setPilares((atuais) =>
+      atuais.includes(valor) ? atuais.filter((p) => p !== valor) : [...atuais, valor],
+    );
+  }
 
   const valido = nomeFantasia.trim().length >= 2;
 
@@ -270,6 +302,7 @@ function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente |
       tag: tag.trim() || undefined,
       planoId: planoId || undefined,
       squadId: squadId || undefined,
+      pilares,
     };
     if (email.trim()) corpo.email = email.trim();
     if (telefone.trim()) corpo.telefone = telefone.trim();
@@ -346,6 +379,48 @@ function ModalNovoCliente({ cliente, onFechar, onCriado }: { cliente?: Cliente |
           <option value="">Sem squad (definir depois)</option>
           {squads.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
         </CampoSelect>
+
+        {/* Pilares contratados (Briefing Marketing — Seção 1/2). */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--texto-suave)' }}>Pilares contratados</span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {PILARES_OPCOES.map((p) => {
+              const ativo = pilares.includes(p.valor);
+              return (
+                <button
+                  key={p.valor}
+                  type="button"
+                  onClick={() => togglePilar(p.valor)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${ativo ? 'var(--amarelo-fagulha)' : 'var(--borda)'}`,
+                    background: ativo ? 'color-mix(in srgb, var(--amarelo-fagulha) 14%, transparent)' : 'var(--superficie-2)',
+                    color: ativo ? 'var(--amarelo-fagulha)' : 'var(--texto-suave)',
+                  }}
+                >
+                  {ativo ? '✓ ' : ''}{p.rotulo}
+                </button>
+              );
+            })}
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Define o escopo do cliente e o fluxo de aprovação interdepartamental.</span>
+        </div>
+
+        {/* Histórico de troca de squad (Briefing Marketing — Seção 2). */}
+        {edicao && historico.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--texto-suave)' }}>Histórico de squad</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 120, overflowY: 'auto' }}>
+              {historico.map((h) => (
+                <div key={h.id} style={{ fontSize: 11.5, color: 'var(--texto-fraco)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span>{h.deSquadNome ?? 'Sem squad'} → {h.paraSquadNome ?? 'Sem squad'}</span>
+                  <span>{new Date(h.criadoEm).toLocaleDateString('pt-BR')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {edicao && (
           <CampoSelect rotulo="Status" value={status} onChange={(e) => setStatus(e.target.value as ClienteStatus)}>
             {Object.keys(STATUS_ROTULO).map((s) => (
