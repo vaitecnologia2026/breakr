@@ -122,6 +122,7 @@ const GRUPOS: NavGroup[] = [
     icone: <IcoImage />,
     collapsible: true,
     items: [
+      { para: '/dashboard-marketing', rotulo: 'Dashboard de Marketing', icone: <IcoTrendingUp /> },
       { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
       { para: '/campanhas', rotulo: 'Campanhas', icone: <IcoBullhorn /> },
       { para: '/templates-campanha', rotulo: 'Templates & lote', icone: <IcoLayout /> },

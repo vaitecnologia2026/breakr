@@ -59,6 +59,7 @@ import { PesquisasModule } from './pesquisas/pesquisas.module';
 import { ComissoesModule } from './comissoes/comissoes.module';
 import { CampanhasMarketingModule } from './campanhas-marketing/campanhas-marketing.module';
 import { TemplatesCampanhaModule } from './templates-campanha/templates-campanha.module';
+import { DashboardMarketingModule } from './dashboard-marketing/dashboard-marketing.module';
 
 @Module({
   imports: [
@@ -154,6 +155,7 @@ import { TemplatesCampanhaModule } from './templates-campanha/templates-campanha
     ComissoesModule,
     CampanhasMarketingModule,
     TemplatesCampanhaModule,
+    DashboardMarketingModule,
   ],
 })
 export class AppModule {}
