@@ -50,6 +50,7 @@ import { Agenda } from './pages/Agenda';
 import { Agendamento } from './pages/Agendamento';
 import { Comissao } from './pages/Comissao';
 import { CampanhasMarketing } from './pages/CampanhasMarketing';
+import { TemplatesCampanha } from './pages/TemplatesCampanha';
 import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
 import { GoogleCallback } from './pages/GoogleCallback';
@@ -106,6 +107,7 @@ export function App() {
         <Route path="projetos" element={<Projetos />} />
         <Route path="conteudos" element={<Conteudos />} />
         <Route path="campanhas" element={<CampanhasMarketing />} />
+        <Route path="templates-campanha" element={<TemplatesCampanha />} />
         <Route path="painel-designer" element={<PainelDesigner />} />
         <Route path="estrategia" element={<Estrategia />} />
         <Route path="centro-custo" element={<CentroCusto />} />

@@ -124,6 +124,7 @@ const GRUPOS: NavGroup[] = [
     items: [
       { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
       { para: '/campanhas', rotulo: 'Campanhas', icone: <IcoBullhorn /> },
+      { para: '/templates-campanha', rotulo: 'Templates & lote', icone: <IcoLayout /> },
       { para: '/painel-designer', rotulo: 'Painel do designer', icone: <IcoLayout /> },
       { para: '/estrategia', rotulo: 'Estratégia', icone: <IcoFileText /> },
       { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },

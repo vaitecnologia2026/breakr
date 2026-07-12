@@ -1366,6 +1366,40 @@ model MaterialCampanha {
   @@map("material_campanha")
 }
 
+/// Template de campanha (Briefing Marketing — Secao 4). Define os materiais
+/// padrao de uma campanha para geracao em lote. Organizavel por tipo de campanha
+/// (datas comemorativas, lancamentos, promocoes) e tipo de servico (trafego pago,
+/// social media, impresso).
+model TemplateCampanha {
+  id           String   @id @default(uuid())
+  nome         String
+  tipoCampanha String?  @map("tipo_campanha")
+  tipoServico  String?  @map("tipo_servico")
+  arquivado    Boolean  @default(false)
+  codigoUnico  String   @unique @map("codigo_unico")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  materiais TemplateMaterial[]
+
+  @@map("template_campanha")
+}
+
+/// Material padrao de um template (vira um MaterialCampanha na geracao em lote).
+model TemplateMaterial {
+  id         String   @id @default(uuid())
+  templateId String   @map("template_id")
+  template   TemplateCampanha @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  titulo     String
+  tipo       String?
+  destino    String   @default("TRAFEGO_PAGO")
+  ordem      Int      @default(0)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([templateId])
+  @@map("template_material")
+}
+
 // ============================================================
 // CONFIGURACOES — IA (provedores de LLM)
 // ============================================================
