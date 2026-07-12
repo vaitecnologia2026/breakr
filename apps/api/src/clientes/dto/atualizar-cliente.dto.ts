@@ -1,6 +1,9 @@
 // DTO de atualizacao de cliente (todos os campos opcionais).
-import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsEmail, IsEnum, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { ClienteStatus } from '@breakr/shared';
+
+// Pilares contratados (Briefing Marketing — Secao 1/2). Espelha o enum TipoProjeto.
+const PILARES = ['MARKETING', 'GESTAO', 'FINANCEIRO'] as const;
 
 export class AtualizarClienteDto {
   @IsOptional()
@@ -45,4 +48,9 @@ export class AtualizarClienteDto {
   @IsString()
   @MaxLength(500)
   linkAreaMembros?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(PILARES, { each: true })
+  pilares?: string[];
 }

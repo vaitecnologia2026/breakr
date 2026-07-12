@@ -34,6 +34,12 @@ export class ClientesController {
     return this.clientesService.buscarPorId(id);
   }
 
+  // GET /clientes/:id/historico-squad — histórico de troca de squad do cliente.
+  @Get(':id/historico-squad')
+  historicoSquad(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clientesService.historicoSquad(id);
+  }
+
   // POST /clientes — cria (Comercial/CS/Admin/Superadmin).
   @Post()
   @UseGuards(CargosGuard)

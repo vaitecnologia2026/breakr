@@ -1,5 +1,8 @@
 // DTO de criacao de cliente.
-import { IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+
+// Pilares contratados (Briefing Marketing — Secao 1/2). Espelha o enum TipoProjeto.
+const PILARES = ['MARKETING', 'GESTAO', 'FINANCEIRO'] as const;
 
 export class CriarClienteDto {
   @IsString()
@@ -34,4 +37,9 @@ export class CriarClienteDto {
   @IsOptional()
   @IsUUID()
   squadId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(PILARES, { each: true })
+  pilares?: string[];
 }
