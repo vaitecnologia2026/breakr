@@ -123,8 +123,10 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/dashboard-marketing', rotulo: 'Dashboard de Marketing', icone: <IcoTrendingUp /> },
+      { para: '/metricas-marketing', rotulo: 'Métricas de Marketing', icone: <IcoTrendingUp /> },
       { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
       { para: '/campanhas', rotulo: 'Campanhas', icone: <IcoBullhorn /> },
+      { para: '/aprovacoes-marketing', rotulo: 'Aprovações internas', icone: <IcoUserCheck /> },
       { para: '/templates-campanha', rotulo: 'Templates & lote', icone: <IcoLayout /> },
       { para: '/painel-designer', rotulo: 'Painel do designer', icone: <IcoLayout /> },
       { para: '/estrategia', rotulo: 'Estratégia', icone: <IcoFileText /> },

@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import {
-  PaginaHeader, Btn, CampoSelect, Badge,
+  PaginaHeader, Btn, Campo, CampoSelect, Badge, Modal,
   Carregando, Vazio, ErroEstado,
 } from '../components/ui';
 
@@ -65,6 +65,7 @@ export function DashboardMarketing() {
   const [opcoes, setOpcoes] = useState<OpcoesFiltro>({ squads: [], clientes: [] });
   const [squadId, setSquadId] = useState('');
   const [clienteId, setClienteId] = useState('');
+  const [modalConfig, setModalConfig] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -95,8 +96,20 @@ export function DashboardMarketing() {
       <PaginaHeader
         titulo="Dashboard de Marketing"
         subtitulo="Visão da coordenadora: produção, campanhas, onboarding, capacidade e alertas."
-        acoes={<Btn variante="secondary" onClick={() => carregar()}>Atualizar</Btn>}
+        acoes={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variante="secondary" onClick={() => setModalConfig(true)}>Configurar prazos</Btn>
+            <Btn variante="secondary" onClick={() => carregar()}>Atualizar</Btn>
+          </div>
+        }
       />
+
+      {modalConfig && (
+        <ModalConfigAlertas
+          onFechar={() => setModalConfig(false)}
+          onSalvo={() => { setModalConfig(false); carregar(); }}
+        />
+      )}
 
       {/* Filtros por squad e cliente (Seção 5, Bloco 1). */}
       <div className="brk-card brk-card-p" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -260,6 +273,9 @@ export function DashboardMarketing() {
                     <span style={{ color: 'var(--texto-suave)', fontSize: 13 }}>
                       {o.etapaAtual ?? 'Sem etapa'} · {o.etapasConcluidas}/{o.etapasTotal} · {o.progresso}%
                     </span>
+                    {o.semSquad && o.clienteId && (
+                      <VincularSquad clienteId={o.clienteId} squads={opcoes.squads} aoVincular={carregar} />
+                    )}
                   </div>
                 ))}
               </div>
@@ -318,5 +334,108 @@ export function DashboardMarketing() {
         </div>
       )}
     </div>
+  );
+}
+
+// Vincular squad ao cliente direto do bloco de onboarding (Fatia 9 — Seção 10).
+function VincularSquad({
+  clienteId,
+  squads,
+  aoVincular,
+}: {
+  clienteId: string;
+  squads: { id: string; nome: string }[];
+  aoVincular: () => void;
+}) {
+  const [squadId, setSquadId] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  async function vincular() {
+    if (!squadId || salvando) return;
+    setSalvando(true);
+    try {
+      await api.post(`/dashboard-marketing/onboarding/${clienteId}/vincular-squad`, { squadId });
+      aoVincular();
+    } catch {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <select
+        value={squadId}
+        onChange={(e) => setSquadId(e.target.value)}
+        className="brk-input"
+        style={{ fontSize: 12, padding: '4px 6px' }}
+        disabled={salvando}
+      >
+        <option value="">Vincular squad…</option>
+        {squads.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+      </select>
+      <Btn variante="secondary" onClick={vincular} disabled={!squadId || salvando}>Vincular</Btn>
+    </div>
+  );
+}
+
+// Configuração dos prazos/alertas do dashboard (Fatia 10 — Seção 6).
+interface ParametrosAlertas {
+  paradoHoras: number; criticoHoras: number; aprovacaoParadaDias: number;
+  ajusteDias: number; campanhaSemInicioDias: number; sobrecargaTarefas: number;
+}
+function ModalConfigAlertas({ onFechar, onSalvo }: { onFechar: () => void; onSalvo: () => void }) {
+  const [cfg, setCfg] = useState<ParametrosAlertas | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<ParametrosAlertas>('/dashboard-marketing/config')
+      .then(({ data }) => setCfg(data))
+      .catch(() => setErro('Não foi possível carregar a configuração.'));
+  }, []);
+
+  function set(campo: keyof ParametrosAlertas, valor: string) {
+    if (!cfg) return;
+    setCfg({ ...cfg, [campo]: Math.max(1, Number(valor) || 1) });
+  }
+
+  async function salvar() {
+    if (!cfg || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.patch('/dashboard-marketing/config', cfg);
+      onSalvo();
+    } catch {
+      setErro('Não foi possível salvar.');
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Modal
+      titulo="Configurar prazos e alertas"
+      onFechar={onFechar}
+      rodape={
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variante="secondary" onClick={onFechar} disabled={salvando}>Cancelar</Btn>
+          <Btn variante="primary" onClick={salvar} disabled={!cfg || salvando}>{salvando ? 'Salvando…' : 'Salvar'}</Btn>
+        </div>
+      }
+    >
+      {!cfg ? (
+        <Carregando />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Campo rotulo="Parado na etapa (horas)" type="number" value={String(cfg.paradoHoras)} onChange={(e) => set('paradoHoras', e.target.value)} />
+          <Campo rotulo="Prazo crítico (horas)" type="number" value={String(cfg.criticoHoras)} onChange={(e) => set('criticoHoras', e.target.value)} />
+          <Campo rotulo="Aprovação parada (dias)" type="number" value={String(cfg.aprovacaoParadaDias)} onChange={(e) => set('aprovacaoParadaDias', e.target.value)} />
+          <Campo rotulo="Material em ajuste (dias)" type="number" value={String(cfg.ajusteDias)} onChange={(e) => set('ajusteDias', e.target.value)} />
+          <Campo rotulo="Campanha sem início (dias p/ prazo)" type="number" value={String(cfg.campanhaSemInicioDias)} onChange={(e) => set('campanhaSemInicioDias', e.target.value)} />
+          <Campo rotulo="Sobrecarga (tarefas por membro)" type="number" value={String(cfg.sobrecargaTarefas)} onChange={(e) => set('sobrecargaTarefas', e.target.value)} />
+          {erro && <p style={{ color: 'var(--vermelho)', fontSize: 13 }}>{erro}</p>}
+        </div>
+      )}
+    </Modal>
   );
 }

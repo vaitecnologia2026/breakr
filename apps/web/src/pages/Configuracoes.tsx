@@ -19,6 +19,8 @@ interface ConfigIntegracoes {
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
   google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
+  adsMeta: { temToken: boolean; preview: string | null; contaId: string | null };
+  adsGoogle: { temToken: boolean; preview: string | null; contaId: string | null };
 }
 
 /* ── Aba IA ── */
@@ -176,6 +178,7 @@ function AbaIntegracoes() {
     whatsappToken: '', whatsappInstancia: '',
     vaicrmToken: '', vaicrmEmail: '', vaicrmSenha: '',
     googleServiceAccount: '', googleCalendarId: '', googleImpersonateEmail: '',
+    adsMetaToken: '', adsMetaContaId: '', adsGoogleToken: '', adsGoogleContaId: '',
   });
   const [salvando, setSalvando] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
@@ -185,7 +188,7 @@ function AbaIntegracoes() {
     try {
       const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
       setConfig(data);
-      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '' });
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '' });
     } catch { setErroCarga('Erro ao carregar integrações.'); }
     finally { setCarregando(false); }
   }
@@ -208,6 +211,10 @@ function AbaIntegracoes() {
         ...(form.googleServiceAccount && { googleServiceAccount: form.googleServiceAccount }),
         googleCalendarId: form.googleCalendarId,
         googleImpersonateEmail: form.googleImpersonateEmail,
+        ...(form.adsMetaToken && { adsMetaToken: form.adsMetaToken }),
+        adsMetaContaId: form.adsMetaContaId,
+        ...(form.adsGoogleToken && { adsGoogleToken: form.adsGoogleToken }),
+        adsGoogleContaId: form.adsGoogleContaId,
       });
       await carregar();
       setFeedback({ tipo: 'sucesso', msg: 'Integrações salvas com sucesso.' });
@@ -384,6 +391,52 @@ function AbaIntegracoes() {
               ? <Badge cor="verde">Conectado{config?.google.contaConectada ? ` — ${config.google.contaConectada}` : ''}</Badge>
               : <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>Salve o JSON OAuth e clique em Conectar para autorizar.</span>}
           </div>
+        </>
+      ),
+    },
+    {
+      chave: 'adsMeta',
+      nome: 'Meta Ads — Anúncios',
+      descricao: 'Credenciais da conta de anúncios do Meta (Facebook/Instagram). Guarda o token e o ID da conta; a leitura automática de métricas é etapa futura (Fase 2). Enquanto isso, os dados de tráfego alimentam o portal pela tela de Tráfego.',
+      campos: (
+        <>
+          <Campo
+            rotulo="Token de acesso Meta"
+            type="password" autoComplete="off"
+            placeholder={config?.adsMeta.temToken ? 'Cole para substituir' : 'EAAB… (token de acesso)'}
+            value={form.adsMetaToken}
+            onChange={(e) => setForm((f) => ({ ...f, adsMetaToken: e.target.value }))}
+          />
+          <Campo
+            rotulo="ID da conta de anúncios (act_…)"
+            autoComplete="off"
+            placeholder="act_1234567890"
+            value={form.adsMetaContaId}
+            onChange={(e) => setForm((f) => ({ ...f, adsMetaContaId: e.target.value }))}
+          />
+        </>
+      ),
+    },
+    {
+      chave: 'adsGoogle',
+      nome: 'Google Ads — Anúncios',
+      descricao: 'Credenciais da conta do Google Ads. Guarda o token e o ID da conta; a leitura automática de métricas é etapa futura (Fase 2). Enquanto isso, os dados de tráfego alimentam o portal pela tela de Tráfego.',
+      campos: (
+        <>
+          <Campo
+            rotulo="Token de acesso Google Ads"
+            type="password" autoComplete="off"
+            placeholder={config?.adsGoogle.temToken ? 'Cole para substituir' : 'Token de acesso / developer token'}
+            value={form.adsGoogleToken}
+            onChange={(e) => setForm((f) => ({ ...f, adsGoogleToken: e.target.value }))}
+          />
+          <Campo
+            rotulo="ID da conta (Customer ID)"
+            autoComplete="off"
+            placeholder="123-456-7890"
+            value={form.adsGoogleContaId}
+            onChange={(e) => setForm((f) => ({ ...f, adsGoogleContaId: e.target.value }))}
+          />
         </>
       ),
     },

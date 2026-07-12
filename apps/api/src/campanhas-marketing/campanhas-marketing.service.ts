@@ -1,20 +1,25 @@
 // Servico de campanhas de marketing (producao) — Briefing Marketing (Secao 3).
 // Cada campanha reune materiais que percorrem o pipeline de status. Aditivo e
 // isolado do dominio de trafego pago (model Campanha).
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { StatusMaterial } from '@prisma/client';
+import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { CriarCampanhaDto } from './dto/criar-campanha.dto';
 import { AtualizarCampanhaDto } from './dto/atualizar-campanha.dto';
 import { CriarMaterialDto } from './dto/criar-material.dto';
 import { AtualizarMaterialDto } from './dto/atualizar-material.dto';
+import { EnviarAprovacaoInternaDto } from './dto/enviar-aprovacao-interna.dto';
+import { DecidirAprovacaoInternaDto } from './dto/decidir-aprovacao-interna.dto';
 
 @Injectable()
 export class CampanhasMarketingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly codigoUnico: CodigoUnicoService,
+    private readonly notificacoes: NotificacoesService,
   ) {}
 
   private data(iso?: string): Date | undefined {
@@ -73,7 +78,7 @@ export class CampanhasMarketingService {
     const campanha = await this.prisma.campanhaMarketing.findUnique({
       where: { id },
       include: {
-        cliente: { select: { nomeFantasia: true } },
+        cliente: { select: { nomeFantasia: true, pilares: true } },
         squad: { select: { nome: true } },
         materiais: {
           orderBy: { criadoEm: 'asc' },
@@ -171,5 +176,141 @@ export class CampanhasMarketingService {
     if (!c) {
       throw new NotFoundException('Campanha nao encontrada');
     }
+  }
+
+  // ============================================================
+  // APROVACAO INTERDEPARTAMENTAL (Briefing Marketing — Secao 8)
+  // So faz sentido para clientes multi-pilar (Marketing + Gestao e/ou Financeiro).
+  // ============================================================
+
+  // Lista as campanhas em aprovacao interna (as que tem status != null), com o
+  // cliente, squad, pilares e o historico — base da tela "Aprovacoes".
+  async listarAprovacoesInternas() {
+    const campanhas = await this.prisma.campanhaMarketing.findMany({
+      where: { statusAprovacaoInterna: { not: null } },
+      orderBy: { atualizadoEm: 'desc' },
+      include: {
+        cliente: { select: { nomeFantasia: true, pilares: true } },
+        squad: { select: { nome: true } },
+        historicoAprovacaoInterna: { orderBy: { criadoEm: 'desc' } },
+      },
+    });
+    return campanhas.map((c) => ({
+      id: c.id,
+      nome: c.nome,
+      situacao: c.situacao,
+      statusAprovacaoInterna: c.statusAprovacaoInterna,
+      aprovacaoInternaComentario: c.aprovacaoInternaComentario,
+      cliente: c.cliente?.nomeFantasia ?? null,
+      pilares: c.cliente?.pilares ?? [],
+      squad: c.squad?.nome ?? null,
+      historico: c.historicoAprovacaoInterna.map((h) => ({
+        de: h.de,
+        para: h.para,
+        autorNome: h.autorNome,
+        comentario: h.comentario,
+        criadoEm: h.criadoEm,
+      })),
+    }));
+  }
+
+  // Coordenacao envia a campanha para validacao de um departamento (Gestao/Financeiro).
+  // So permite se o cliente realmente contratou o pilar correspondente.
+  async enviarAprovacaoInterna(campanhaId: string, dto: EnviarAprovacaoInternaDto) {
+    const campanha = await this.prisma.campanhaMarketing.findUnique({
+      where: { id: campanhaId },
+      include: { cliente: { select: { pilares: true, nomeFantasia: true } } },
+    });
+    if (!campanha) throw new NotFoundException('Campanha nao encontrada');
+    const pilares = campanha.cliente?.pilares ?? [];
+    if (!pilares.includes(dto.pilar as never)) {
+      throw new BadRequestException(
+        `O cliente nao contratou o pilar ${dto.pilar}; nao ha aprovacao interna a fazer.`,
+      );
+    }
+    const novoStatus =
+      dto.pilar === 'GESTAO' ? 'AGUARDANDO_GESTAO' : 'AGUARDANDO_FINANCEIRO';
+
+    const atualizada = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.campanhaMarketing.update({
+        where: { id: campanhaId },
+        data: { statusAprovacaoInterna: novoStatus },
+      });
+      await tx.historicoAprovacaoInterna.create({
+        data: {
+          campanhaId,
+          de: campanha.statusAprovacaoInterna,
+          para: novoStatus,
+          comentario: `Enviada para aprovacao de ${dto.pilar}`,
+        },
+      });
+      return u;
+    });
+
+    // Notifica o departamento responsavel (Gestao -> ADMIN; Financeiro -> FINANCEIRO).
+    const cargoAlvo = dto.pilar === 'GESTAO' ? Cargo.ADMIN : Cargo.FINANCEIRO;
+    await this.notificacoes.notificarPorCargo(cargoAlvo, {
+      titulo: 'Campanha aguardando sua aprovacao',
+      mensagem: `A campanha "${campanha.nome}" (${campanha.cliente?.nomeFantasia ?? 'cliente'}) aguarda aprovacao de ${dto.pilar}.`,
+      tipo: 'ALERTA',
+      link: '/aprovacoes-marketing',
+    });
+    return atualizada;
+  }
+
+  // O departamento decide: APROVAR (Aprovado Int.), AJUSTE ou REPROVAR (Em Alinhamento).
+  // So avanca para producao quando aprovado (regra da Secao 8). Registra historico.
+  async decidirAprovacaoInterna(campanhaId: string, dto: DecidirAprovacaoInternaDto) {
+    const campanha = await this.prisma.campanhaMarketing.findUnique({
+      where: { id: campanhaId },
+      include: { cliente: { select: { nomeFantasia: true } } },
+    });
+    if (!campanha) throw new NotFoundException('Campanha nao encontrada');
+    if (
+      campanha.statusAprovacaoInterna !== 'AGUARDANDO_GESTAO' &&
+      campanha.statusAprovacaoInterna !== 'AGUARDANDO_FINANCEIRO'
+    ) {
+      throw new BadRequestException('Esta campanha nao esta aguardando aprovacao interna.');
+    }
+    const novoStatus =
+      dto.decisao === 'APROVAR' ? 'APROVADO_INT' : 'EM_ALINHAMENTO';
+
+    const atualizada = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.campanhaMarketing.update({
+        where: { id: campanhaId },
+        data: {
+          statusAprovacaoInterna: novoStatus,
+          aprovacaoInternaComentario: dto.comentario?.trim() || null,
+        },
+      });
+      await tx.historicoAprovacaoInterna.create({
+        data: {
+          campanhaId,
+          de: campanha.statusAprovacaoInterna,
+          para: novoStatus,
+          comentario: dto.comentario?.trim() || null,
+        },
+      });
+      return u;
+    });
+
+    // A coordenacao (CS/Estrategista) acompanha o resultado por notificacao.
+    const rotulo =
+      dto.decisao === 'APROVAR'
+        ? 'aprovada internamente'
+        : dto.decisao === 'AJUSTE'
+          ? 'com ajuste sugerido'
+          : 'reprovada internamente';
+    for (const cargo of [Cargo.CS, Cargo.ESTRATEGISTA]) {
+      await this.notificacoes.notificarPorCargo(cargo, {
+        titulo: 'Aprovacao interna atualizada',
+        mensagem:
+          `A campanha "${campanha.nome}" (${campanha.cliente?.nomeFantasia ?? 'cliente'}) foi ${rotulo}.` +
+          (dto.comentario ? ` Comentario: ${dto.comentario}` : ''),
+        tipo: dto.decisao === 'APROVAR' ? 'SUCESSO' : 'ALERTA',
+        link: '/aprovacoes-marketing',
+      });
+    }
+    return atualizada;
   }
 }

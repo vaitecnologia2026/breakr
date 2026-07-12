@@ -52,6 +52,8 @@ import { Comissao } from './pages/Comissao';
 import { CampanhasMarketing } from './pages/CampanhasMarketing';
 import { TemplatesCampanha } from './pages/TemplatesCampanha';
 import { DashboardMarketing } from './pages/DashboardMarketing';
+import { AprovacoesMarketing } from './pages/AprovacoesMarketing';
+import { MetricasMarketing } from './pages/MetricasMarketing';
 import { ComunicadosCliente } from './pages/ComunicadosCliente';
 import { AgendarPublico } from './pages/AgendarPublico';
 import { GoogleCallback } from './pages/GoogleCallback';
@@ -108,6 +110,8 @@ export function App() {
         <Route path="projetos" element={<Projetos />} />
         <Route path="conteudos" element={<Conteudos />} />
         <Route path="dashboard-marketing" element={<DashboardMarketing />} />
+        <Route path="aprovacoes-marketing" element={<AprovacoesMarketing />} />
+        <Route path="metricas-marketing" element={<MetricasMarketing />} />
         <Route path="campanhas" element={<CampanhasMarketing />} />
         <Route path="templates-campanha" element={<TemplatesCampanha />} />
         <Route path="painel-designer" element={<PainelDesigner />} />

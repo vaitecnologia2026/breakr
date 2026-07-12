@@ -44,9 +44,20 @@ interface Material {
 }
 interface CampanhaDetalhe {
   id: string; nome: string; objetivo: string | null; situacao: string; prazo: string | null;
-  cliente: { nomeFantasia: string } | null; squad: { nome: string } | null;
+  cliente: { nomeFantasia: string; pilares: string[] } | null; squad: { nome: string } | null;
   materiais: Material[];
+  // Aprovacao interdepartamental (Seção 8). Null = não requer.
+  statusAprovacaoInterna: string | null;
+  aprovacaoInternaComentario: string | null;
 }
+
+// Rótulos do status de aprovação interdepartamental (Seção 8).
+const APROVACAO_INTERNA_ROTULO: Record<string, string> = {
+  AGUARDANDO_GESTAO: 'Aguard. Gestão',
+  AGUARDANDO_FINANCEIRO: 'Aguard. Financeiro',
+  APROVADO_INT: 'Aprovado Int.',
+  EM_ALINHAMENTO: 'Em Alinhamento',
+};
 interface Opcao { id: string; nome: string }
 
 export function CampanhasMarketing() {
@@ -226,6 +237,22 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
     await api.delete(`/campanhas-marketing/materiais/${materialId}`);
     carregar();
   }
+  async function enviarAprovacaoInterna(pilar: 'GESTAO' | 'FINANCEIRO') {
+    try {
+      await api.post(`/campanhas-marketing/${id}/aprovacao-interna/enviar`, { pilar });
+      carregar();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+      alert((Array.isArray(msg) ? msg.join(' ') : msg) || 'Não foi possível enviar para aprovação.');
+    }
+  }
+
+  const pilares = campanha?.cliente?.pilares ?? [];
+  const temGestao = pilares.includes('GESTAO');
+  const temFinanceiro = pilares.includes('FINANCEIRO');
+  const emAprovacao =
+    campanha?.statusAprovacaoInterna === 'AGUARDANDO_GESTAO' ||
+    campanha?.statusAprovacaoInterna === 'AGUARDANDO_FINANCEIRO';
 
   return (
     <div>
@@ -239,6 +266,29 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
           </div>
         }
       />
+
+      {/* Aprovação interdepartamental (Seção 8) — só para clientes multi-pilar. */}
+      {campanha && (temGestao || temFinanceiro) && (
+        <div className="brk-card brk-card-p" style={{ marginBottom: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--texto)' }}>Aprovação interna:</span>
+          {campanha.statusAprovacaoInterna ? (
+            <Badge cor={campanha.statusAprovacaoInterna === 'APROVADO_INT' ? 'verde' : campanha.statusAprovacaoInterna === 'EM_ALINHAMENTO' ? 'vermelho' : 'amarelo'}>
+              {APROVACAO_INTERNA_ROTULO[campanha.statusAprovacaoInterna] ?? campanha.statusAprovacaoInterna}
+            </Badge>
+          ) : (
+            <span style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>não enviada</span>
+          )}
+          {!emAprovacao && temGestao && (
+            <Btn variante="secondary" onClick={() => enviarAprovacaoInterna('GESTAO')}>Enviar p/ Gestão</Btn>
+          )}
+          {!emAprovacao && temFinanceiro && (
+            <Btn variante="secondary" onClick={() => enviarAprovacaoInterna('FINANCEIRO')}>Enviar p/ Financeiro</Btn>
+          )}
+          {campanha.aprovacaoInternaComentario && (
+            <span style={{ fontSize: 12, color: 'var(--texto-suave)' }}>“{campanha.aprovacaoInternaComentario}”</span>
+          )}
+        </div>
+      )}
 
       {carregando ? (
         <Carregando />

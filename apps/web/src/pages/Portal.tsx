@@ -81,6 +81,26 @@ interface PortalData {
     destino: string;
     campanha: string | null;
   }[];
+  // Anúncios ativos (Seção 9, Módulo 2).
+  anunciosAtivos: {
+    id: string;
+    nome: string;
+    objetivo: string | null;
+    status: string;
+    orcamentoDiario: string | null;
+    criadoEm: string;
+  }[];
+  // Relatório de resultados (Seção 9, Módulo 3).
+  relatorioResultados: {
+    totalCampanhas: number;
+    ativos: number;
+    impressoes: number;
+    cliques: number;
+    ctr: number;
+    investimento: number;
+    conversoes: number;
+    custoPorResultado: number | null;
+  };
 }
 
 /* --------------------------- Helpers locais --------------------------- */
@@ -197,6 +217,13 @@ const MOCK_PORTAL: PortalData = {
   materiaisParaAprovar: [
     { id: 'mat1', titulo: 'Criativo de antecipação — Feirão', tipo: 'Criativo', destino: 'TRAFEGO_PAGO', campanha: 'Feirão de Julho' },
   ],
+  anunciosAtivos: [
+    { id: 'ad1', nome: 'Conversões — Cardápio especial', objetivo: 'Conversões', status: 'ATIVA', orcamentoDiario: '50.00', criadoEm: '2026-07-01' },
+  ],
+  relatorioResultados: {
+    totalCampanhas: 3, ativos: 1, impressoes: 128400, cliques: 3210, ctr: 2.5,
+    investimento: 1450.0, conversoes: 92, custoPorResultado: 15.76,
+  },
 };
 
 export function Portal() {
@@ -283,6 +310,12 @@ export function Portal() {
                 codigo={codigo ?? ''}
                 aoMudar={() => setVersao((v) => v + 1)}
               />
+            )}
+            {dados.relatorioResultados.totalCampanhas > 0 && (
+              <CardRelatorioResultados relatorio={dados.relatorioResultados} codigo={codigo ?? ''} />
+            )}
+            {dados.anunciosAtivos.length > 0 && (
+              <CardAnunciosAtivos anuncios={dados.anunciosAtivos} />
             )}
             {dados.medalhas.length > 0 && (
               <Card>
@@ -1069,6 +1102,73 @@ function MaterialAprovacao({
         </button>
       </div>
     </li>
+  );
+}
+
+/* --------- Anúncios ativos + Relatório de resultados (Seção 9, M2 e M3) -------- */
+
+function CardRelatorioResultados({ relatorio, codigo }: { relatorio: PortalData['relatorioResultados']; codigo: string }) {
+  const moeda = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const urlPdf = `${api.defaults.baseURL ?? ''}/portal/${codigo}/relatorio.pdf`;
+  const itens: { rotulo: string; valor: string }[] = [
+    { rotulo: 'Impressões', valor: relatorio.impressoes.toLocaleString('pt-BR') },
+    { rotulo: 'Cliques', valor: relatorio.cliques.toLocaleString('pt-BR') },
+    { rotulo: 'CTR', valor: `${relatorio.ctr}%` },
+    { rotulo: 'Investimento', valor: moeda(relatorio.investimento) },
+    { rotulo: 'Conversões', valor: relatorio.conversoes.toLocaleString('pt-BR') },
+    { rotulo: 'Custo/resultado', valor: relatorio.custoPorResultado === null ? '—' : moeda(relatorio.custoPorResultado) },
+  ];
+  return (
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <TituloCard>Relatório de resultados</TituloCard>
+        <a
+          href={urlPdf}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--azul)', textDecoration: 'none', border: '1px solid var(--borda-forte)', borderRadius: 8, padding: '6px 12px' }}
+        >
+          Baixar PDF
+        </a>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 4 }}>
+        Resumo das suas campanhas de tráfego ({relatorio.ativos} ativa(s) de {relatorio.totalCampanhas}).
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginTop: 12 }}>
+        {itens.map((i) => (
+          <div key={i.rotulo} style={{ padding: '10px 12px', border: '1px solid var(--borda)', borderRadius: 10, background: 'var(--superficie-2)' }}>
+            <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{i.rotulo}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--cinza-vapor)' }}>{i.valor}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function CardAnunciosAtivos({ anuncios }: { anuncios: PortalData['anunciosAtivos'] }) {
+  return (
+    <Card>
+      <TituloCard>Anúncios ativos</TituloCard>
+      <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 4 }}>
+        {anuncios.length === 1 ? 'Um anúncio veiculado' : `${anuncios.length} anúncios veiculados`} no momento.
+      </p>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12, listStyle: 'none' }}>
+        {anuncios.map((a) => (
+          <li key={a.id} style={{ border: '1px solid var(--borda)', borderRadius: 12, padding: 14, background: 'var(--superficie-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cinza-vapor)' }}>{a.nome}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: '#67e0a3', background: 'rgba(46,204,113,0.14)' }}>Ativo</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--texto-suave)', marginTop: 6 }}>
+              {a.objetivo ? `${a.objetivo} · ` : ''}
+              início {formatarData(a.criadoEm)}
+              {a.orcamentoDiario ? ` · orçamento diário ${formatarBRL(a.orcamentoDiario)}` : ''}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

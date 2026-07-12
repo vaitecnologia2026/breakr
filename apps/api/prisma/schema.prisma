@@ -1325,6 +1325,11 @@ model CampanhaMarketing {
   situacao     String   @default("PLANEJADA")
   prazo        DateTime?
   codigoUnico  String   @unique @map("codigo_unico")
+  // Aprovacao interdepartamental (Briefing Marketing — Secao 8). Nulo = nao requer
+  // (cliente marketing-only vai direto para producao). Valores: AGUARDANDO_GESTAO |
+  // AGUARDANDO_FINANCEIRO | APROVADO_INT | EM_ALINHAMENTO. Comentario = ultimo aval/ajuste.
+  statusAprovacaoInterna     String?  @map("status_aprovacao_interna")
+  aprovacaoInternaComentario String?  @map("aprovacao_interna_comentario")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -1336,9 +1341,29 @@ model CampanhaMarketing {
 
   materiais MaterialCampanha[]
 
+  // Historico da aprovacao interdepartamental (Secao 8).
+  historicoAprovacaoInterna HistoricoAprovacaoInterna[]
+
   @@index([clienteId])
   @@index([squadId])
   @@map("campanha_marketing")
+}
+
+/// Historico da aprovacao interdepartamental de uma campanha (Briefing Marketing —
+/// Secao 8): cada envio/aval/ajuste/reprovacao gera um registro com autor e comentario.
+model HistoricoAprovacaoInterna {
+  id         String   @id @default(uuid())
+  campanhaId String   @map("campanha_id")
+  campanha   CampanhaMarketing @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  de         String?
+  para       String?
+  autorId    String?  @map("autor_id")
+  autorNome  String?  @map("autor_nome")
+  comentario String?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([campanhaId])
+  @@map("historico_aprovacao_interna")
 }
 
 /// Material (tarefa) de uma campanha de marketing — percorre o pipeline de status

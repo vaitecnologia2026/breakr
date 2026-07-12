@@ -20,6 +20,10 @@ interface IntegracaoEntry {
   impersonateEmail?: string | null;
   refreshToken?: string | null;
   googleEmail?: string | null;
+  // Ads (Meta/Google) — Briefing Marketing (Secao 12, item 13). apiKey guarda o
+  // token de acesso; contaId, o ID da conta de anuncios. A leitura automatica de
+  // metricas (adapter) e etapa futura — aqui guardamos apenas as credenciais.
+  contaId?: string | null;
 }
 
 interface Integracoes {
@@ -29,6 +33,8 @@ interface Integracoes {
   whatsapp: IntegracaoEntry;
   vaicrm: IntegracaoEntry;
   google: IntegracaoEntry;
+  adsMeta: IntegracaoEntry;
+  adsGoogle: IntegracaoEntry;
 }
 
 interface IntegracoesPublicas {
@@ -38,6 +44,8 @@ interface IntegracoesPublicas {
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
   google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
+  adsMeta: { temToken: boolean; preview: string | null; contaId: string | null };
+  adsGoogle: { temToken: boolean; preview: string | null; contaId: string | null };
 }
 
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
@@ -62,6 +70,8 @@ export class IntegracoesConfigService {
       whatsapp: integ.whatsapp ?? {},
       vaicrm: integ.vaicrm ?? {},
       google: integ.google ?? {},
+      adsMeta: integ.adsMeta ?? {},
+      adsGoogle: integ.adsGoogle ?? {},
     };
   }
 
@@ -86,6 +96,8 @@ export class IntegracoesConfigService {
         conectado: !!integ.google.refreshToken,
         contaConectada: integ.google.googleEmail ?? null,
       },
+      adsMeta: { temToken: !!integ.adsMeta.apiKey, preview: this.mascarar(integ.adsMeta.apiKey), contaId: integ.adsMeta.contaId ?? null },
+      adsGoogle: { temToken: !!integ.adsGoogle.apiKey, preview: this.mascarar(integ.adsGoogle.apiKey), contaId: integ.adsGoogle.contaId ?? null },
     };
   }
 
@@ -126,6 +138,10 @@ export class IntegracoesConfigService {
     googleServiceAccount?: string;
     googleCalendarId?: string;
     googleImpersonateEmail?: string;
+    adsMetaToken?: string;
+    adsMetaContaId?: string;
+    adsGoogleToken?: string;
+    adsGoogleContaId?: string;
   }): Promise<IntegracoesPublicas> {
     const integ = await this.lerParametros();
     const limpavel = (v: string | undefined, atual: string | null | undefined) =>
@@ -155,6 +171,14 @@ export class IntegracoesConfigService {
         // Preserva a conexao OAuth ja existente (nao vem do formulario de credenciais).
         refreshToken: integ.google.refreshToken ?? null,
         googleEmail: integ.google.googleEmail ?? null,
+      },
+      adsMeta: {
+        apiKey: limpavel(dto.adsMetaToken, integ.adsMeta.apiKey),
+        contaId: limpavel(dto.adsMetaContaId, integ.adsMeta.contaId),
+      },
+      adsGoogle: {
+        apiKey: limpavel(dto.adsGoogleToken, integ.adsGoogle.apiKey),
+        contaId: limpavel(dto.adsGoogleContaId, integ.adsGoogle.contaId),
       },
     };
 
