@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { StatusConteudo, StatusEstrategia, StatusMaterial, TipoConteudo } from '@prisma/client';
 import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
@@ -100,6 +100,23 @@ export class PortalService {
       orderBy: { criadoEm: 'desc' },
     });
 
+    // Materiais de campanha aguardando o aval do cliente (Briefing Marketing —
+    // Secao 9, Modulo 1). Somente do proprio cliente e no status AGUARDANDO_APROVACAO.
+    const materiaisParaAprovar = await this.prisma.materialCampanha.findMany({
+      where: {
+        status: StatusMaterial.AGUARDANDO_APROVACAO,
+        campanha: { clienteId: cliente.id },
+      },
+      orderBy: { criadoEm: 'desc' },
+      select: {
+        id: true,
+        titulo: true,
+        tipo: true,
+        destino: true,
+        campanha: { select: { nome: true } },
+      },
+    });
+
     return {
       cliente: {
         nomeFantasia: cliente.nomeFantasia,
@@ -181,6 +198,14 @@ export class PortalService {
         : null,
       // Pesquisas do portal pendentes de resposta (req. l.44-46).
       pesquisasPendentes,
+      // Materiais de campanha aguardando aprovacao do cliente (Secao 9, Modulo 1).
+      materiaisParaAprovar: materiaisParaAprovar.map((m) => ({
+        id: m.id,
+        titulo: m.titulo,
+        tipo: m.tipo,
+        destino: m.destino,
+        campanha: m.campanha?.nome ?? null,
+      })),
     };
   }
 
@@ -460,5 +485,98 @@ export class PortalService {
       },
       update: { nota: dados.nota, comentario: dados.comentario },
     });
+  }
+
+  // Carrega o material garantindo que pertence ao cliente do portal e que esta
+  // mesmo aguardando aprovacao — evita que um link aprove material de outro
+  // (Briefing Marketing — Secao 9, Modulo 1).
+  private async materialDoCliente(codigo: string, materialId: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { codigoUnico: codigo },
+      select: { id: true },
+    });
+    if (!cliente) throw new NotFoundException('Portal nao encontrado');
+    const material = await this.prisma.materialCampanha.findUnique({
+      where: { id: materialId },
+      select: {
+        id: true,
+        titulo: true,
+        status: true,
+        campanha: { select: { clienteId: true, nome: true } },
+      },
+    });
+    if (!material || material.campanha?.clienteId !== cliente.id) {
+      throw new NotFoundException('Material nao encontrado neste portal');
+    }
+    if (material.status !== StatusMaterial.AGUARDANDO_APROVACAO) {
+      throw new BadRequestException('Este material nao esta aguardando aprovacao');
+    }
+    return material;
+  }
+
+  // Cliente APROVA o material (com ou sem ressalvas). Segue para o destino final:
+  // o material vai para APROVADO e a equipe interna encaminha (trafego/organico/
+  // impressao). "Aprovar com ressalvas" = aprovado com um ajuste menor no comentario.
+  async aprovarMaterial(
+    codigo: string,
+    materialId: string,
+    dados: { comRessalvas?: boolean; comentario?: string },
+  ) {
+    const material = await this.materialDoCliente(codigo, materialId);
+    const decisao = dados.comRessalvas ? 'RESSALVAS' : 'APROVADO';
+
+    const atualizado = await this.prisma.materialCampanha.update({
+      where: { id: materialId },
+      data: {
+        status: StatusMaterial.APROVADO,
+        decisaoCliente: decisao,
+        comentarioCliente: dados.comentario?.trim() || null,
+        aprovadoEm: new Date(),
+      },
+      include: { campanha: { select: { cliente: { select: { nomeFantasia: true } } } } },
+    });
+
+    // O aval do cliente chega ao CS (feedback vinculado a tarefa interna).
+    const cli = atualizado.campanha?.cliente?.nomeFantasia ?? 'Cliente';
+    await this.notificacoes.notificarPorCargo(Cargo.CS, {
+      titulo: dados.comRessalvas ? 'Material aprovado com ressalvas' : 'Material aprovado pelo cliente',
+      mensagem:
+        `${cli} aprovou o material "${material.titulo}"` +
+        (dados.comRessalvas ? ' com ressalvas.' : '.') +
+        (dados.comentario ? ` Comentario: ${dados.comentario}` : ''),
+      tipo: dados.comRessalvas ? 'ALERTA' : 'SUCESSO',
+      link: '/campanhas',
+    });
+    return atualizado;
+  }
+
+  // Cliente REPROVA o material: volta para EM_AJUSTE (retrabalho), com o comentario
+  // obrigatorio vinculado a tarefa. Incrementa reworkCount (mesma semantica do board).
+  async reprovarMaterial(
+    codigo: string,
+    materialId: string,
+    dados: { comentario: string },
+  ) {
+    const material = await this.materialDoCliente(codigo, materialId);
+
+    const atualizado = await this.prisma.materialCampanha.update({
+      where: { id: materialId },
+      data: {
+        status: StatusMaterial.EM_AJUSTE,
+        decisaoCliente: 'REPROVADO',
+        comentarioCliente: dados.comentario.trim(),
+        reworkCount: { increment: 1 },
+      },
+      include: { campanha: { select: { cliente: { select: { nomeFantasia: true } } } } },
+    });
+
+    const cli = atualizado.campanha?.cliente?.nomeFantasia ?? 'Cliente';
+    await this.notificacoes.notificarPorCargo(Cargo.CS, {
+      titulo: 'Cliente reprovou um material',
+      mensagem: `${cli} reprovou o material "${material.titulo}": ${dados.comentario}`,
+      tipo: 'ALERTA',
+      link: '/campanhas',
+    });
+    return atualizado;
   }
 }

@@ -1352,6 +1352,12 @@ model MaterialCampanha {
   prazo        DateTime?
   // Numero de vezes que o material voltou para ajuste (retrabalho).
   reworkCount  Int            @default(0) @map("rework_count")
+  // Aprovacao do material pelo cliente no portal (Briefing Marketing — Secao 9,
+  // Modulo 1). decisaoCliente: APROVADO | RESSALVAS | REPROVADO. comentarioCliente
+  // e o feedback (obrigatorio ao reprovar) vinculado a esta tarefa interna.
+  decisaoCliente    String?   @map("decisao_cliente")
+  comentarioCliente String?   @map("comentario_cliente")
+  aprovadoEm        DateTime? @map("aprovado_em")
   criadoEm     DateTime       @default(now()) @map("criado_em")
   atualizadoEm DateTime       @updatedAt @map("atualizado_em")
 
