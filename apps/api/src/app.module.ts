@@ -57,6 +57,7 @@ import { CentroCustoModule } from './centro-custo/centro-custo.module';
 import { NpsClienteModule } from './nps-cliente/nps-cliente.module';
 import { PesquisasModule } from './pesquisas/pesquisas.module';
 import { ComissoesModule } from './comissoes/comissoes.module';
+import { CampanhasMarketingModule } from './campanhas-marketing/campanhas-marketing.module';
 
 @Module({
   imports: [
@@ -150,6 +151,7 @@ import { ComissoesModule } from './comissoes/comissoes.module';
     NpsClienteModule,
     PesquisasModule,
     ComissoesModule,
+    CampanhasMarketingModule,
   ],
 })
 export class AppModule {}

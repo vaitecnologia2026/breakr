@@ -164,6 +164,9 @@ model Usuario {
   // Eventos do calendario de Agendamento (Comercial) sob responsabilidade do usuario
   agendamentos Agendamento[] @relation("AgendamentoResponsavel")
 
+  // Materiais de campanha de marketing sob responsabilidade (Briefing Marketing — Secao 3)
+  materiaisResponsavel MaterialCampanha[] @relation("MaterialResponsavel")
+
   @@index([departamentoId])
   @@index([perfilId])
   @@map("usuario")
@@ -239,6 +242,9 @@ model Squad {
   membros   SquadMembro[]
   clientes  Cliente[]
   conteudos Conteudo[]
+
+  // Campanhas de marketing (produção) atribuídas ao squad — Briefing Marketing (Secao 3)
+  campanhasMarketing CampanhaMarketing[]
 
   @@map("squad")
 }
@@ -322,6 +328,9 @@ model Cliente {
 
   // Tráfego pago (Fase 2 — M17)
   campanhas Campanha[]
+
+  // Campanhas de marketing (produção) — Briefing Marketing (Secao 3)
+  campanhasMarketing CampanhaMarketing[]
 
   // Atendimento WhatsApp (M22)
   conversas Conversa[]
@@ -1283,6 +1292,78 @@ model OtimizacaoCampanha {
 
   @@index([campanhaId])
   @@map("otimizacao_campanha")
+}
+
+// ============================================================
+// MARKETING — PRODUCAO DE CAMPANHAS (Briefing Marketing — Secao 3)
+// ============================================================
+
+/// Status de uma tarefa de material dentro do pipeline de producao (Briefing
+/// Marketing — Secao 3). Ordem: Planejado -> Em Copy -> Copy Concluida ->
+/// Em Design -> Aguard. Aprovacao -> Aprovado -> (Em Ajuste) -> Ativo no Trafego
+/// -> Concluido.
+enum StatusMaterial {
+  PLANEJADO
+  EM_COPY
+  COPY_CONCLUIDA
+  EM_DESIGN
+  AGUARDANDO_APROVACAO
+  APROVADO
+  EM_AJUSTE
+  ATIVO_TRAFEGO
+  CONCLUIDO
+}
+
+/// Campanha de producao de marketing de um cliente (Briefing Marketing — Secao 3,
+/// etapa 1 Planejamento). Reune os materiais que percorrem o pipeline. Distinta
+/// da Campanha de trafego pago (model Campanha).
+model CampanhaMarketing {
+  id           String   @id @default(uuid())
+  nome         String
+  objetivo     String?
+  // PLANEJADA | EM_ANDAMENTO | CONCLUIDA (situacao geral da campanha).
+  situacao     String   @default("PLANEJADA")
+  prazo        DateTime?
+  codigoUnico  String   @unique @map("codigo_unico")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  squadId String? @map("squad_id")
+  squad   Squad?  @relation(fields: [squadId], references: [id])
+
+  materiais MaterialCampanha[]
+
+  @@index([clienteId])
+  @@index([squadId])
+  @@map("campanha_marketing")
+}
+
+/// Material (tarefa) de uma campanha de marketing — percorre o pipeline de status
+/// (Briefing Marketing — Secao 3). destino: TRAFEGO_PAGO | ORGANICO | IMPRESSAO.
+model MaterialCampanha {
+  id           String         @id @default(uuid())
+  titulo       String
+  tipo         String? // ex.: criativo de antecipacao, video curto...
+  destino      String         @default("TRAFEGO_PAGO")
+  status       StatusMaterial @default(PLANEJADO)
+  prazo        DateTime?
+  // Numero de vezes que o material voltou para ajuste (retrabalho).
+  reworkCount  Int            @default(0) @map("rework_count")
+  criadoEm     DateTime       @default(now()) @map("criado_em")
+  atualizadoEm DateTime       @updatedAt @map("atualizado_em")
+
+  campanhaId String            @map("campanha_id")
+  campanha   CampanhaMarketing @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+
+  responsavelId String?  @map("responsavel_id")
+  responsavel   Usuario? @relation("MaterialResponsavel", fields: [responsavelId], references: [id])
+
+  @@index([campanhaId])
+  @@index([status])
+  @@map("material_campanha")
 }
 
 // ============================================================
