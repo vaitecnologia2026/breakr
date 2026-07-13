@@ -205,6 +205,8 @@ export class ContratosService {
       const planosSel = planos.map((lp) => lp.plano.nome).filter(Boolean).join(', ');
 
       const payload = {
+        // Id unico do cadastro — identifica a qual cadastro as informacoes pertencem.
+        cadastro_codigo: cad?.codigoUnico ?? '',
         // Dados do Cadastro Completo (nomes que o fluxo n8n do Asaas espera).
         razao_social: cad?.razaoSocial ?? '',
         nome_fantasia: cad?.nomeFantasia ?? '',

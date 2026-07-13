@@ -566,6 +566,9 @@ model Contrato {
 /// de captacao de dados). 1:1 com o negocio (Lead). Alimenta as tags do .docx.
 model CadastroContrato {
   id                  String   @id @default(uuid())
+  // Codigo unico legivel do cadastro (ex.: CAD-XXXX) — identifica a qual cadastro
+  // as informacoes pertencem quando enviadas.
+  codigoUnico         String?  @unique @map("codigo_unico")
   leadId              String   @unique @map("lead_id")
   lead                Lead     @relation("LeadCadastroContrato", fields: [leadId], references: [id], onDelete: Cascade)
   razaoSocial         String?  @map("razao_social")
