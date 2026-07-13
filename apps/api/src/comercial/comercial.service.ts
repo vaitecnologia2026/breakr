@@ -307,7 +307,7 @@ export class ComercialService {
     };
     return this.prisma.cadastroContrato.upsert({
       where: { leadId },
-      create: { leadId, ...data },
+      create: { leadId, codigoUnico: this.codigoUnico.gerar('CAD'), ...data },
       update: data,
     });
   }
@@ -315,22 +315,24 @@ export class ComercialService {
   // Gera (ou reaproveita) o token do link publico do Cadastro Completo desse
   // negocio, para o cliente preencher no lugar do vendedor. Garante a linha do
   // cadastro (upsert) e devolve o token estavel.
-  async gerarLinkCadastro(leadId: string): Promise<{ token: string }> {
+  async gerarLinkCadastro(leadId: string): Promise<{ token: string; codigoUnico: string }> {
     await this.obter(leadId);
     const atual = await this.prisma.cadastroContrato.findUnique({
       where: { leadId },
-      select: { linkToken: true },
+      select: { linkToken: true, codigoUnico: true },
     });
     let token = atual?.linkToken ?? null;
-    if (!token) {
-      token = randomBytes(18).toString('hex');
+    let codigoUnico = atual?.codigoUnico ?? null;
+    if (!token || !codigoUnico) {
+      token = token ?? randomBytes(18).toString('hex');
+      codigoUnico = codigoUnico ?? this.codigoUnico.gerar('CAD');
       await this.prisma.cadastroContrato.upsert({
         where: { leadId },
-        create: { leadId, linkToken: token },
-        update: { linkToken: token },
+        create: { leadId, linkToken: token, codigoUnico },
+        update: { linkToken: token, codigoUnico },
       });
     }
-    return { token };
+    return { token, codigoUnico };
   }
 
   // Publico (sem auth): dados do Cadastro Completo pelo token do link, para o
@@ -343,6 +345,7 @@ export class ComercialService {
     if (!cad) throw new NotFoundException('Link inválido ou expirado.');
     return {
       empresa: cad.lead?.empresa ?? cad.lead?.nome ?? null,
+      codigoUnico: cad.codigoUnico ?? null,
       dados: {
         razaoSocial: cad.razaoSocial ?? '',
         nomeFantasia: cad.nomeFantasia ?? '',
@@ -376,8 +379,8 @@ export class ComercialService {
       select: { leadId: true },
     });
     if (!cad) throw new NotFoundException('Link inválido ou expirado.');
-    await this.salvarCadastro(cad.leadId, dto);
-    return { ok: true };
+    const rec = await this.salvarCadastro(cad.leadId, dto);
+    return { ok: true, codigoUnico: rec.codigoUnico ?? null };
   }
 
   // ── Notas do negocio (aba "Notas") ─────────────────────────────────────────

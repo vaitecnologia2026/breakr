@@ -14,6 +14,7 @@ import { CADASTRO_CAMPOS, aplicarMascara, MASCARA_MAXLEN } from '../components/N
 export function CadastroPublico() {
   const { token } = useParams<{ token: string }>();
   const [empresa, setEmpresa] = useState<string | null>(null);
+  const [codigo, setCodigo] = useState<string | null>(null);
   const [cadastro, setCadastro] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -26,9 +27,10 @@ export function CadastroPublico() {
     (async () => {
       setCarregando(true); setErroCarga(null);
       try {
-        const { data } = await api.get<{ empresa: string | null; dados: Record<string, string> }>(`/comercial/publico/cadastro/${token}`);
+        const { data } = await api.get<{ empresa: string | null; codigoUnico: string | null; dados: Record<string, string> }>(`/comercial/publico/cadastro/${token}`);
         if (!ativo) return;
         setEmpresa(data.empresa ?? null);
+        setCodigo(data.codigoUnico ?? null);
         setCadastro(data.dados ?? {});
       } catch {
         if (ativo) setErroCarga('Link inválido ou expirado. Solicite um novo link ao seu contato.');
@@ -65,9 +67,14 @@ export function CadastroPublico() {
         <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 6 }}>
           Está na hora de desbloquear o verdadeiro potencial do seu negócio{empresa ? <> — <span className="brk-gradient-text">{empresa}</span></> : null}
         </h1>
-        <p style={{ fontSize: 13.5, color: 'var(--texto-fraco)', marginBottom: 24 }}>
+        <p style={{ fontSize: 13.5, color: 'var(--texto-fraco)', marginBottom: codigo ? 8 : 24 }}>
           Por favor, compartilhe suas informações conosco para nosso jurídico preparar nosso contrato.
         </p>
+        {codigo && (
+          <p style={{ fontSize: 12, color: 'var(--texto-fraco)', marginBottom: 24 }}>
+            Cadastro Nº <b style={{ color: 'var(--texto-suave)' }}>{codigo}</b>
+          </p>
+        )}
 
         {carregando ? (
           <div className="brk-card brk-card-p" style={{ textAlign: 'center', color: 'var(--texto-suave)' }}>Carregando…</div>

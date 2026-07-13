@@ -309,6 +309,8 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [linkCadastro, setLinkCadastro] = useState<string | null>(null);
   const [gerandoLink, setGerandoLink] = useState(false);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  // Id unico (codigo) do cadastro completo deste negocio.
+  const [cadastroCodigo, setCadastroCodigo] = useState<string | null>(null);
 
   async function carregar() {
     setErro(null);
@@ -450,9 +452,11 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
     setErroAcao(null);
     const base: Record<string, string> = {};
     CADASTRO_CAMPOS.forEach((c) => { base[c.chave] = ''; });
+    setCadastroCodigo(null);
     try {
       const { data } = await api.get<Record<string, string> | null>(`/comercial/leads/${leadId}/cadastro`);
       if (data) CADASTRO_CAMPOS.forEach((c) => { const v = (data as Record<string, unknown>)[c.chave]; if (v != null) base[c.chave] = String(v); });
+      if (data) setCadastroCodigo(((data as Record<string, unknown>).codigoUnico as string) ?? null);
     } catch { /* sem cadastro ainda */ }
     // Prefill a partir do negócio quando vazio.
     if (!base.nomeFantasia && lead?.empresa) base.nomeFantasia = lead.empresa;
@@ -495,9 +499,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   async function gerarLinkCadastro() {
     setGerandoLink(true); setErroAcao(null); setLinkCopiado(false);
     try {
-      const { data } = await api.post<{ token: string }>(`/comercial/leads/${leadId}/cadastro/link`);
+      const { data } = await api.post<{ token: string; codigoUnico?: string | null }>(`/comercial/leads/${leadId}/cadastro/link`);
       const url = `${window.location.origin}/cadastro/${data.token}`;
       setLinkCadastro(url);
+      if (data.codigoUnico) setCadastroCodigo(data.codigoUnico);
       try { await navigator.clipboard.writeText(url); setLinkCopiado(true); } catch { /* clipboard pode falhar; link fica visivel para copiar manual */ }
     } catch (e: any) {
       setErroAcao(e?.response?.data?.message ?? 'Erro ao gerar o link do cliente.');
@@ -994,6 +999,11 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
       {modalCadastro && (
         <Modal titulo="Cadastro Completo" onFechar={() => setModalCadastro(false)}
           rodape={<><Btn variante="ghost" onClick={gerarLinkCadastro} disabled={gerandoLink}>{gerandoLink ? 'Gerando…' : 'Enviar link ao cliente'}</Btn><Btn variante="secondary" onClick={() => setModalCadastro(false)}>Cancelar</Btn><Btn onClick={salvarCadastro} disabled={salvandoCadastro}>{salvandoCadastro ? 'Salvando…' : 'Salvar Cadastro'}</Btn></>}>
+          {cadastroCodigo && (
+            <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--texto-fraco)' }}>
+              Cadastro Nº <b style={{ color: 'var(--texto-suave)' }}>{cadastroCodigo}</b>
+            </div>
+          )}
           {linkCadastro && (
             <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--superficie-2)', border: '1px solid var(--borda)' }}>
               <div style={{ fontSize: 12, color: 'var(--texto-suave)', marginBottom: 6 }}>
