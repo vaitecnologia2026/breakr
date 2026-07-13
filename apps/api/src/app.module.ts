@@ -61,6 +61,7 @@ import { CampanhasMarketingModule } from './campanhas-marketing/campanhas-market
 import { TemplatesCampanhaModule } from './templates-campanha/templates-campanha.module';
 import { DashboardMarketingModule } from './dashboard-marketing/dashboard-marketing.module';
 import { MetricasMarketingModule } from './metricas-marketing/metricas-marketing.module';
+import { ReceitaModule } from './receita/receita.module';
 
 @Module({
   imports: [
@@ -158,6 +159,8 @@ import { MetricasMarketingModule } from './metricas-marketing/metricas-marketing
     TemplatesCampanhaModule,
     DashboardMarketingModule,
     MetricasMarketingModule,
+    // Consulta de CNPJ (ReceitaWS) — auto-preenchimento do Cadastro Completo.
+    ReceitaModule,
   ],
 })
 export class AppModule {}

@@ -35,6 +35,7 @@ interface Integracoes {
   google: IntegracaoEntry;
   adsMeta: IntegracaoEntry;
   adsGoogle: IntegracaoEntry;
+  receita: IntegracaoEntry;
 }
 
 interface IntegracoesPublicas {
@@ -46,6 +47,7 @@ interface IntegracoesPublicas {
   google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
   adsMeta: { temToken: boolean; preview: string | null; contaId: string | null };
   adsGoogle: { temToken: boolean; preview: string | null; contaId: string | null };
+  receita: { temToken: boolean; preview: string | null };
 }
 
 const CONFIG_ID = '00000000-0000-0000-0000-000000000001';
@@ -72,6 +74,7 @@ export class IntegracoesConfigService {
       google: integ.google ?? {},
       adsMeta: integ.adsMeta ?? {},
       adsGoogle: integ.adsGoogle ?? {},
+      receita: integ.receita ?? {},
     };
   }
 
@@ -98,7 +101,14 @@ export class IntegracoesConfigService {
       },
       adsMeta: { temToken: !!integ.adsMeta.apiKey, preview: this.mascarar(integ.adsMeta.apiKey), contaId: integ.adsMeta.contaId ?? null },
       adsGoogle: { temToken: !!integ.adsGoogle.apiKey, preview: this.mascarar(integ.adsGoogle.apiKey), contaId: integ.adsGoogle.contaId ?? null },
+      receita: { temToken: !!integ.receita.apiKey, preview: this.mascarar(integ.receita.apiKey) },
     };
+  }
+
+  // Uso interno (ReceitaService): token BRUTO da ReceitaWS (nunca exposto por controller).
+  async obterReceitaRaw(): Promise<{ token: string | null }> {
+    const integ = await this.lerParametros();
+    return { token: integ.receita.apiKey ?? null };
   }
 
   // Uso interno (GoogleAgendaService): credenciais BRUTAS do Google Agenda
@@ -142,6 +152,7 @@ export class IntegracoesConfigService {
     adsMetaContaId?: string;
     adsGoogleToken?: string;
     adsGoogleContaId?: string;
+    receitaToken?: string;
   }): Promise<IntegracoesPublicas> {
     const integ = await this.lerParametros();
     const limpavel = (v: string | undefined, atual: string | null | undefined) =>
@@ -179,6 +190,9 @@ export class IntegracoesConfigService {
       adsGoogle: {
         apiKey: limpavel(dto.adsGoogleToken, integ.adsGoogle.apiKey),
         contaId: limpavel(dto.adsGoogleContaId, integ.adsGoogle.contaId),
+      },
+      receita: {
+        apiKey: limpavel(dto.receitaToken, integ.receita.apiKey),
       },
     };
 

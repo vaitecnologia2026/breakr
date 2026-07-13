@@ -7,7 +7,7 @@
 //  - Abas: Atividades (CRUD real), Notas (persistidas), Historico (persistido),
 //    Ligacoes (atividades de ligacao), WhatsApp e Email (estados por contato).
 // Mantem o mesmo design system (tokens) do restante do app.
-import { useEffect, useState, type ReactNode, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { api } from '../lib/api';
 import { Modal, Campo, Btn } from './ui';
 import { MensagemErro } from './primitivos';
@@ -301,6 +301,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [checandoPreview, setChecandoPreview] = useState(false);
   const [enviandoAssinatura, setEnviandoAssinatura] = useState(false);
   const [linkAssinatura, setLinkAssinatura] = useState<string | null>(null);
+  // Auto-preenchimento do Cadastro Completo pelo CNPJ (ReceitaWS).
+  const [consultandoCnpj, setConsultandoCnpj] = useState(false);
+  const [erroCnpj, setErroCnpj] = useState<string | null>(null);
+  const ultimoCnpjRef = useRef<string>('');
 
   async function carregar() {
     setErro(null);
@@ -458,6 +462,29 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
     try { await api.put(`/comercial/leads/${leadId}/cadastro`, cadastro); setModalCadastro(false); }
     catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Erro ao salvar cadastro.'); }
     finally { setSalvandoCadastro(false); }
+  }
+  // Ao completar 14 dígitos do CNPJ, busca os dados na Receita (ReceitaWS) e
+  // preenche automaticamente os campos do Cadastro Completo que estiverem vazios
+  // (não sobrescreve o que já foi digitado). Aditivo — não altera o salvar.
+  async function consultarCnpjReceita(digitos: string) {
+    if (digitos.length !== 14 || digitos === ultimoCnpjRef.current) return;
+    ultimoCnpjRef.current = digitos;
+    setConsultandoCnpj(true); setErroCnpj(null);
+    try {
+      const { data } = await api.get<Record<string, string>>(`/receita/cnpj/${digitos}`);
+      setCadastro((m) => {
+        const next = { ...m };
+        Object.entries(data ?? {}).forEach(([k, v]) => {
+          if (k === 'cnpj') return; // preserva o CNPJ digitado (já mascarado)
+          if (v && !String(next[k] ?? '').trim()) next[k] = String(v);
+        });
+        return next;
+      });
+    } catch (e: any) {
+      setErroCnpj(e?.response?.data?.message ?? 'Não foi possível consultar o CNPJ na Receita.');
+    } finally {
+      setConsultandoCnpj(false);
+    }
   }
 
   // ── Criar Contrato (gera o .docx a partir do cadastro + planos/produtos) ────
@@ -956,8 +983,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                   inputMode={c.mascara ? 'numeric' : undefined} maxLength={c.mascara ? MASCARA_MAXLEN[c.mascara] : undefined}
                   spellCheck={!c.mascara && c.tipo !== 'email'}
                   value={c.mascara ? aplicarMascara(c.mascara, cadastro[c.chave] ?? '') : (cadastro[c.chave] ?? '')}
-                  onChange={(e) => { const v = c.mascara ? aplicarMascara(c.mascara, e.target.value) : e.target.value; setCadastro((m) => ({ ...m, [c.chave]: v })); }} style={{ width: '100%' }} />
+                  onChange={(e) => { const v = c.mascara ? aplicarMascara(c.mascara, e.target.value) : e.target.value; setCadastro((m) => ({ ...m, [c.chave]: v })); if (c.mascara === 'cnpj') consultarCnpjReceita(v.replace(/\D/g, '')); }} style={{ width: '100%' }} />
                 {c.ajuda && <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--texto-fraco)' }}>{c.ajuda}</span>}
+                {c.mascara === 'cnpj' && consultandoCnpj && <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--texto-suave)' }}>Buscando dados na Receita…</span>}
+                {c.mascara === 'cnpj' && erroCnpj && <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--vermelho)' }}>{erroCnpj}</span>}
               </div>
             ))}
           </div>
