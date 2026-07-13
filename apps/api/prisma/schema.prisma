@@ -589,6 +589,8 @@ model CadastroContrato {
   estado              String?  @map("estado")
   inscricaoMunicipal  String?  @map("inscricao_municipal")
   inscricaoEstadual   String?  @map("inscricao_estadual")
+  // Token do link publico para o cliente preencher o cadastro (em vez do vendedor).
+  linkToken           String?  @unique @map("link_token")
   criadoEm            DateTime @default(now()) @map("criado_em")
   atualizadoEm        DateTime @updatedAt @map("atualizado_em")
 

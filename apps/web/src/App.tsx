@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Portal } from './pages/Portal';
 import { Captacao } from './pages/Captacao';
+import { CadastroPublico } from './pages/CadastroPublico';
 import { AvaliacaoDisc } from './pages/AvaliacaoDisc';
 import { Dashboard } from './pages/Dashboard';
 import { Inicio } from './pages/Inicio';
@@ -77,6 +78,7 @@ export function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/portal/:codigo" element={<Portal />} />
       <Route path="/captacao" element={<Captacao />} />
+      <Route path="/cadastro/:token" element={<CadastroPublico />} />
       <Route path="/avaliacao-disc" element={<AvaliacaoDisc />} />
       <Route path="/agendar" element={<AgendarPublico />} />
       <Route path="/avaliar-atendimento/:id" element={<AvaliarAtendimento />} />

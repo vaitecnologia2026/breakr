@@ -148,8 +148,8 @@ interface CampoEdit { campo: 'valor' | 'previsao' | 'contato' | 'empresa' | 'tel
 interface AtivForm { id?: string; tipo: TipoAtividade; titulo: string; data: string; horaInicio: string; horaFim: string; notas: string; feito: boolean }
 
 // ── Cadastro Completo (captação de dados p/ contrato) ────────────────────────
-type MascaraTipo = 'data' | 'cnpj' | 'cpf' | 'telefone' | 'cep';
-interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string; mascara?: MascaraTipo }
+export type MascaraTipo = 'data' | 'cnpj' | 'cpf' | 'telefone' | 'cep';
+export interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string; mascara?: MascaraTipo }
 // Máscara de data DD/MM/AAAA a partir dos dígitos digitados (tolera colar/apagar).
 function mascaraDataNascimento(valor: string): string {
   const d = valor.replace(/\D/g, '').slice(0, 8);
@@ -192,7 +192,7 @@ function mascaraTelefone(valor: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 // Aplica a máscara conforme o tipo do campo (sem máscara devolve o valor cru).
-function aplicarMascara(mascara: MascaraTipo | undefined, valor: string): string {
+export function aplicarMascara(mascara: MascaraTipo | undefined, valor: string): string {
   switch (mascara) {
     case 'data': return mascaraDataNascimento(valor);
     case 'cnpj': return mascaraCnpj(valor);
@@ -203,10 +203,10 @@ function aplicarMascara(mascara: MascaraTipo | undefined, valor: string): string
   }
 }
 // Limite de caracteres do valor já formatado, por tipo de máscara.
-const MASCARA_MAXLEN: Record<MascaraTipo, number> = {
+export const MASCARA_MAXLEN: Record<MascaraTipo, number> = {
   data: 10, cnpj: 18, cpf: 14, telefone: 15, cep: 9,
 };
-const CADASTRO_CAMPOS: CampoCadastro[] = [
+export const CADASTRO_CAMPOS: CampoCadastro[] = [
   { chave: 'razaoSocial', rotulo: 'Razão Social *', ajuda: 'Adicione a razão social conforme aparece no seu contrato social.' },
   { chave: 'nomeFantasia', rotulo: 'Nome Fantasia *' },
   { chave: 'cnpj', rotulo: 'CNPJ *', mascara: 'cnpj', placeholder: 'AA.AAA.AAA/AAAA-DV' },
@@ -305,6 +305,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
   const [consultandoCnpj, setConsultandoCnpj] = useState(false);
   const [erroCnpj, setErroCnpj] = useState<string | null>(null);
   const ultimoCnpjRef = useRef<string>('');
+  // Link publico do Cadastro Completo (cliente preenche no lugar do vendedor).
+  const [linkCadastro, setLinkCadastro] = useState<string | null>(null);
+  const [gerandoLink, setGerandoLink] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   async function carregar() {
     setErro(null);
@@ -484,6 +488,21 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
       setErroCnpj(e?.response?.data?.message ?? 'Não foi possível consultar o CNPJ na Receita.');
     } finally {
       setConsultandoCnpj(false);
+    }
+  }
+  // Gera o link publico do Cadastro Completo e copia para a area de transferencia,
+  // para o vendedor enviar ao cliente preencher no lugar dele.
+  async function gerarLinkCadastro() {
+    setGerandoLink(true); setErroAcao(null); setLinkCopiado(false);
+    try {
+      const { data } = await api.post<{ token: string }>(`/comercial/leads/${leadId}/cadastro/link`);
+      const url = `${window.location.origin}/cadastro/${data.token}`;
+      setLinkCadastro(url);
+      try { await navigator.clipboard.writeText(url); setLinkCopiado(true); } catch { /* clipboard pode falhar; link fica visivel para copiar manual */ }
+    } catch (e: any) {
+      setErroAcao(e?.response?.data?.message ?? 'Erro ao gerar o link do cliente.');
+    } finally {
+      setGerandoLink(false);
     }
   }
 
@@ -974,7 +993,18 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
       {/* Cadastro Completo (dados de captação p/ contrato) */}
       {modalCadastro && (
         <Modal titulo="Cadastro Completo" onFechar={() => setModalCadastro(false)}
-          rodape={<><Btn variante="secondary" onClick={() => setModalCadastro(false)}>Cancelar</Btn><Btn onClick={salvarCadastro} disabled={salvandoCadastro}>{salvandoCadastro ? 'Salvando…' : 'Salvar Cadastro'}</Btn></>}>
+          rodape={<><Btn variante="ghost" onClick={gerarLinkCadastro} disabled={gerandoLink}>{gerandoLink ? 'Gerando…' : 'Enviar link ao cliente'}</Btn><Btn variante="secondary" onClick={() => setModalCadastro(false)}>Cancelar</Btn><Btn onClick={salvarCadastro} disabled={salvandoCadastro}>{salvandoCadastro ? 'Salvando…' : 'Salvar Cadastro'}</Btn></>}>
+          {linkCadastro && (
+            <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--superficie-2)', border: '1px solid var(--borda)' }}>
+              <div style={{ fontSize: 12, color: 'var(--texto-suave)', marginBottom: 6 }}>
+                {linkCopiado ? 'Link copiado! Envie ao cliente para ele preencher o cadastro:' : 'Link do cliente — copie e envie para o cliente preencher:'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input className="brk-input" readOnly value={linkCadastro} onFocus={(e) => e.currentTarget.select()} style={{ flex: 1, fontSize: 12 }} />
+                <Btn variante="secondary" onClick={() => { navigator.clipboard?.writeText(linkCadastro).then(() => setLinkCopiado(true)).catch(() => {}); }}>Copiar</Btn>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
             {CADASTRO_CAMPOS.map((c) => (
               <div key={c.chave} style={{ minWidth: 0 }}>
