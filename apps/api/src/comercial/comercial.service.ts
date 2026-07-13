@@ -1,6 +1,7 @@
 // Servico do comercial — pipeline de vendas (CRM, M11). Um Lead percorre o
 // funil e, quando ganho, converte em Cliente.
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { Lead, Prisma, StatusLead } from '@prisma/client';
 import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -309,6 +310,74 @@ export class ComercialService {
       create: { leadId, ...data },
       update: data,
     });
+  }
+
+  // Gera (ou reaproveita) o token do link publico do Cadastro Completo desse
+  // negocio, para o cliente preencher no lugar do vendedor. Garante a linha do
+  // cadastro (upsert) e devolve o token estavel.
+  async gerarLinkCadastro(leadId: string): Promise<{ token: string }> {
+    await this.obter(leadId);
+    const atual = await this.prisma.cadastroContrato.findUnique({
+      where: { leadId },
+      select: { linkToken: true },
+    });
+    let token = atual?.linkToken ?? null;
+    if (!token) {
+      token = randomBytes(18).toString('hex');
+      await this.prisma.cadastroContrato.upsert({
+        where: { leadId },
+        create: { leadId, linkToken: token },
+        update: { linkToken: token },
+      });
+    }
+    return { token };
+  }
+
+  // Publico (sem auth): dados do Cadastro Completo pelo token do link, para o
+  // formulario do cliente pre-preencher. So expoe os campos do cadastro.
+  async obterCadastroPublico(token: string) {
+    const cad = await this.prisma.cadastroContrato.findUnique({
+      where: { linkToken: token },
+      include: { lead: { select: { empresa: true, nome: true } } },
+    });
+    if (!cad) throw new NotFoundException('Link inválido ou expirado.');
+    return {
+      empresa: cad.lead?.empresa ?? cad.lead?.nome ?? null,
+      dados: {
+        razaoSocial: cad.razaoSocial ?? '',
+        nomeFantasia: cad.nomeFantasia ?? '',
+        cnpj: cad.cnpj ?? '',
+        nomeSocio: cad.nomeSocio ?? '',
+        cpfSocio: cad.cpfSocio ?? '',
+        dataNascimentoSocio: cad.dataNascimentoSocio ?? '',
+        profissao: cad.profissao ?? '',
+        nacionalidade: cad.nacionalidade ?? '',
+        email: cad.email ?? '',
+        whatsappSocio: cad.whatsappSocio ?? '',
+        whatsappFinanceiro: cad.whatsappFinanceiro ?? '',
+        cep: cad.cep ?? '',
+        endereco: cad.endereco ?? '',
+        numero: cad.numero ?? '',
+        complemento: cad.complemento ?? '',
+        bairro: cad.bairro ?? '',
+        cidade: cad.cidade ?? '',
+        estado: cad.estado ?? '',
+        inscricaoMunicipal: cad.inscricaoMunicipal ?? '',
+        inscricaoEstadual: cad.inscricaoEstadual ?? '',
+      },
+    };
+  }
+
+  // Publico (sem auth): salva o Cadastro Completo pelo token do link. Reaproveita
+  // exatamente a mesma logica de salvarCadastro (resolvendo o lead pelo token).
+  async salvarCadastroPublico(token: string, dto: SalvarCadastroContratoDto) {
+    const cad = await this.prisma.cadastroContrato.findUnique({
+      where: { linkToken: token },
+      select: { leadId: true },
+    });
+    if (!cad) throw new NotFoundException('Link inválido ou expirado.');
+    await this.salvarCadastro(cad.leadId, dto);
+    return { ok: true };
   }
 
   // ── Notas do negocio (aba "Notas") ─────────────────────────────────────────

@@ -96,6 +96,15 @@ export class ComercialController {
     return this.comercialService.salvarCadastro(id, dto);
   }
 
+  // POST /comercial/leads/:id/cadastro/link — gera o link publico do Cadastro
+  // Completo para o cliente preencher (retorna o token; o front monta a URL).
+  @Post(':id/cadastro/link')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.COMERCIAL, Cargo.CS)
+  gerarLinkCadastro(@Param('id', ParseUUIDPipe) id: string) {
+    return this.comercialService.gerarLinkCadastro(id);
+  }
+
   // PATCH /comercial/leads/:id — atualiza os campos do negocio (RESUMO).
   @Patch(':id')
   @UseGuards(CargosGuard)
