@@ -492,6 +492,9 @@ function CardConteudo({
   // não está movendo nem com o editor de mídia aberto (para não capturar a
   // seleção de texto do input de URL). O drop é tratado pela Coluna.
   const [arrastando, setArrastando] = useState(false);
+  // Abre o modal de detalhes (somente leitura) com todas as informações de
+  // marketing da peça — o "card aberto".
+  const [detalheAberto, setDetalheAberto] = useState(false);
   const podeArrastar = !movendo && !editMidia;
 
   async function mover(novo: StatusConteudo) {
@@ -587,45 +590,57 @@ function CardConteudo({
         transition: 'opacity 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <span
-          style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: 'var(--texto)',
-            lineHeight: 1.3,
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {conteudo.titulo}
-        </span>
-        <BadgeTipo tipo={conteudo.tipo} />
-      </div>
+      {/* Área clicável do card: abre o modal com todas as informações de marketing
+          da peça. Fica separada dos controles abaixo (Mover, mídia, encaminhar)
+          para não interferir no arraste nem nos botões existentes. */}
+      <div
+        role="button"
+        tabIndex={0}
+        title="Ver detalhes da peça"
+        onClick={() => setDetalheAberto(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetalheAberto(true); } }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 9, cursor: 'pointer' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <span
+            style={{
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: 'var(--texto)',
+              lineHeight: 1.3,
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            {conteudo.titulo}
+          </span>
+          <BadgeTipo tipo={conteudo.tipo} />
+        </div>
 
-      <div style={{ fontSize: 12, color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center', gap: 6 }}>
-        {conteudo.cliente?.nomeFantasia ?? 'Cliente'}
-        {conteudo.paraTrafego && (
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#a855f7' }}>· TRÁFEGO</span>
+        <div style={{ fontSize: 12, color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {conteudo.cliente?.nomeFantasia ?? 'Cliente'}
+          {conteudo.paraTrafego && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#a855f7' }}>· TRÁFEGO</span>
+          )}
+        </div>
+
+        {conteudo.responsavel?.nome && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              color: 'var(--texto-suave)',
+            }}
+          >
+            <IconeResponsavel />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {conteudo.responsavel.nome}
+            </span>
+          </div>
         )}
       </div>
-
-      {conteudo.responsavel?.nome && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            color: 'var(--texto-suave)',
-          }}
-        >
-          <IconeResponsavel />
-          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {conteudo.responsavel.nome}
-          </span>
-        </div>
-      )}
 
       <SeletorMover
         valor={conteudo.status}
@@ -705,6 +720,10 @@ function CardConteudo({
           {conteudo.midiaUrl ? '🎬 Editar mídia' : '🎬 Anexar mídia'}
         </button>
       )}
+
+      {detalheAberto && (
+        <DetalheConteudo conteudo={conteudo} onFechar={() => setDetalheAberto(false)} />
+      )}
     </div>
   );
 }
@@ -727,6 +746,145 @@ function BadgeTipo({ tipo }: { tipo: TipoConteudo }) {
     >
       {TIPO_META[tipo]}
     </span>
+  );
+}
+
+/* ----------------------- Detalhe da peça (modal) ---------------------- */
+
+// Formata data ISO -> "DD/MM/AAAA HH:mm" (pt-BR). Sem data vira "—".
+function formatarDataHora(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// Detecta o tipo de mídia pela extensão da URL (para pré-visualizar imagem/vídeo).
+function tipoMidia(url: string): 'imagem' | 'video' | 'outro' {
+  const u = url.toLowerCase().split('?')[0];
+  if (/\.(jpg|jpeg|png|gif|webp|avif|bmp|svg)$/.test(u)) return 'imagem';
+  if (/\.(mp4|webm|ogg|mov|m4v)$/.test(u)) return 'video';
+  return 'outro';
+}
+
+// Linha "rótulo → valor" do painel de detalhes.
+function LinhaInfo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+        {rotulo}
+      </span>
+      <span style={{ fontSize: 13.5, color: 'var(--texto)', wordBreak: 'break-word' }}>{valor}</span>
+    </div>
+  );
+}
+
+/**
+ * Modal de leitura com TODAS as informações de marketing da peça (o "card
+ * aberto"). Mostra código, status, cliente, squad, responsável, tipo, tráfego,
+ * agendamento, avaliação, descrição e a pré-visualização da mídia. Somente
+ * leitura — as ações (mover, mídia, encaminhar) continuam no card do funil.
+ */
+function DetalheConteudo({ conteudo, onFechar }: { conteudo: Conteudo; onFechar: () => void }) {
+  const meta = STATUS_META[conteudo.status];
+  const midia = conteudo.midiaUrl?.trim();
+  const tm = midia ? tipoMidia(midia) : 'outro';
+  return (
+    <Overlay onFechar={onFechar}>
+      <div
+        className="brk-gradient-border"
+        style={{
+          width: 'min(560px, 94vw)',
+          maxHeight: '88vh',
+          overflowY: 'auto',
+          background: 'var(--superficie)',
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: 'var(--sombra-card)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 18,
+        }}
+      >
+        {/* Cabeçalho: título + tipo + código + fechar */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.3 }}>{conteudo.titulo}</h2>
+            <p style={{ fontSize: 12, color: 'var(--texto-fraco)', marginTop: 4 }}>
+              Peça Nº <b style={{ color: 'var(--texto-suave)' }}>{conteudo.codigoUnico}</b>
+            </p>
+          </div>
+          <BadgeTipo tipo={conteudo.tipo} />
+          <button
+            type="button"
+            onClick={onFechar}
+            aria-label="Fechar"
+            style={{ background: 'transparent', border: 'none', color: 'var(--texto-fraco)', fontSize: 20, lineHeight: 1, cursor: 'pointer', padding: 2 }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Status — mesmo indicador do funil */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: meta.cor, boxShadow: `0 0 6px ${meta.cor}`, flexShrink: 0 }} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{meta.rotulo}</span>
+        </div>
+
+        {/* Grade com as informações de marketing da peça */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
+          <LinhaInfo rotulo="Cliente" valor={conteudo.cliente?.nomeFantasia ?? '—'} />
+          <LinhaInfo rotulo="Tipo" valor={TIPO_META[conteudo.tipo]} />
+          <LinhaInfo rotulo="Squad" valor={conteudo.squad?.nome ?? '—'} />
+          <LinhaInfo rotulo="Responsável" valor={conteudo.responsavel?.nome ?? '—'} />
+          <LinhaInfo rotulo="Agendada para" valor={formatarDataHora(conteudo.dataAgendada)} />
+          <LinhaInfo rotulo="Para tráfego pago" valor={conteudo.paraTrafego ? 'Sim' : 'Não'} />
+          <LinhaInfo
+            rotulo="Avaliação"
+            valor={conteudo.estrelas != null
+              ? '★'.repeat(conteudo.estrelas) + '☆'.repeat(Math.max(0, 5 - conteudo.estrelas))
+              : '—'}
+          />
+        </div>
+
+        {/* Descrição / briefing */}
+        <LinhaInfo
+          rotulo="Descrição / briefing"
+          valor={conteudo.descricao?.trim()
+            ? <span style={{ whiteSpace: 'pre-wrap' }}>{conteudo.descricao}</span>
+            : <span style={{ color: 'var(--texto-fraco)' }}>Sem descrição.</span>}
+        />
+
+        {/* Mídia da peça — pré-visualização + link */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            Mídia
+          </span>
+          {midia ? (
+            <>
+              {tm === 'imagem' && (
+                <img src={midia} alt={`Mídia de ${conteudo.titulo}`} style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
+              )}
+              {tm === 'video' && (
+                <video src={midia} controls style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
+              )}
+              <a href={midia} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--amarelo-fagulha)', wordBreak: 'break-all' }}>
+                {midia}
+              </a>
+            </>
+          ) : (
+            <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Nenhuma mídia anexada.</span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
+        </div>
+      </div>
+    </Overlay>
   );
 }
 
