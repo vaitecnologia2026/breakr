@@ -4,13 +4,14 @@
 // criacao/transicao dispara o motor; ao ir para APROVACAO_CLIENTE o CS e
 // notificado para acompanhar a aprovacao no portal.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Conteudo, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { Conteudo, Prisma, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
 import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { EngineService } from '../automacao/engine.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { CriarConteudoDto } from './dto/criar-conteudo.dto';
+import { AtualizarConteudoDto } from './dto/atualizar-conteudo.dto';
 import { SolicitarCriativoDto } from './dto/solicitar-criativo.dto';
 
 // SLA padrao (horas) para a estrategista atender uma solicitacao de criativo.
@@ -95,6 +96,24 @@ export class ConteudosService {
       throw new NotFoundException('Conteudo nao encontrado');
     }
     return conteudo;
+  }
+
+  // Edita as informacoes da peca (titulo, tipo, descricao, midia, trafego,
+  // agendamento). PATCH parcial: grava apenas os campos enviados, preservando o
+  // restante. Nao altera status/responsavel (que tem endpoints proprios).
+  async atualizar(id: string, dto: AtualizarConteudoDto): Promise<Conteudo> {
+    await this.obter(id); // 404 se a peca nao existir
+    const data: Prisma.ConteudoUpdateInput = {};
+    if (dto.titulo !== undefined) data.titulo = dto.titulo.trim();
+    if (dto.tipo !== undefined) data.tipo = dto.tipo;
+    if (dto.descricao !== undefined) data.descricao = dto.descricao.trim() || null;
+    if (dto.midiaUrl !== undefined) data.midiaUrl = dto.midiaUrl.trim() || null;
+    if (dto.paraTrafego !== undefined) data.paraTrafego = dto.paraTrafego;
+    if (dto.dataAgendada !== undefined) {
+      data.dataAgendada = dto.dataAgendada ? new Date(dto.dataAgendada) : null;
+    }
+    await this.prisma.conteudo.update({ where: { id }, data });
+    return this.obter(id);
   }
 
   // Move a peca para um novo status no funil e dispara o motor. Quando vai para
