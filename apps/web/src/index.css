@@ -195,7 +195,7 @@ input, textarea, select { font-family: inherit; }
 }
 .brk-sidebar-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--texto-fraco);
@@ -214,7 +214,7 @@ input, textarea, select { font-family: inherit; }
   padding: 8px 10px;
   border-radius: var(--r-md);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--texto-suave);
   transition: background 0.12s, color 0.12s, padding 0.22s, justify-content 0s;
   position: relative;
@@ -224,7 +224,7 @@ input, textarea, select { font-family: inherit; }
 .brk-sidebar-item.active {
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
-  font-weight: 600;
+  font-weight: 500;
 }
 .brk-sidebar-item.active::before {
   content: '';
@@ -325,7 +325,7 @@ input, textarea, select { font-family: inherit; }
 .brk-sidebar-group-header {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 10px; border-radius: var(--r-md);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase;
   color: var(--texto-fraco); background: none; border: none; cursor: pointer;
   width: 100%; font-family: inherit;
   transition: background 0.12s, color 0.12s;
