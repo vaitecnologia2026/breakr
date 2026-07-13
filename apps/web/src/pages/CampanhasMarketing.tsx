@@ -7,6 +7,7 @@ import {
   PaginaHeader, Btn, Campo, CampoSelect, Modal, Badge,
   Carregando, Vazio, ErroEstado, Alerta,
 } from '../components/ui';
+import { GuiaJornadaMarketing } from '../components/GuiaJornadaMarketing';
 
 // 9 status do pipeline (Briefing Marketing — Seção 3).
 const STATUS: { v: string; r: string }[] = [
@@ -88,6 +89,8 @@ export function CampanhasMarketing() {
         subtitulo="Produção de campanhas por cliente — pipeline de materiais (Seção 3 do briefing)."
         acoes={<Btn onClick={() => setModalNova(true)}>+ Nova campanha</Btn>}
       />
+
+      <GuiaJornadaMarketing etapaAtual="planejamento" />
 
       {carregando ? (
         <Carregando />

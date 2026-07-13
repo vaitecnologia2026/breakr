@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { PaginaHeader, Btn, CampoSelect, Carregando, ErroEstado, Vazio } from '../components/ui';
+import { GuiaJornadaMarketing } from '../components/GuiaJornadaMarketing';
 
 interface SquadLinha { nome: string; concluidos: number; noPrazo: number; foraPrazo: number; retrabalho: number; abertas: number; taxaNoPrazo: number | null }
 interface MembroLinha { nome: string; concluidos: number; noPrazo: number; foraPrazo: number; retrabalho: number; abertas: number; taxaNoPrazo: number | null }
@@ -70,6 +71,8 @@ export function MetricasMarketing() {
         subtitulo="Desempenho da produção por squad, membro e cliente + evolução mês a mês (Seção 7 do briefing)."
         acoes={<Btn variante="secondary" onClick={() => carregar()}>Atualizar</Btn>}
       />
+
+      <GuiaJornadaMarketing etapaAtual="acompanhamento" />
 
       <div className="brk-card brk-card-p" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ minWidth: 180 }}>

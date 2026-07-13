@@ -19,6 +19,7 @@ import {
   EstadoErro,
   PainelVazio,
 } from '../components/primitivos';
+import { GuiaJornadaMarketing } from '../components/GuiaJornadaMarketing';
 
 /**
  * Tela de Conteúdo (M16 — funil de produção das peças).
@@ -188,6 +189,8 @@ export function Conteudos() {
       subtitulo="Funil de produção das peças"
       acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova peça</BotaoPrimario>}
     >
+      <GuiaJornadaMarketing etapaAtual="producao" />
+
       <div className="brk-filtros">
         <div className="brk-search">
           <span className="brk-search-icon" aria-hidden="true">

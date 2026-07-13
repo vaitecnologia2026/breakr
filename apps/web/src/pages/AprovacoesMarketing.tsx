@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { PaginaHeader, Btn, Badge, Carregando, Vazio, ErroEstado } from '../components/ui';
+import { GuiaJornadaMarketing } from '../components/GuiaJornadaMarketing';
 
 interface HistoricoItem {
   de: string | null; para: string | null; autorNome: string | null;
@@ -51,6 +52,8 @@ export function AprovacoesMarketing() {
         subtitulo="Validação interdepartamental de campanhas de clientes multi-pilar (Seção 8 do briefing)."
         acoes={<Btn variante="secondary" onClick={carregar}>Atualizar</Btn>}
       />
+
+      <GuiaJornadaMarketing etapaAtual="aprovacao-interna" />
 
       {carregando && <Carregando />}
       {!carregando && erro && <ErroEstado mensagem="Não foi possível carregar as aprovações." onTentar={carregar} />}
