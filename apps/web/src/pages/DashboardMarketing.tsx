@@ -8,6 +8,7 @@ import {
   PaginaHeader, Btn, Campo, CampoSelect, Badge, Modal,
   Carregando, Vazio, ErroEstado,
 } from '../components/ui';
+import { GuiaJornadaMarketing } from '../components/GuiaJornadaMarketing';
 
 type Prioridade = 'ALTA' | 'MEDIA' | 'BAIXA';
 
@@ -103,6 +104,8 @@ export function DashboardMarketing() {
           </div>
         }
       />
+
+      <GuiaJornadaMarketing etapaAtual="acompanhamento" />
 
       {modalConfig && (
         <ModalConfigAlertas
