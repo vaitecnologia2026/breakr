@@ -577,7 +577,7 @@ function SidebarLinkComSub({
         onClick={() => setAberto((v) => !v)}
         aria-expanded={aberto}
         title={item.rotulo}
-        style={{ width: '100%', border: 'none', background: 'transparent', font: 'inherit', cursor: 'pointer', textAlign: 'left' }}
+        style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left' }}
       >
         <span className="brk-sidebar-icon" aria-hidden="true">{item.icone}</span>
         <span className="brk-sidebar-item-label"><PontoStatusTeste para={item.para} />{item.rotulo}</span>
