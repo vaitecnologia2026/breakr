@@ -26,6 +26,7 @@ import { Cargos } from '../common/rbac/cargos.decorator';
 import { Cargo } from '@breakr/shared';
 import { ConteudosService } from './conteudos.service';
 import { CriarConteudoDto } from './dto/criar-conteudo.dto';
+import { AtualizarConteudoDto } from './dto/atualizar-conteudo.dto';
 import { MoverStatusDto } from './dto/mover-status.dto';
 import { AtribuirResponsavelDto } from './dto/atribuir-responsavel.dto';
 import { SolicitarCriativoDto } from './dto/solicitar-criativo.dto';
@@ -166,6 +167,18 @@ export class ConteudosController {
     @Body() dto: AtualizarMidiaDto,
   ) {
     return this.conteudosService.atualizarMidia(id, dto.midiaUrl);
+  }
+
+  // PATCH /conteudos/:id — edita as informacoes da peca (titulo, tipo, descricao,
+  // midia, trafego, agendamento). Mesmo time de producao. PATCH parcial.
+  @Patch(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(...TIME_CONTEUDO)
+  atualizar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AtualizarConteudoDto,
+  ) {
+    return this.conteudosService.atualizar(id, dto);
   }
 
   // POST /conteudos/:id/midia/upload — upload de arquivo de midia (imagem, video

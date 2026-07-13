@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type FormEvent,
   type ReactNode,
 } from 'react';
@@ -495,7 +496,9 @@ function CardConteudo({
   // Abre o modal de detalhes (somente leitura) com todas as informações de
   // marketing da peça — o "card aberto".
   const [detalheAberto, setDetalheAberto] = useState(false);
-  const podeArrastar = !movendo && !editMidia;
+  // Com o modal de detalhes/edição aberto, o card não pode ser arrastado — evita
+  // que a seleção de texto nos inputs dispare o drag (mesma regra do editor de mídia).
+  const podeArrastar = !movendo && !editMidia && !detalheAberto;
 
   async function mover(novo: StatusConteudo) {
     if (movendo || novo === conteudo.status) return;
@@ -722,7 +725,11 @@ function CardConteudo({
       )}
 
       {detalheAberto && (
-        <DetalheConteudo conteudo={conteudo} onFechar={() => setDetalheAberto(false)} />
+        <DetalheConteudo
+          conteudo={conteudo}
+          aoAtualizar={aoAtualizar}
+          onFechar={() => setDetalheAberto(false)}
+        />
       )}
     </div>
   );
@@ -762,6 +769,16 @@ function formatarDataHora(iso: string | null): string {
   });
 }
 
+// Converte ISO -> valor de <input type="datetime-local"> ("YYYY-MM-DDTHH:mm"),
+// no fuso local. Sem data vira string vazia.
+function isoParaInputLocal(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 // Detecta o tipo de mídia pela extensão da URL (para pré-visualizar imagem/vídeo).
 function tipoMidia(url: string): 'imagem' | 'video' | 'outro' {
   const u = url.toLowerCase().split('?')[0];
@@ -782,16 +799,87 @@ function LinhaInfo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
   );
 }
 
+// Linha "rótulo → campo editável" (mesmo visual do LinhaInfo, mas com input/select).
+function LinhaEdit({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+        {rotulo}
+      </span>
+      {children}
+    </label>
+  );
+}
+
 /**
- * Modal de leitura com TODAS as informações de marketing da peça (o "card
- * aberto"). Mostra código, status, cliente, squad, responsável, tipo, tráfego,
- * agendamento, avaliação, descrição e a pré-visualização da mídia. Somente
- * leitura — as ações (mover, mídia, encaminhar) continuam no card do funil.
+ * Modal com TODAS as informações de marketing da peça (o "card aberto"): código,
+ * status, cliente, squad, responsável, tipo, tráfego, agendamento, avaliação,
+ * descrição e a mídia. Suporta EDIÇÃO das informações (título, tipo, descrição,
+ * agendamento, tráfego e mídia) salvando via PATCH /conteudos/:id e recarregando
+ * a lista. Status/responsável continuam com os controles próprios do card.
  */
-function DetalheConteudo({ conteudo, onFechar }: { conteudo: Conteudo; onFechar: () => void }) {
+function DetalheConteudo({
+  conteudo,
+  aoAtualizar,
+  onFechar,
+}: {
+  conteudo: Conteudo;
+  aoAtualizar: () => void;
+  onFechar: () => void;
+}) {
   const meta = STATUS_META[conteudo.status];
   const midia = conteudo.midiaUrl?.trim();
   const tm = midia ? tipoMidia(midia) : 'outro';
+
+  // Modo edição + estado do formulário (inicia com os valores atuais da peça).
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
+  const [fTitulo, setFTitulo] = useState(conteudo.titulo);
+  const [fTipo, setFTipo] = useState<TipoConteudo>(conteudo.tipo);
+  const [fDescricao, setFDescricao] = useState(conteudo.descricao ?? '');
+  const [fMidia, setFMidia] = useState(conteudo.midiaUrl ?? '');
+  const [fData, setFData] = useState(isoParaInputLocal(conteudo.dataAgendada));
+  const [fTrafego, setFTrafego] = useState(conteudo.paraTrafego);
+
+  // Desfaz as edições, voltando aos valores atuais da peça.
+  function resetForm() {
+    setFTitulo(conteudo.titulo);
+    setFTipo(conteudo.tipo);
+    setFDescricao(conteudo.descricao ?? '');
+    setFMidia(conteudo.midiaUrl ?? '');
+    setFData(isoParaInputLocal(conteudo.dataAgendada));
+    setFTrafego(conteudo.paraTrafego);
+    setErroSalvar(null);
+  }
+
+  async function salvar() {
+    if (salvando) return;
+    if (fTitulo.trim().length < 2) {
+      setErroSalvar('O título precisa de ao menos 2 caracteres.');
+      return;
+    }
+    setSalvando(true);
+    setErroSalvar(null);
+    try {
+      await api.patch(`/conteudos/${conteudo.id}`, {
+        titulo: fTitulo.trim(),
+        tipo: fTipo,
+        descricao: fDescricao.trim(),
+        midiaUrl: fMidia.trim(),
+        paraTrafego: fTrafego,
+        dataAgendada: fData ? new Date(fData).toISOString() : null,
+      });
+      aoAtualizar();
+      onFechar();
+    } catch {
+      setErroSalvar('Não foi possível salvar as alterações. Tente novamente.');
+      setSalvando(false);
+    }
+  }
+
+  const estiloInput: CSSProperties = { width: '100%', fontSize: 13.5 };
+
   return (
     <Overlay onFechar={onFechar}>
       <div
@@ -812,7 +900,18 @@ function DetalheConteudo({ conteudo, onFechar }: { conteudo: Conteudo; onFechar:
         {/* Cabeçalho: título + tipo + código + fechar */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.3 }}>{conteudo.titulo}</h2>
+            {editando ? (
+              <input
+                className="brk-input"
+                value={fTitulo}
+                onChange={(e) => setFTitulo(e.target.value)}
+                maxLength={160}
+                placeholder="Título da peça"
+                style={{ width: '100%', fontSize: 16, fontWeight: 600 }}
+              />
+            ) : (
+              <h2 style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.3 }}>{conteudo.titulo}</h2>
+            )}
             <p style={{ fontSize: 12, color: 'var(--texto-fraco)', marginTop: 4 }}>
               Peça Nº <b style={{ color: 'var(--texto-suave)' }}>{conteudo.codigoUnico}</b>
             </p>
@@ -828,7 +927,7 @@ function DetalheConteudo({ conteudo, onFechar }: { conteudo: Conteudo; onFechar:
           </button>
         </div>
 
-        {/* Status — mesmo indicador do funil */}
+        {/* Status — mesmo indicador do funil (editado pelo seletor "Mover" do card) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: meta.cor, boxShadow: `0 0 6px ${meta.cor}`, flexShrink: 0 }} />
           <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{meta.rotulo}</span>
@@ -837,11 +936,47 @@ function DetalheConteudo({ conteudo, onFechar }: { conteudo: Conteudo; onFechar:
         {/* Grade com as informações de marketing da peça */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
           <LinhaInfo rotulo="Cliente" valor={conteudo.cliente?.nomeFantasia ?? '—'} />
-          <LinhaInfo rotulo="Tipo" valor={TIPO_META[conteudo.tipo]} />
+          {editando ? (
+            <LinhaEdit rotulo="Tipo">
+              <select
+                className="brk-input"
+                value={fTipo}
+                onChange={(e) => setFTipo(e.target.value as TipoConteudo)}
+                style={estiloInput}
+              >
+                {TIPOS.map((t) => (
+                  <option key={t} value={t}>{TIPO_META[t]}</option>
+                ))}
+              </select>
+            </LinhaEdit>
+          ) : (
+            <LinhaInfo rotulo="Tipo" valor={TIPO_META[conteudo.tipo]} />
+          )}
           <LinhaInfo rotulo="Squad" valor={conteudo.squad?.nome ?? '—'} />
           <LinhaInfo rotulo="Responsável" valor={conteudo.responsavel?.nome ?? '—'} />
-          <LinhaInfo rotulo="Agendada para" valor={formatarDataHora(conteudo.dataAgendada)} />
-          <LinhaInfo rotulo="Para tráfego pago" valor={conteudo.paraTrafego ? 'Sim' : 'Não'} />
+          {editando ? (
+            <LinhaEdit rotulo="Agendada para">
+              <input
+                className="brk-input"
+                type="datetime-local"
+                value={fData}
+                onChange={(e) => setFData(e.target.value)}
+                style={estiloInput}
+              />
+            </LinhaEdit>
+          ) : (
+            <LinhaInfo rotulo="Agendada para" valor={formatarDataHora(conteudo.dataAgendada)} />
+          )}
+          {editando ? (
+            <LinhaEdit rotulo="Para tráfego pago">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--texto-suave)', cursor: 'pointer', paddingTop: 6 }}>
+                <input type="checkbox" checked={fTrafego} onChange={(e) => setFTrafego(e.target.checked)} />
+                {fTrafego ? 'Sim' : 'Não'}
+              </label>
+            </LinhaEdit>
+          ) : (
+            <LinhaInfo rotulo="Para tráfego pago" valor={conteudo.paraTrafego ? 'Sim' : 'Não'} />
+          )}
           <LinhaInfo
             rotulo="Avaliação"
             valor={conteudo.estrelas != null
@@ -851,37 +986,82 @@ function DetalheConteudo({ conteudo, onFechar }: { conteudo: Conteudo; onFechar:
         </div>
 
         {/* Descrição / briefing */}
-        <LinhaInfo
-          rotulo="Descrição / briefing"
-          valor={conteudo.descricao?.trim()
-            ? <span style={{ whiteSpace: 'pre-wrap' }}>{conteudo.descricao}</span>
-            : <span style={{ color: 'var(--texto-fraco)' }}>Sem descrição.</span>}
-        />
+        {editando ? (
+          <LinhaEdit rotulo="Descrição / briefing">
+            <textarea
+              className="brk-input"
+              value={fDescricao}
+              onChange={(e) => setFDescricao(e.target.value)}
+              maxLength={2000}
+              rows={4}
+              placeholder="Briefing curto da peça (opcional)"
+              style={{ width: '100%', fontSize: 13.5, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </LinhaEdit>
+        ) : (
+          <LinhaInfo
+            rotulo="Descrição / briefing"
+            valor={conteudo.descricao?.trim()
+              ? <span style={{ whiteSpace: 'pre-wrap' }}>{conteudo.descricao}</span>
+              : <span style={{ color: 'var(--texto-fraco)' }}>Sem descrição.</span>}
+          />
+        )}
 
-        {/* Mídia da peça — pré-visualização + link */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-            Mídia
-          </span>
-          {midia ? (
+        {/* Mídia da peça — edição por URL ou pré-visualização + link */}
+        {editando ? (
+          <LinhaEdit rotulo="Mídia (URL)">
+            <input
+              className="brk-input"
+              type="url"
+              value={fMidia}
+              onChange={(e) => setFMidia(e.target.value)}
+              maxLength={500}
+              placeholder="Link da imagem/vídeo (opcional)"
+              style={estiloInput}
+            />
+          </LinhaEdit>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              Mídia
+            </span>
+            {midia ? (
+              <>
+                {tm === 'imagem' && (
+                  <img src={midia} alt={`Mídia de ${conteudo.titulo}`} style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
+                )}
+                {tm === 'video' && (
+                  <video src={midia} controls style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
+                )}
+                <a href={midia} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--amarelo-fagulha)', wordBreak: 'break-all' }}>
+                  {midia}
+                </a>
+              </>
+            ) : (
+              <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Nenhuma mídia anexada.</span>
+            )}
+          </div>
+        )}
+
+        {erroSalvar && <MensagemErro texto={erroSalvar} />}
+
+        {/* Rodapé: alterna entre ler e editar */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          {editando ? (
             <>
-              {tm === 'imagem' && (
-                <img src={midia} alt={`Mídia de ${conteudo.titulo}`} style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
-              )}
-              {tm === 'video' && (
-                <video src={midia} controls style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
-              )}
-              <a href={midia} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--amarelo-fagulha)', wordBreak: 'break-all' }}>
-                {midia}
-              </a>
+              <BotaoSecundario onClick={() => { resetForm(); setEditando(false); }} disabled={salvando}>
+                Cancelar
+              </BotaoSecundario>
+              <BotaoPrimario onClick={salvar} disabled={salvando}>
+                {salvando ? 'Salvando…' : 'Salvar alterações'}
+              </BotaoPrimario>
             </>
           ) : (
-            <span style={{ fontSize: 13, color: 'var(--texto-fraco)' }}>Nenhuma mídia anexada.</span>
+            <>
+              <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
+              <BotaoPrimario onClick={() => setEditando(true)}>Editar</BotaoPrimario>
+            </>
           )}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <BotaoSecundario onClick={onFechar}>Fechar</BotaoSecundario>
         </div>
       </div>
     </Overlay>
