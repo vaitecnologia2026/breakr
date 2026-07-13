@@ -21,6 +21,7 @@ interface ConfigIntegracoes {
   google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
   adsMeta: { temToken: boolean; preview: string | null; contaId: string | null };
   adsGoogle: { temToken: boolean; preview: string | null; contaId: string | null };
+  receita: { temToken: boolean; preview: string | null };
 }
 
 /* ── Aba IA ── */
@@ -179,6 +180,7 @@ function AbaIntegracoes() {
     vaicrmToken: '', vaicrmEmail: '', vaicrmSenha: '',
     googleServiceAccount: '', googleCalendarId: '', googleImpersonateEmail: '',
     adsMetaToken: '', adsMetaContaId: '', adsGoogleToken: '', adsGoogleContaId: '',
+    receitaToken: '',
   });
   const [salvando, setSalvando] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
@@ -188,7 +190,7 @@ function AbaIntegracoes() {
     try {
       const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
       setConfig(data);
-      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '' });
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '', receitaToken: '' });
     } catch { setErroCarga('Erro ao carregar integrações.'); }
     finally { setCarregando(false); }
   }
@@ -215,6 +217,7 @@ function AbaIntegracoes() {
         adsMetaContaId: form.adsMetaContaId,
         ...(form.adsGoogleToken && { adsGoogleToken: form.adsGoogleToken }),
         adsGoogleContaId: form.adsGoogleContaId,
+        ...(form.receitaToken && { receitaToken: form.receitaToken }),
       });
       await carregar();
       setFeedback({ tipo: 'sucesso', msg: 'Integrações salvas com sucesso.' });
@@ -438,6 +441,20 @@ function AbaIntegracoes() {
             onChange={(e) => setForm((f) => ({ ...f, adsGoogleContaId: e.target.value }))}
           />
         </>
+      ),
+    },
+    {
+      chave: 'receita',
+      nome: 'Receita Federal (ReceitaWS) — Consulta de CNPJ',
+      descricao: 'Auto-preenchimento do Cadastro Completo pelo CNPJ. Token opcional da ReceitaWS (plano pago, para não cair no limite de 3 consultas/min da API pública).',
+      campos: (
+        <Campo
+          rotulo="Token ReceitaWS"
+          type="password" autoComplete="off"
+          placeholder={config?.receita.temToken ? 'Cole para substituir' : 'Token da ReceitaWS (opcional)'}
+          value={form.receitaToken}
+          onChange={(e) => setForm((f) => ({ ...f, receitaToken: e.target.value }))}
+        />
       ),
     },
   ];
