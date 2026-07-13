@@ -81,6 +81,7 @@
 html, body, #root { height: 100%; }
 body {
   background: var(--bg); color: var(--texto); font-size: 15px; line-height: 1.55;
+  font-weight: 300;
   background-image: radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px);
   background-size: 28px 28px;
 }
