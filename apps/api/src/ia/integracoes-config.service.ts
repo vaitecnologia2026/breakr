@@ -1,4 +1,4 @@
-// Config de integrações externas (Asaas, Speed, Autentique, WhatsApp/MegaAPI).
+// Config de integrações externas (Asaas, Speed, Autentique, WhatsApp).
 // As chaves ficam no campo Config.parametros.integracoes do banco.
 // NUNCA retorna a chave inteira — só preview mascarado.
 import { Injectable } from '@nestjs/common';

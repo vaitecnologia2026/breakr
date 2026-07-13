@@ -1,6 +1,5 @@
 // STUB do WhatsApp (Fase 0). Loga e devolve mensagem/grupo fake.
-// Impl real (API oficial via WHATSAPP_TOKEN; MegaAPI como fallback) entra
-// depois — ver IntegracoesModule.
+// Impl real (API oficial via WHATSAPP_TOKEN) entra depois — ver IntegracoesModule.
 import { Injectable, Logger } from '@nestjs/common';
 import {
   WhatsappGrupo,

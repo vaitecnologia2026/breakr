@@ -303,12 +303,12 @@ function AbaIntegracoes() {
     },
     {
       chave: 'whatsapp',
-      nome: 'WhatsApp — MegaAPI',
-      descricao: 'Mensagens automáticas para clientes via MegaAPI. Configure a instância conectada.',
+      nome: 'WhatsApp',
+      descricao: 'Mensagens automáticas para clientes via WhatsApp. Configure o token e a instância conectada.',
       campos: (
         <>
           <Campo
-            rotulo="Token MegaAPI"
+            rotulo="Token do WhatsApp"
             type="password" autoComplete="off"
             placeholder={config?.whatsapp.temToken ? 'Cole para substituir' : 'Token da instância…'}
             value={form.whatsappToken}
