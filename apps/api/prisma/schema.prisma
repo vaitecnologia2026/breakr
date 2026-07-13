@@ -585,6 +585,8 @@ model CadastroContrato {
   complemento         String?
   bairro              String?
   cidadeEstado        String?  @map("cidade_estado")
+  cidade              String?  @map("cidade")
+  estado              String?  @map("estado")
   inscricaoMunicipal  String?  @map("inscricao_municipal")
   inscricaoEstadual   String?  @map("inscricao_estadual")
   criadoEm            DateTime @default(now()) @map("criado_em")

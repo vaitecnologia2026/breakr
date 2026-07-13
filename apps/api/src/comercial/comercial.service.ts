@@ -299,6 +299,8 @@ export class ComercialService {
       complemento: dto.complemento ?? null,
       bairro: dto.bairro ?? null,
       cidadeEstado: dto.cidadeEstado ?? null,
+      cidade: dto.cidade ?? null,
+      estado: dto.estado ?? null,
       inscricaoMunicipal: dto.inscricaoMunicipal ?? null,
       inscricaoEstadual: dto.inscricaoEstadual ?? null,
     };
