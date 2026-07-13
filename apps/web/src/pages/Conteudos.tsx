@@ -101,18 +101,19 @@ const ORDEM_STATUS: StatusConteudo[] = [
   'ARQUIVADO',
 ];
 
-// Rótulo amigável + cor de acento (ponto) por status.
-const STATUS_META: Record<StatusConteudo, { rotulo: string; cor: string }> = {
-  IDEIA: { rotulo: 'Ideia', cor: '#9aa0ad' },
-  ROTEIRO: { rotulo: 'Roteiro', cor: '#9aa0ad' },
-  PRODUCAO: { rotulo: 'Produção', cor: '#ff9406' },
-  REVISAO: { rotulo: 'Revisão', cor: '#a855f7' },
-  EM_ALTERACAO: { rotulo: 'Em alteração', cor: '#ef4444' },
-  APROVACAO_CLIENTE: { rotulo: 'Aprovação do cliente', cor: '#ca3f17' },
-  AGENDADO: { rotulo: 'Agendado', cor: '#4aa3f0' },
-  LABORATORIO: { rotulo: 'Laboratório de criativos', cor: '#a855f7' },
-  PUBLICADO: { rotulo: 'Publicado', cor: '#2ecc71' },
-  ARQUIVADO: { rotulo: 'Arquivado', cor: '#9aa0ad' },
+// Rótulo amigável + cor de acento (ponto) + descrição do que fazer na etapa
+// (reflete o guia da jornada dentro do próprio processo, direto na coluna).
+const STATUS_META: Record<StatusConteudo, { rotulo: string; cor: string; descricao: string }> = {
+  IDEIA: { rotulo: 'Ideia', cor: '#9aa0ad', descricao: 'Pauta inicial: registre a ideia/briefing da peça.' },
+  ROTEIRO: { rotulo: 'Roteiro', cor: '#9aa0ad', descricao: 'Copywriter escreve o texto (copy) da peça.' },
+  PRODUCAO: { rotulo: 'Produção', cor: '#ff9406', descricao: 'Designer/editor cria a arte com a copy aprovada.' },
+  REVISAO: { rotulo: 'Revisão', cor: '#a855f7', descricao: 'Revisão interna antes de enviar ao cliente.' },
+  EM_ALTERACAO: { rotulo: 'Em alteração', cor: '#ef4444', descricao: 'Ajustes pedidos na revisão ou pelo cliente.' },
+  APROVACAO_CLIENTE: { rotulo: 'Aprovação do cliente', cor: '#ca3f17', descricao: 'Cliente aprova, aprova com ressalvas ou reprova.' },
+  AGENDADO: { rotulo: 'Agendado', cor: '#4aa3f0', descricao: 'Aprovada e agendada para publicação.' },
+  LABORATORIO: { rotulo: 'Laboratório de criativos', cor: '#a855f7', descricao: 'Peça de tráfego pago: vira criativo no laboratório.' },
+  PUBLICADO: { rotulo: 'Publicado', cor: '#2ecc71', descricao: 'Publicada/veiculada no canal do cliente.' },
+  ARQUIVADO: { rotulo: 'Arquivado', cor: '#9aa0ad', descricao: 'Encerrada e arquivada.' },
 };
 
 // Rótulo amigável por tipo de peça (pílula do card + opções do modal).
@@ -421,6 +422,20 @@ function Coluna({
         </span>
         <ChipContagem total={itens.length} />
       </div>
+
+      {/* Descrição da etapa — reflete o guia da jornada no próprio processo:
+          o que fazer nesta coluna. Só texto (não altera nenhuma ação). */}
+      <p
+        style={{
+          margin: 0,
+          padding: '8px 14px 0',
+          fontSize: 11,
+          lineHeight: 1.35,
+          color: 'var(--texto-fraco)',
+        }}
+      >
+        {meta.descricao}
+      </p>
 
       <div
         style={{
