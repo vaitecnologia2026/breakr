@@ -24,7 +24,6 @@ import { AutentiqueStubService } from './stubs/autentique.stub.service';
 import { WhatsappStubService } from './stubs/whatsapp.stub.service';
 import { GoogleMeetStubService } from './stubs/google-meet.stub.service';
 // Adapters reais
-import { WhatsappMegaService } from './real/whatsapp-mega.service';
 import { AsaasService } from './real/asaas.service';
 import { AutentiqueService } from './real/autentique.service';
 import { SpeedService } from './real/speed.service';
@@ -58,16 +57,9 @@ const providers: Provider[] = [
 
   {
     provide: WHATSAPP_PORT,
-    inject: [ConfigService, PrismaService, WhatsappStubService],
-    useFactory: async (config: ConfigService, prisma: PrismaService, stub: WhatsappStubService) => {
-      const db = await lerIntegracoesDb(prisma);
-      const token = db.whatsapp?.apiKey ?? config.get<string>('WHATSAPP_TOKEN');
-      const instancia = db.whatsapp?.instancia ?? config.get<string>('MEGAAPI_INSTANCE');
-      if (token && instancia) {
-        logger.log('WhatsApp: adapter REAL (MegaAPI) ativo.');
-        return new WhatsappMegaService(token, instancia);
-      }
-      logger.log('WhatsApp: usando STUB (configure em Configurações → Integrações ou env).');
+    inject: [WhatsappStubService],
+    useFactory: (stub: WhatsappStubService) => {
+      logger.log('WhatsApp: usando STUB (sem provedor real configurado).');
       return stub;
     },
   },

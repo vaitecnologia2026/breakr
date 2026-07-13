@@ -96,7 +96,7 @@ export interface AutentiquePort {
 }
 
 // ---------------------------------------------------------------
-// 4. WhatsApp — API oficial (+ MegaAPI na transicao)
+// 4. WhatsApp — API oficial
 // ---------------------------------------------------------------
 export interface WhatsappMensagemInput {
   // Numero E.164 (ex.: 5598999999999) ou id de grupo (...@g.us).
