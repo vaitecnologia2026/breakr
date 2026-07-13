@@ -148,14 +148,21 @@ interface CampoEdit { campo: 'valor' | 'previsao' | 'contato' | 'empresa' | 'tel
 interface AtivForm { id?: string; tipo: TipoAtividade; titulo: string; data: string; horaInicio: string; horaFim: string; notas: string; feito: boolean }
 
 // ── Cadastro Completo (captação de dados p/ contrato) ────────────────────────
-interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string }
+interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string; mascara?: 'data' }
+// Máscara de data DD/MM/AAAA a partir dos dígitos digitados (tolera colar/apagar).
+function mascaraDataNascimento(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
 const CADASTRO_CAMPOS: CampoCadastro[] = [
   { chave: 'razaoSocial', rotulo: 'Razão Social *', ajuda: 'Adicione a razão social conforme aparece no seu contrato social.' },
   { chave: 'nomeFantasia', rotulo: 'Nome Fantasia *' },
   { chave: 'cnpj', rotulo: 'CNPJ *' },
   { chave: 'nomeSocio', rotulo: 'Nome do Sócio(a) *' },
   { chave: 'cpfSocio', rotulo: 'CPF Sócio *' },
-  { chave: 'dataNascimentoSocio', rotulo: 'Data de Nascimento (Sócio) *' },
+  { chave: 'dataNascimentoSocio', rotulo: 'Data de Nascimento (Sócio) *', mascara: 'data', placeholder: 'DD/MM/AAAA' },
   { chave: 'profissao', rotulo: 'Sua Profissão *' },
   { chave: 'nacionalidade', rotulo: 'Sua Nacionalidade *' },
   { chave: 'email', rotulo: 'E-mail *', placeholder: 'Inserir e-mail', tipo: 'email' },
@@ -895,7 +902,9 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
               <div key={c.chave} style={{ minWidth: 0 }}>
                 <label className="brk-campo-label" style={{ display: 'block', marginBottom: 5 }}>{c.rotulo}</label>
                 <input className="brk-input" type={c.tipo ?? 'text'} placeholder={c.placeholder ?? 'Inserir texto'}
-                  value={cadastro[c.chave] ?? ''} onChange={(e) => setCadastro((m) => ({ ...m, [c.chave]: e.target.value }))} style={{ width: '100%' }} />
+                  inputMode={c.mascara === 'data' ? 'numeric' : undefined} maxLength={c.mascara === 'data' ? 10 : undefined}
+                  value={c.mascara === 'data' ? mascaraDataNascimento(cadastro[c.chave] ?? '') : (cadastro[c.chave] ?? '')}
+                  onChange={(e) => { const v = c.mascara === 'data' ? mascaraDataNascimento(e.target.value) : e.target.value; setCadastro((m) => ({ ...m, [c.chave]: v })); }} style={{ width: '100%' }} />
                 {c.ajuda && <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--texto-fraco)' }}>{c.ajuda}</span>}
               </div>
             ))}
@@ -959,7 +968,8 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                       <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Cadastro Completo (dados do cliente)</span>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                         {CADASTRO_CAMPOS.map((c) => {
-                          const v = String((cad as Record<string, unknown>)[c.chave] ?? '').trim();
+                          const bruto = String((cad as Record<string, unknown>)[c.chave] ?? '').trim();
+                          const v = c.mascara === 'data' && bruto ? mascaraDataNascimento(bruto) : bruto;
                           const obrig = c.rotulo.trim().endsWith('*');
                           return (
                             <div key={c.chave} style={{ fontSize: 11.5 }}>
