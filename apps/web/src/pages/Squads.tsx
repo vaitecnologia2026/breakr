@@ -283,9 +283,10 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 12,
+          flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: '1 1 200px' }}>
           <span
             aria-hidden="true"
             className="brk-gradient-bg"
@@ -324,9 +325,9 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
                 style={{
                   fontSize: 16,
                   fontWeight: 700,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  whiteSpace: 'normal',
+                  overflowWrap: 'anywhere',
+                  lineHeight: 1.25,
                   cursor: 'pointer',
                 }}
               >
