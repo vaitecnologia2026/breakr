@@ -204,7 +204,6 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
   const [nome, setNome] = useState(squad.nome);
   const [salvando, setSalvando] = useState(false);
   const [novoUsuario, setNovoUsuario] = useState('');
-  const [novaFuncao, setNovaFuncao] = useState<Cargo>(Cargo.CS);
   const [addSalvando, setAddSalvando] = useState(false);
   const [addErro, setAddErro] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState(false);
@@ -213,10 +212,14 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
   // Vincula um usuário ao squad (função + WhatsApp/ID vêm do próprio usuário) — req. l.140.
   async function adicionarMembro() {
     if (!novoUsuario || addSalvando) return;
+    // A função é o próprio perfil (cargo) do usuário selecionado — não é mais
+    // escolhida à mão. O backend continua recebendo `funcao` exatamente como antes.
+    const selecionado = usuarios.find((u) => u.id === novoUsuario);
+    const funcao = (selecionado?.cargo as Cargo) ?? Cargo.CS;
     setAddSalvando(true);
     setAddErro(null);
     try {
-      await api.post(`/squads/${squad.id}/membros`, { usuarioId: novoUsuario, funcao: novaFuncao });
+      await api.post(`/squads/${squad.id}/membros`, { usuarioId: novoUsuario, funcao });
       setNovoUsuario('');
       aoAtualizar();
     } catch (e: unknown) {
@@ -446,14 +449,6 @@ function CardSquad({ squad, aoAtualizar, usuarios, ehAdmin }: { squad: Squad; ao
             >
               <option value="">Selecione o usuário…</option>
               {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-            </select>
-            <select
-              className="brk-input"
-              value={novaFuncao}
-              onChange={(e) => setNovaFuncao(e.target.value as Cargo)}
-              style={{ flex: '0 1 140px', fontSize: 12.5, padding: '6px 8px' }}
-            >
-              {Object.values(Cargo).map((f) => <option key={f} value={f}>{FUNCOES[f]?.rotulo ?? f}</option>)}
             </select>
             <BotaoPrimario onClick={adicionarMembro} disabled={!novoUsuario || addSalvando}>
               {addSalvando ? '…' : '+ Add'}
