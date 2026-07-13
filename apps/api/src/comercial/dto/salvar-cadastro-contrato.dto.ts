@@ -19,6 +19,8 @@ export class SalvarCadastroContratoDto {
   @IsOptional() @IsString() complemento?: string;
   @IsOptional() @IsString() bairro?: string;
   @IsOptional() @IsString() cidadeEstado?: string;
+  @IsOptional() @IsString() cidade?: string;
+  @IsOptional() @IsString() estado?: string;
   @IsOptional() @IsString() inscricaoMunicipal?: string;
   @IsOptional() @IsString() inscricaoEstadual?: string;
 }

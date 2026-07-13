@@ -148,7 +148,8 @@ interface CampoEdit { campo: 'valor' | 'previsao' | 'contato' | 'empresa' | 'tel
 interface AtivForm { id?: string; tipo: TipoAtividade; titulo: string; data: string; horaInicio: string; horaFim: string; notas: string; feito: boolean }
 
 // ── Cadastro Completo (captação de dados p/ contrato) ────────────────────────
-interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string; mascara?: 'data' }
+type MascaraTipo = 'data' | 'cnpj' | 'cpf' | 'telefone' | 'cep';
+interface CampoCadastro { chave: string; rotulo: string; ajuda?: string; placeholder?: string; tipo?: string; mascara?: MascaraTipo }
 // Máscara de data DD/MM/AAAA a partir dos dígitos digitados (tolera colar/apagar).
 function mascaraDataNascimento(valor: string): string {
   const d = valor.replace(/\D/g, '').slice(0, 8);
@@ -156,24 +157,74 @@ function mascaraDataNascimento(valor: string): string {
   if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
   return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
 }
+// CNPJ AA.AAA.AAA/AAAA-DV (14 dígitos).
+function mascaraCnpj(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 14);
+  let out = d.slice(0, 2);
+  if (d.length > 2) out += '.' + d.slice(2, 5);
+  if (d.length > 5) out += '.' + d.slice(5, 8);
+  if (d.length > 8) out += '/' + d.slice(8, 12);
+  if (d.length > 12) out += '-' + d.slice(12, 14);
+  return out;
+}
+// CPF AAA.AAA.AAA-DV (11 dígitos).
+function mascaraCpf(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 11);
+  let out = d.slice(0, 3);
+  if (d.length > 3) out += '.' + d.slice(3, 6);
+  if (d.length > 6) out += '.' + d.slice(6, 9);
+  if (d.length > 9) out += '-' + d.slice(9, 11);
+  return out;
+}
+// CEP AAAAA-AAA (8 dígitos).
+function mascaraCep(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+// Telefone (AA) AAAAA-AAAA ou (AA) AAAA-AAAA (10 ou 11 dígitos).
+function mascaraTelefone(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+// Aplica a máscara conforme o tipo do campo (sem máscara devolve o valor cru).
+function aplicarMascara(mascara: MascaraTipo | undefined, valor: string): string {
+  switch (mascara) {
+    case 'data': return mascaraDataNascimento(valor);
+    case 'cnpj': return mascaraCnpj(valor);
+    case 'cpf': return mascaraCpf(valor);
+    case 'telefone': return mascaraTelefone(valor);
+    case 'cep': return mascaraCep(valor);
+    default: return valor;
+  }
+}
+// Limite de caracteres do valor já formatado, por tipo de máscara.
+const MASCARA_MAXLEN: Record<MascaraTipo, number> = {
+  data: 10, cnpj: 18, cpf: 14, telefone: 15, cep: 9,
+};
 const CADASTRO_CAMPOS: CampoCadastro[] = [
   { chave: 'razaoSocial', rotulo: 'Razão Social *', ajuda: 'Adicione a razão social conforme aparece no seu contrato social.' },
   { chave: 'nomeFantasia', rotulo: 'Nome Fantasia *' },
-  { chave: 'cnpj', rotulo: 'CNPJ *' },
+  { chave: 'cnpj', rotulo: 'CNPJ *', mascara: 'cnpj', placeholder: 'AA.AAA.AAA/AAAA-DV' },
   { chave: 'nomeSocio', rotulo: 'Nome do Sócio(a) *' },
-  { chave: 'cpfSocio', rotulo: 'CPF Sócio *' },
+  { chave: 'cpfSocio', rotulo: 'CPF Sócio *', mascara: 'cpf', placeholder: '000.000.000-00' },
   { chave: 'dataNascimentoSocio', rotulo: 'Data de Nascimento (Sócio) *', mascara: 'data', placeholder: 'DD/MM/AAAA' },
   { chave: 'profissao', rotulo: 'Sua Profissão *' },
   { chave: 'nacionalidade', rotulo: 'Sua Nacionalidade *' },
   { chave: 'email', rotulo: 'E-mail *', placeholder: 'Inserir e-mail', tipo: 'email' },
-  { chave: 'whatsappSocio', rotulo: 'WhatsApp Sócio *', placeholder: 'Inserir telefone' },
-  { chave: 'whatsappFinanceiro', rotulo: 'WhatsApp Financeiro *', placeholder: 'Inserir telefone' },
-  { chave: 'cep', rotulo: 'CEP *', ajuda: 'Insira no formato XXXXX-XXX' },
+  { chave: 'whatsappSocio', rotulo: 'WhatsApp Sócio *', mascara: 'telefone', placeholder: '(00) 00000-0000' },
+  { chave: 'whatsappFinanceiro', rotulo: 'WhatsApp Financeiro *', mascara: 'telefone', placeholder: '(00) 00000-0000' },
+  { chave: 'cep', rotulo: 'CEP *', mascara: 'cep', placeholder: '00000-000', ajuda: 'Insira no formato XXXXX-XXX' },
   { chave: 'endereco', rotulo: 'Endereço *' },
   { chave: 'numero', rotulo: 'Número *' },
   { chave: 'complemento', rotulo: 'Complemento *' },
   { chave: 'bairro', rotulo: 'Bairro *' },
-  { chave: 'cidadeEstado', rotulo: 'Cidade / Estado *' },
+  { chave: 'cidade', rotulo: 'Cidade *' },
+  { chave: 'estado', rotulo: 'Estado *' },
   { chave: 'inscricaoMunicipal', rotulo: 'Inscrição Municipal', ajuda: 'Se não possuir, deixe em branco.' },
   { chave: 'inscricaoEstadual', rotulo: 'Inscrição Estadual', ajuda: 'Se não possuir, deixe em branco.' },
 ];
@@ -902,9 +953,10 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
               <div key={c.chave} style={{ minWidth: 0 }}>
                 <label className="brk-campo-label" style={{ display: 'block', marginBottom: 5 }}>{c.rotulo}</label>
                 <input className="brk-input" type={c.tipo ?? 'text'} placeholder={c.placeholder ?? 'Inserir texto'}
-                  inputMode={c.mascara === 'data' ? 'numeric' : undefined} maxLength={c.mascara === 'data' ? 10 : undefined}
-                  value={c.mascara === 'data' ? mascaraDataNascimento(cadastro[c.chave] ?? '') : (cadastro[c.chave] ?? '')}
-                  onChange={(e) => { const v = c.mascara === 'data' ? mascaraDataNascimento(e.target.value) : e.target.value; setCadastro((m) => ({ ...m, [c.chave]: v })); }} style={{ width: '100%' }} />
+                  inputMode={c.mascara ? 'numeric' : undefined} maxLength={c.mascara ? MASCARA_MAXLEN[c.mascara] : undefined}
+                  spellCheck={!c.mascara && c.tipo !== 'email'}
+                  value={c.mascara ? aplicarMascara(c.mascara, cadastro[c.chave] ?? '') : (cadastro[c.chave] ?? '')}
+                  onChange={(e) => { const v = c.mascara ? aplicarMascara(c.mascara, e.target.value) : e.target.value; setCadastro((m) => ({ ...m, [c.chave]: v })); }} style={{ width: '100%' }} />
                 {c.ajuda && <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--texto-fraco)' }}>{c.ajuda}</span>}
               </div>
             ))}
@@ -969,7 +1021,7 @@ export function NegocioDetalhe({ leadId, pipelines, etiquetas, onFechar, onMudou
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                         {CADASTRO_CAMPOS.map((c) => {
                           const bruto = String((cad as Record<string, unknown>)[c.chave] ?? '').trim();
-                          const v = c.mascara === 'data' && bruto ? mascaraDataNascimento(bruto) : bruto;
+                          const v = c.mascara && bruto ? aplicarMascara(c.mascara, bruto) : bruto;
                           const obrig = c.rotulo.trim().endsWith('*');
                           return (
                             <div key={c.chave} style={{ fontSize: 11.5 }}>

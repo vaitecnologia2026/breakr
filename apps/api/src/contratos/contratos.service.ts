@@ -208,10 +208,10 @@ export class ContratosService {
         // Dados do Cadastro Completo (nomes que o fluxo n8n do Asaas espera).
         razao_social: cad?.razaoSocial ?? '',
         nome_fantasia: cad?.nomeFantasia ?? '',
-        cnpj: cad?.cnpj ?? '',
+        cnpj: digitos(cad?.cnpj),
         cnpj_formatado: cad?.cnpj ?? '',
         nome_socio: cad?.nomeSocio ?? '',
-        cpf_socio: cad?.cpfSocio ?? '',
+        cpf_socio: digitos(cad?.cpfSocio),
         cpf_socio_formatado: cad?.cpfSocio ?? '',
         data_nascimento: cad?.dataNascimentoSocio ?? '',
         profissao: cad?.profissao ?? '',
@@ -226,7 +226,11 @@ export class ContratosService {
         numero: cad?.numero ?? '',
         complemento: cad?.complemento ?? '',
         bairro: cad?.bairro ?? '',
-        cidade_estado: cad?.cidadeEstado ?? '',
+        cidade: cad?.cidade ?? '',
+        estado: cad?.estado ?? '',
+        cidade_estado:
+          [cad?.cidade, cad?.estado].map((p) => (p ?? '').trim()).filter(Boolean).join(' / ') ||
+          (cad?.cidadeEstado ?? ''),
         inscricao_estadual: cad?.inscricaoEstadual ?? '',
         inscricao_municipal: cad?.inscricaoMunicipal ?? '',
         // Contrato / cobranca (assinatura mensal).
@@ -395,14 +399,20 @@ export class ContratosService {
 
   private montarEndereco(cad: {
     endereco?: string | null; numero?: string | null; complemento?: string | null;
-    bairro?: string | null; cidadeEstado?: string | null; cep?: string | null;
+    bairro?: string | null; cidade?: string | null; estado?: string | null;
+    cidadeEstado?: string | null; cep?: string | null;
   } | null): string {
     if (!cad) return '';
+    // Preferir os campos separados (cidade + estado); cair no campo antigo
+    // (cidadeEstado) para cadastros salvos antes da separacao.
+    const cidadeEstadoTexto =
+      [cad.cidade, cad.estado].map((p) => (p ?? '').trim()).filter(Boolean).join(' / ') ||
+      (cad.cidadeEstado ?? '');
     return [
       [cad.endereco, cad.numero].filter(Boolean).join(', '),
       cad.complemento,
       cad.bairro,
-      cad.cidadeEstado,
+      cidadeEstadoTexto,
       cad.cep ? `CEP ${cad.cep}` : '',
     ]
       .map((p) => (p ?? '').toString().trim())
