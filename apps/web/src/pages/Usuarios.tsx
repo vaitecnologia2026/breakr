@@ -219,14 +219,18 @@ export function Usuarios() {
             <>
               {acesso?.temAcesso && (
                 <Alerta tipo="info">
-                  Esta empresa já tem acesso configurado (usuário <strong>{acesso.usuario}</strong>).
-                  O portal dela exige login. Preencha abaixo para <strong>trocar</strong> usuário/senha.
+                  <span>
+                    Esta empresa já tem acesso configurado (usuário <strong>{acesso.usuario}</strong>).
+                    O portal dela exige login. Preencha abaixo para <strong>trocar</strong> usuário/senha.
+                  </span>
                 </Alerta>
               )}
               {acesso && !acesso.temAcesso && (
                 <Alerta tipo="aviso">
-                  Esta empresa ainda <strong>não tem acesso</strong>: o portal abre apenas pelo link.
-                  Defina usuário e senha para exigir login.
+                  <span>
+                    Esta empresa ainda <strong>não tem acesso</strong>: o portal abre apenas pelo link.
+                    Defina usuário e senha para exigir login.
+                  </span>
                 </Alerta>
               )}
 
