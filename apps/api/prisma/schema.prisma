@@ -287,6 +287,11 @@ model Cliente {
   orcamentoMensal Decimal?      @map("orcamento_mensal") @db.Decimal(12, 2)
   // Link para a area de membros do cliente (exibido na tela de onboarding).
   linkAreaMembros String?       @map("link_area_membros")
+  // Acesso do cliente ao portal (tela "Usuarios"). Quando definidos, o portal
+  // (/portal/:codigo) passa a exigir login com estas credenciais. Nulos = portal
+  // publico por link (comportamento historico, compatibilidade).
+  portalUsuario   String?       @unique @map("portal_usuario")
+  portalSenhaHash String?       @map("portal_senha_hash")
   criadoEm        DateTime      @default(now()) @map("criado_em")
   atualizadoEm    DateTime      @updatedAt @map("atualizado_em")
 

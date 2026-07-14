@@ -2,6 +2,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -16,6 +17,7 @@ import { Cargo } from '@breakr/shared';
 import { ClientesService } from './clientes.service';
 import { CriarClienteDto } from './dto/criar-cliente.dto';
 import { AtualizarClienteDto } from './dto/atualizar-cliente.dto';
+import { DefinirAcessoPortalDto } from './dto/definir-acesso-portal.dto';
 
 @Controller('clientes')
 @UseGuards(JwtAuthGuard)
@@ -57,5 +59,34 @@ export class ClientesController {
     @Body() dto: AtualizarClienteDto,
   ) {
     return this.clientesService.atualizar(id, dto);
+  }
+
+  // GET /clientes/:id/acesso-portal — status do acesso do cliente ao portal
+  // (tela "Usuarios"). So Admin/Superadmin. Nunca devolve o hash da senha.
+  @Get(':id/acesso-portal')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  obterAcessoPortal(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clientesService.obterAcessoPortal(id);
+  }
+
+  // PATCH /clientes/:id/acesso-portal — define usuario+senha de acesso ao portal.
+  @Patch(':id/acesso-portal')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  definirAcessoPortal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DefinirAcessoPortalDto,
+  ) {
+    return this.clientesService.definirAcessoPortal(id, dto);
+  }
+
+  // DELETE /clientes/:id/acesso-portal — remove o acesso (portal volta a ser
+  // publico por link).
+  @Delete(':id/acesso-portal')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  removerAcessoPortal(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clientesService.removerAcessoPortal(id);
   }
 }

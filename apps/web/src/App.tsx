@@ -34,6 +34,7 @@ import { Automacoes } from './pages/Automacoes';
 import { Configuracoes } from './pages/Configuracoes';
 import { Squads } from './pages/Squads';
 import { Equipe } from './pages/Equipe';
+import { Usuarios } from './pages/Usuarios';
 import { Atendimento } from './pages/Atendimento';
 import { Inbox } from './pages/Inbox';
 import { Comunicados } from './pages/Comunicados';
@@ -146,6 +147,7 @@ export function App() {
         <Route path="documentos" element={<Documentos />} />
         <Route path="desempenho" element={<Desempenho />} />
         <Route path="equipe" element={<Equipe />} />
+        <Route path="usuarios" element={<Usuarios />} />
         <Route path="configuracoes" element={<Configuracoes />} />
       </Route>
 

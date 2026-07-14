@@ -188,6 +188,7 @@ const GRUPO_ADMINISTRATIVO: NavGroup = {
     { para: '/captacao',   rotulo: 'Captação',   icone: <IcoFileText /> },
     { para: '/ouvidoria',  rotulo: 'Ouvidoria',  icone: <IcoFileText /> },
     { para: '/equipe',     rotulo: 'Equipe',     icone: <IcoUserCheck /> },
+    { para: '/usuarios',   rotulo: 'Usuários',   icone: <IcoUsers /> },
     { para: '/comissao',   rotulo: 'Comissão',   icone: <IcoCalculator /> },
   ],
 };
