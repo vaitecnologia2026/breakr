@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api';
+import { api, EVENTO_SESSAO_EXPIRADA } from '../lib/api';
 import {
   PaginaHeader, Btn, Campo, CampoSelect, Alerta, Carregando, ErroEstado,
 } from '../components/ui';
@@ -94,8 +94,13 @@ export function Usuarios() {
       const { data } = await api.get<AcessoPortal>(`/clientes/${id}/acesso-portal`);
       setAcesso(data);
       if (data.usuario) setUsuario(data.usuario);
-    } catch {
-      setMsg({ tipo: 'erro', texto: 'Não foi possível carregar o acesso desta empresa.' });
+    } catch (e: unknown) {
+      if ((e as { response?: { status?: number } }).response?.status === 401) {
+        setMsg({ tipo: 'erro', texto: 'Sua sessão expirou. Entre novamente para continuar.' });
+        window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_EXPIRADA));
+      } else {
+        setMsg({ tipo: 'erro', texto: 'Não foi possível carregar o acesso desta empresa.' });
+      }
     } finally {
       setCarregandoAcesso(false);
     }
@@ -139,10 +144,15 @@ export function Usuarios() {
       setSenha(''); setConfirmar('');
       setMsg({ tipo: 'sucesso', texto: 'Acesso salvo. A empresa agora entra no portal com usuário e senha.' });
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string | string[] } } };
-      const raw = err.response?.data?.message;
-      const texto = Array.isArray(raw) ? raw.join(' ') : raw ?? 'Não foi possível salvar o acesso.';
-      setMsg({ tipo: 'erro', texto });
+      const err = e as { response?: { status?: number; data?: { message?: string | string[] } } };
+      if (err.response?.status === 401) {
+        setMsg({ tipo: 'erro', texto: 'Sua sessão expirou. Entre novamente para criar o acesso.' });
+        window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_EXPIRADA));
+      } else {
+        const raw = err.response?.data?.message;
+        const texto = Array.isArray(raw) ? raw.join(' ') : raw ?? 'Não foi possível salvar o acesso.';
+        setMsg({ tipo: 'erro', texto });
+      }
     } finally {
       setSalvando(false);
     }
@@ -156,8 +166,13 @@ export function Usuarios() {
       setAcesso(data);
       setUsuario(''); setSenha(''); setConfirmar('');
       setMsg({ tipo: 'sucesso', texto: 'Acesso removido. O portal desta empresa volta a abrir apenas pelo link.' });
-    } catch {
-      setMsg({ tipo: 'erro', texto: 'Não foi possível remover o acesso.' });
+    } catch (e: unknown) {
+      if ((e as { response?: { status?: number } }).response?.status === 401) {
+        setMsg({ tipo: 'erro', texto: 'Sua sessão expirou. Entre novamente para continuar.' });
+        window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_EXPIRADA));
+      } else {
+        setMsg({ tipo: 'erro', texto: 'Não foi possível remover o acesso.' });
+      }
     } finally {
       setRemovendo(false);
     }
