@@ -1,11 +1,18 @@
 // Servico de clientes — master-data do nucleo.
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { Cliente, TipoProjeto } from '@prisma/client';
 import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { CriarClienteDto } from './dto/criar-cliente.dto';
 import { AtualizarClienteDto } from './dto/atualizar-cliente.dto';
+import { DefinirAcessoPortalDto } from './dto/definir-acesso-portal.dto';
 
 @Injectable()
 export class ClientesService {
@@ -134,6 +141,77 @@ export class ClientesService {
       where: { clienteId },
       orderBy: { criadoEm: 'desc' },
     });
+  }
+
+  // ─── Acesso do cliente ao portal (tela "Usuarios") ───────────────────────────
+  // Status do acesso de uma empresa. Nunca devolve o hash da senha.
+  async obterAcessoPortal(id: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id },
+      select: {
+        nomeFantasia: true,
+        codigoUnico: true,
+        portalUsuario: true,
+        portalSenhaHash: true,
+      },
+    });
+    if (!cliente) throw new NotFoundException('Cliente nao encontrado');
+    return {
+      nomeFantasia: cliente.nomeFantasia,
+      codigoUnico: cliente.codigoUnico,
+      usuario: cliente.portalUsuario,
+      temAcesso: cliente.portalSenhaHash != null,
+    };
+  }
+
+  // Define (cria ou substitui) o usuario+senha de acesso do cliente ao portal.
+  // O usuario e unico entre empresas; a senha e guardada com hash bcrypt.
+  async definirAcessoPortal(id: string, dto: DefinirAcessoPortalDto) {
+    const cliente = await this.prisma.cliente.findUnique({ where: { id } });
+    if (!cliente) throw new NotFoundException('Cliente nao encontrado');
+
+    const usuario = dto.usuario.trim();
+    // Unicidade do usuario entre empresas (case-insensitive), ignorando a propria.
+    const emUso = await this.prisma.cliente.findFirst({
+      where: {
+        portalUsuario: { equals: usuario, mode: 'insensitive' },
+        NOT: { id },
+      },
+      select: { id: true },
+    });
+    if (emUso) {
+      throw new ConflictException('Este usuario ja esta em uso por outra empresa');
+    }
+
+    const portalSenhaHash = await bcrypt.hash(dto.senha, 10);
+    const atualizado = await this.prisma.cliente.update({
+      where: { id },
+      data: { portalUsuario: usuario, portalSenhaHash },
+      select: { nomeFantasia: true, codigoUnico: true, portalUsuario: true },
+    });
+    return {
+      nomeFantasia: atualizado.nomeFantasia,
+      codigoUnico: atualizado.codigoUnico,
+      usuario: atualizado.portalUsuario,
+      temAcesso: true,
+    };
+  }
+
+  // Remove o acesso (volta o portal da empresa a ser publico por link).
+  async removerAcessoPortal(id: string) {
+    const cliente = await this.prisma.cliente.findUnique({ where: { id } });
+    if (!cliente) throw new NotFoundException('Cliente nao encontrado');
+    const atualizado = await this.prisma.cliente.update({
+      where: { id },
+      data: { portalUsuario: null, portalSenhaHash: null },
+      select: { nomeFantasia: true, codigoUnico: true },
+    });
+    return {
+      nomeFantasia: atualizado.nomeFantasia,
+      codigoUnico: atualizado.codigoUnico,
+      usuario: null,
+      temAcesso: false,
+    };
   }
 
   // Padroniza o nome do cliente em title case (primeira letra de cada palavra em

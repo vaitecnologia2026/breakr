@@ -231,6 +231,10 @@ export function Portal() {
   const [dados, setDados] = useState<PortalData | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [naoEncontrado, setNaoEncontrado] = useState(false);
+  // Login do portal: quando a empresa tem acesso configurado (tela "Usuários"),
+  // o portal exige usuário+senha. Sem credenciais, abre pelo link (como antes).
+  const [precisaLogin, setPrecisaLogin] = useState(false);
+  const [nomeEmpresa, setNomeEmpresa] = useState('');
   // Incrementado após uma aprovação/ajuste para recarregar o portal.
   const [versao, setVersao] = useState(0);
 
@@ -243,13 +247,41 @@ export function Portal() {
       setNaoEncontrado(false);
       return;
     }
+    async function buscarDados(token?: string) {
+      if (token) api.defaults.headers.common['X-Portal-Token'] = token;
+      const { data } = await api.get<PortalData>(`/portal/${codigo}`);
+      if (ativo) { setDados(data); setPrecisaLogin(false); }
+    }
+
     async function carregar() {
       setCarregando(true);
       setNaoEncontrado(false);
       try {
-        const { data } = await api.get<PortalData>(`/portal/${codigo}`);
-        if (ativo) setDados(data);
+        // 1) A empresa exige login? (público quando não tem credenciais)
+        const { data: status } = await api.get<{ requerLogin: boolean; nome: string }>(
+          `/portal/${codigo}/acesso`,
+        );
+        if (ativo) setNomeEmpresa(status.nome);
+        if (!status.requerLogin) {
+          await buscarDados();
+          return;
+        }
+        // 2) Exige login: usa o token salvo (se houver) ou pede o login.
+        const token = sessionStorage.getItem(`breakr.portal.${codigo}`) ?? undefined;
+        if (token) {
+          try {
+            await buscarDados(token);
+          } catch {
+            // token expirado/inválido → limpa e volta para a tela de login.
+            sessionStorage.removeItem(`breakr.portal.${codigo}`);
+            delete api.defaults.headers.common['X-Portal-Token'];
+            if (ativo) { setPrecisaLogin(true); setDados(null); }
+          }
+        } else if (ativo) {
+          setPrecisaLogin(true);
+        }
       } catch {
+        // 404 no /acesso → código inexistente.
         if (ativo) setNaoEncontrado(true);
       } finally {
         if (ativo) setCarregando(false);
@@ -272,7 +304,15 @@ export function Portal() {
       <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {carregando ? (
           <EstadoCarregando />
-        ) : naoEncontrado || !dados ? (
+        ) : naoEncontrado ? (
+          <PortalNaoEncontrado />
+        ) : precisaLogin ? (
+          <PortalLogin
+            codigo={codigo ?? ''}
+            nome={nomeEmpresa}
+            aoEntrar={() => setVersao((v) => v + 1)}
+          />
+        ) : !dados ? (
           <PortalNaoEncontrado />
         ) : (
           <>
@@ -858,6 +898,134 @@ function Rodape() {
         Breakr · sistema operacional da sua operação
       </span>
     </footer>
+  );
+}
+
+/* --------------------------- Login do portal -------------------------- */
+
+// Tela de login exibida quando a empresa tem acesso configurado (tela "Usuários").
+// Valida usuário+senha na API e guarda o token do portal (12h) na sessão do
+// navegador; ao entrar, avisa o pai para recarregar o portal já autenticado.
+function PortalLogin({
+  codigo,
+  nome,
+  aoEntrar,
+}: {
+  codigo: string;
+  nome: string;
+  aoEntrar: () => void;
+}) {
+  const [usuario, setUsuario] = useState('');
+  const [senha, setSenha] = useState('');
+  const [entrando, setEntrando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function submeter(e: React.FormEvent) {
+    e.preventDefault();
+    if (!usuario.trim() || !senha) return;
+    setEntrando(true);
+    setErro(null);
+    try {
+      const { data } = await api.post<{ token: string }>(`/portal/${codigo}/login`, {
+        usuario: usuario.trim(),
+        senha,
+      });
+      sessionStorage.setItem(`breakr.portal.${codigo}`, data.token);
+      api.defaults.headers.common['X-Portal-Token'] = data.token;
+      aoEntrar();
+    } catch (err: unknown) {
+      const e2 = err as { response?: { status?: number } };
+      setErro(
+        e2.response?.status === 401
+          ? 'Usuário ou senha inválidos.'
+          : 'Não foi possível entrar. Tente novamente.',
+      );
+      setEntrando(false);
+    }
+  }
+
+  const inputEstilo: React.CSSProperties = {
+    width: '100%',
+    padding: '11px 12px',
+    borderRadius: 10,
+    background: 'var(--preto-fumaca)',
+    border: '1px solid var(--borda-forte)',
+    color: 'var(--cinza-vapor)',
+    fontSize: 15,
+  };
+
+  return (
+    <div
+      style={{
+        maxWidth: 400,
+        width: '100%',
+        margin: '48px auto 0',
+        padding: '32px 28px',
+        background: 'var(--superficie)',
+        border: '1px solid var(--borda-forte)',
+        borderRadius: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 18,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+        <Logo tamanho={30} />
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--cinza-vapor)' }}>
+          {nome ? `Área de ${nome}` : 'Área do cliente'}
+        </div>
+        <div style={{ fontSize: 13.5, color: 'var(--texto-suave)' }}>
+          Entre com seu usuário e senha para acessar o portal.
+        </div>
+      </div>
+
+      <form onSubmit={submeter} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)' }}>Usuário</label>
+          <input
+            style={inputEstilo}
+            type="text"
+            autoComplete="username"
+            placeholder="e-mail ou nome de acesso"
+            value={usuario}
+            onChange={(e) => setUsuario(e.target.value)}
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)' }}>Senha</label>
+          <input
+            style={inputEstilo}
+            type="password"
+            autoComplete="current-password"
+            placeholder="sua senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+          />
+        </div>
+
+        {erro && (
+          <div style={{ fontSize: 13, color: '#e2738a', fontWeight: 600 }}>{erro}</div>
+        )}
+
+        <button
+          type="submit"
+          disabled={entrando || !usuario.trim() || !senha}
+          style={{
+            marginTop: 4,
+            padding: '12px 16px',
+            borderRadius: 10,
+            border: 'none',
+            background: entrando ? 'var(--borda-forte)' : 'var(--laranja-breakr, #ca3f17)',
+            color: '#fff',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: entrando ? 'default' : 'pointer',
+          }}
+        >
+          {entrando ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </div>
   );
 }
 
