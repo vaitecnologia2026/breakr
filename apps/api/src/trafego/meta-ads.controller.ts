@@ -52,6 +52,24 @@ export class MetaAdsController {
     return this.meta.insights({ campanhaId, nivel, desde, ate });
   }
 
+  // GET /trafego/meta/contas — lista as contas de anuncio do token (act_...).
+  @Get('contas')
+  contas() {
+    return this.meta.listarContasAnuncio();
+  }
+
+  // GET /trafego/meta/paginas — lista as paginas do token (Page ID).
+  @Get('paginas')
+  paginas() {
+    return this.meta.listarPaginas();
+  }
+
+  // GET /trafego/meta/token-debug — diagnostica o token (tipo/validade/scopes).
+  @Get('token-debug')
+  tokenDebug(@Query('token') token?: string) {
+    return this.meta.diagnosticarToken(token);
+  }
+
   // POST /trafego/meta/campanhas — cria campanha (criada PAUSADA por padrao).
   @Post('campanhas')
   @UseGuards(CargosGuard)
