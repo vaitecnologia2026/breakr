@@ -148,4 +148,47 @@ export class MetaAdsService {
     usp.set('access_token', c.token);
     return this.chamar(`${base}?${usp.toString()}`);
   }
+
+  // --- Descoberta / diagnostico (somente leitura) — apoia a configuracao das
+  // credenciais. Reaproveita ideias do wrapper fb-graph do PONS, sem nada novo
+  // no banco: apenas GETs ao Graph com o token ja configurado. ---
+
+  // Lista as contas de anuncio do token (/me/adaccounts): ajuda a descobrir o
+  // ID correto (act_...) em vez de digitar no chute.
+  async listarContasAnuncio(): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token) return { ok: false, erro: 'Meta Ads nao configurado (token).' };
+    const fields = 'account_id,name,account_status,currency';
+    return this.chamar(
+      `${GRAPH}/me/adaccounts?fields=${fields}&limit=100&access_token=${encodeURIComponent(c.token)}`,
+    );
+  }
+
+  // Lista as paginas do token (/me/accounts): ajuda a descobrir o Page ID. So
+  // id e name — o access_token de pagina NAO e solicitado nem exposto.
+  async listarPaginas(): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token) return { ok: false, erro: 'Meta Ads nao configurado (token).' };
+    return this.chamar(
+      `${GRAPH}/me/accounts?fields=id,name&limit=100&access_token=${encodeURIComponent(c.token)}`,
+    );
+  }
+
+  // Diagnostica um token (/debug_token): tipo, validade, scopes e app. Usa o
+  // app access token (appId|appSecret). Sem token informado, inspeciona o token
+  // configurado. Aponta na hora token do tipo errado / app errado / expirado.
+  async diagnosticarToken(tokenInput?: string): Promise<MetaResposta> {
+    const c = await this.cred();
+    const alvo = tokenInput?.trim() || c.token;
+    if (!alvo) return { ok: false, erro: 'Informe um token ou configure o token Meta Ads.' };
+    if (!c.appId || !c.appSecret) {
+      return { ok: false, erro: 'Informe App ID e App Secret em Configuracoes para diagnosticar o token.' };
+    }
+    const appAccess = `${c.appId}|${c.appSecret}`;
+    return this.chamar(
+      `${GRAPH}/debug_token?input_token=${encodeURIComponent(alvo)}&access_token=${encodeURIComponent(
+        appAccess,
+      )}`,
+    );
+  }
 }

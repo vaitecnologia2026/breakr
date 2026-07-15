@@ -37,6 +37,24 @@ interface InsightRow {
   cpm?: string;
   ctr?: string;
 }
+interface ContaAnuncio {
+  account_id?: string;
+  name?: string;
+  account_status?: number;
+  currency?: string;
+}
+interface PaginaMeta {
+  id?: string;
+  name?: string;
+}
+interface TokenDebugDados {
+  type?: string;
+  app_id?: string;
+  application?: string;
+  is_valid?: boolean;
+  expires_at?: number;
+  scopes?: string[];
+}
 
 const OBJETIVOS = [
   'OUTCOME_TRAFFIC',
@@ -76,6 +94,19 @@ export function MetaAdsPainel() {
   const [criando, setCriando] = useState(false);
   const [acaoErro, setAcaoErro] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const [contas, setContas] = useState<ContaAnuncio[]>([]);
+  const [contasErro, setContasErro] = useState<string | null>(null);
+  const [carregandoContas, setCarregandoContas] = useState(false);
+
+  const [paginas, setPaginas] = useState<PaginaMeta[]>([]);
+  const [paginasErro, setPaginasErro] = useState<string | null>(null);
+  const [carregandoPaginas, setCarregandoPaginas] = useState(false);
+
+  const [tokenAlvo, setTokenAlvo] = useState('');
+  const [tokenDebug, setTokenDebug] = useState<TokenDebugDados | null>(null);
+  const [tokenErro, setTokenErro] = useState<string | null>(null);
+  const [carregandoToken, setCarregandoToken] = useState(false);
 
   async function carregarStatus() {
     setCarregandoStatus(true);
@@ -127,6 +158,65 @@ export function MetaAdsPainel() {
       setInsightsErro('Não foi possível ler os resultados.');
     } finally {
       setCarregandoInsights(false);
+    }
+  }
+
+  async function carregarContas() {
+    setCarregandoContas(true);
+    setContasErro(null);
+    try {
+      const { data } = await api.get<MetaResp<{ data?: ContaAnuncio[] }>>('/trafego/meta/contas');
+      if (!data.ok) {
+        setContas([]);
+        setContasErro(data.erro ?? 'Não foi possível listar as contas de anúncio.');
+      } else {
+        setContas(data.dados?.data ?? []);
+        if (!data.dados?.data?.length) setContasErro('Nenhuma conta de anúncio encontrada para este token.');
+      }
+    } catch {
+      setContasErro('Não foi possível listar as contas de anúncio.');
+    } finally {
+      setCarregandoContas(false);
+    }
+  }
+
+  async function carregarPaginas() {
+    setCarregandoPaginas(true);
+    setPaginasErro(null);
+    try {
+      const { data } = await api.get<MetaResp<{ data?: PaginaMeta[] }>>('/trafego/meta/paginas');
+      if (!data.ok) {
+        setPaginas([]);
+        setPaginasErro(data.erro ?? 'Não foi possível listar as páginas.');
+      } else {
+        setPaginas(data.dados?.data ?? []);
+        if (!data.dados?.data?.length) setPaginasErro('Nenhuma página encontrada para este token.');
+      }
+    } catch {
+      setPaginasErro('Não foi possível listar as páginas.');
+    } finally {
+      setCarregandoPaginas(false);
+    }
+  }
+
+  async function diagnosticar() {
+    setCarregandoToken(true);
+    setTokenErro(null);
+    try {
+      const qs = tokenAlvo.trim() ? `?token=${encodeURIComponent(tokenAlvo.trim())}` : '';
+      const { data } = await api.get<MetaResp<{ data?: TokenDebugDados }>>(
+        `/trafego/meta/token-debug${qs}`,
+      );
+      if (!data.ok) {
+        setTokenDebug(null);
+        setTokenErro(data.erro ?? 'Não foi possível diagnosticar o token.');
+      } else {
+        setTokenDebug(data.dados?.data ?? null);
+      }
+    } catch {
+      setTokenErro('Não foi possível diagnosticar o token.');
+    } finally {
+      setCarregandoToken(false);
     }
   }
 
@@ -259,6 +349,71 @@ export function MetaAdsPainel() {
             )}
             {statusErro && (
               <span style={{ fontSize: 12.5, color: '#fca5a5' }}>Meta: {statusErro}</span>
+            )}
+          </div>
+
+          {/* Descoberta / diagnóstico — apoia o preenchimento das credenciais */}
+          <div style={cardStyle}>
+            <strong style={{ fontSize: 13 }}>Descoberta / diagnóstico</strong>
+            <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
+              Use o token já configurado para descobrir o ID da conta (act_…) e o Page ID, e para
+              conferir se o token é do tipo/validade certos.
+            </span>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <BotaoSecundario onClick={carregarContas}>
+                {carregandoContas ? 'Carregando…' : 'Listar contas de anúncio'}
+              </BotaoSecundario>
+              <BotaoSecundario onClick={carregarPaginas}>
+                {carregandoPaginas ? 'Carregando…' : 'Listar páginas'}
+              </BotaoSecundario>
+            </div>
+
+            {contasErro && <span style={{ fontSize: 12.5, color: '#fca5a5' }}>Contas — {contasErro}</span>}
+            {contas.map((c) => (
+              <span key={c.account_id ?? c.name} style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>
+                <strong>act_{c.account_id}</strong> · {c.name ?? '—'}
+                {c.currency ? ` · ${c.currency}` : ''}
+              </span>
+            ))}
+
+            {paginasErro && <span style={{ fontSize: 12.5, color: '#fca5a5' }}>Páginas — {paginasErro}</span>}
+            {paginas.map((p) => (
+              <span key={p.id} style={{ fontSize: 12.5, color: 'var(--texto-suave)' }}>
+                Página <strong>{p.id}</strong> · {p.name ?? '—'}
+              </span>
+            ))}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+              <input
+                className="brk-input"
+                placeholder="Token para diagnosticar (vazio = o configurado)"
+                value={tokenAlvo}
+                onChange={(e) => setTokenAlvo(e.target.value)}
+                style={{ flex: '1 1 220px' }}
+              />
+              <BotaoSecundario onClick={diagnosticar}>
+                {carregandoToken ? 'Diagnosticando…' : 'Diagnosticar token'}
+              </BotaoSecundario>
+            </div>
+            {tokenErro && <span style={{ fontSize: 12.5, color: '#fca5a5' }}>Token — {tokenErro}</span>}
+            {tokenDebug && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12.5 }}>
+                <span>Tipo: <strong>{tokenDebug.type ?? '—'}</strong></span>
+                <span>Válido: <strong>{tokenDebug.is_valid ? 'sim' : 'não'}</strong></span>
+                <span>App: <strong>{tokenDebug.application ?? tokenDebug.app_id ?? '—'}</strong></span>
+                <span>
+                  Expira:{' '}
+                  <strong>
+                    {tokenDebug.expires_at
+                      ? new Date(tokenDebug.expires_at * 1000).toLocaleString('pt-BR')
+                      : 'não expira'}
+                  </strong>
+                </span>
+                {tokenDebug.scopes?.length ? (
+                  <span>Permissões: <strong>{tokenDebug.scopes.join(', ')}</strong></span>
+                ) : null}
+              </div>
             )}
           </div>
 
