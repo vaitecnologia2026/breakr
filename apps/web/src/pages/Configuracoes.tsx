@@ -19,7 +19,7 @@ interface ConfigIntegracoes {
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
   google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
-  adsMeta: { temToken: boolean; preview: string | null; contaId: string | null };
+  adsMeta: { temToken: boolean; preview: string | null; contaId: string | null; temAppId: boolean; temAppSecret: boolean; appId: string | null; pageId: string | null; pixelId: string | null };
   adsGoogle: { temToken: boolean; preview: string | null; contaId: string | null };
   receita: { temToken: boolean; preview: string | null };
 }
@@ -179,7 +179,8 @@ function AbaIntegracoes() {
     whatsappToken: '', whatsappInstancia: '',
     vaicrmToken: '', vaicrmEmail: '', vaicrmSenha: '',
     googleServiceAccount: '', googleCalendarId: '', googleImpersonateEmail: '',
-    adsMetaToken: '', adsMetaContaId: '', adsGoogleToken: '', adsGoogleContaId: '',
+    adsMetaToken: '', adsMetaContaId: '', adsMetaAppId: '', adsMetaAppSecret: '', adsMetaPageId: '', adsMetaPixelId: '',
+    adsGoogleToken: '', adsGoogleContaId: '',
     receitaToken: '',
   });
   const [salvando, setSalvando] = useState(false);
@@ -190,7 +191,7 @@ function AbaIntegracoes() {
     try {
       const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
       setConfig(data);
-      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '', receitaToken: '' });
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsMetaAppId: data.adsMeta.appId ?? '', adsMetaAppSecret: '', adsMetaPageId: data.adsMeta.pageId ?? '', adsMetaPixelId: data.adsMeta.pixelId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '', receitaToken: '' });
     } catch { setErroCarga('Erro ao carregar integrações.'); }
     finally { setCarregando(false); }
   }
@@ -215,6 +216,10 @@ function AbaIntegracoes() {
         googleImpersonateEmail: form.googleImpersonateEmail,
         ...(form.adsMetaToken && { adsMetaToken: form.adsMetaToken }),
         adsMetaContaId: form.adsMetaContaId,
+        adsMetaAppId: form.adsMetaAppId,
+        ...(form.adsMetaAppSecret && { adsMetaAppSecret: form.adsMetaAppSecret }),
+        adsMetaPageId: form.adsMetaPageId,
+        adsMetaPixelId: form.adsMetaPixelId,
         ...(form.adsGoogleToken && { adsGoogleToken: form.adsGoogleToken }),
         adsGoogleContaId: form.adsGoogleContaId,
         ...(form.receitaToken && { receitaToken: form.receitaToken }),
@@ -416,6 +421,34 @@ function AbaIntegracoes() {
             placeholder="act_1234567890"
             value={form.adsMetaContaId}
             onChange={(e) => setForm((f) => ({ ...f, adsMetaContaId: e.target.value }))}
+          />
+          <Campo
+            rotulo="App ID (aplicativo Meta)"
+            autoComplete="off"
+            placeholder={config?.adsMeta.temAppId ? config.adsMeta.appId ?? '' : '1234567890123456'}
+            value={form.adsMetaAppId}
+            onChange={(e) => setForm((f) => ({ ...f, adsMetaAppId: e.target.value }))}
+          />
+          <Campo
+            rotulo="App Secret (chave secreta)"
+            type="password" autoComplete="off"
+            placeholder={config?.adsMeta.temAppSecret ? 'Cole para substituir' : 'Chave secreta do app'}
+            value={form.adsMetaAppSecret}
+            onChange={(e) => setForm((f) => ({ ...f, adsMetaAppSecret: e.target.value }))}
+          />
+          <Campo
+            rotulo="Page ID (página do anúncio)"
+            autoComplete="off"
+            placeholder="1234567890"
+            value={form.adsMetaPageId}
+            onChange={(e) => setForm((f) => ({ ...f, adsMetaPageId: e.target.value }))}
+          />
+          <Campo
+            rotulo="Pixel ID (rastreamento de conversão)"
+            autoComplete="off"
+            placeholder="1234567890"
+            value={form.adsMetaPixelId}
+            onChange={(e) => setForm((f) => ({ ...f, adsMetaPixelId: e.target.value }))}
           />
         </>
       ),

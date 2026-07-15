@@ -18,6 +18,7 @@ import {
   EstadoErro,
   PainelVazio,
 } from '../components/primitivos';
+import { MetaAdsPainel } from '../components/MetaAdsPainel';
 
 /**
  * Tela de Tráfego (M17 — acompanhamento de campanhas + otimização com IA).
@@ -221,6 +222,8 @@ export function Trafego() {
         </div>
       }
     >
+      <MetaAdsPainel />
+
       <div className="brk-filtros">
         <div className="brk-search">
           <span className="brk-search-icon" aria-hidden="true">
