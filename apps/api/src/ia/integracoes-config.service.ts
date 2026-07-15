@@ -24,6 +24,13 @@ interface IntegracaoEntry {
   // token de acesso; contaId, o ID da conta de anuncios. A leitura automatica de
   // metricas (adapter) e etapa futura — aqui guardamos apenas as credenciais.
   contaId?: string | null;
+  // Meta Ads (Marketing API): credenciais adicionais para conectar a conta e
+  // criar/gerenciar campanhas e ler resultados. appSecret NUNCA e exposto por
+  // controller (so booleano temAppSecret no obter()).
+  appId?: string | null;
+  appSecret?: string | null;
+  pageId?: string | null;
+  pixelId?: string | null;
 }
 
 interface Integracoes {
@@ -45,7 +52,7 @@ interface IntegracoesPublicas {
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
   vaicrm: { temToken: boolean; preview: string | null; email: string | null; temSenha: boolean; configurado: boolean };
   google: { configurado: boolean; calendarId: string | null; email: string | null; conectado: boolean; contaConectada: string | null };
-  adsMeta: { temToken: boolean; preview: string | null; contaId: string | null };
+  adsMeta: { temToken: boolean; preview: string | null; contaId: string | null; temAppId: boolean; temAppSecret: boolean; appId: string | null; pageId: string | null; pixelId: string | null };
   adsGoogle: { temToken: boolean; preview: string | null; contaId: string | null };
   receita: { temToken: boolean; preview: string | null };
 }
@@ -99,7 +106,16 @@ export class IntegracoesConfigService {
         conectado: !!integ.google.refreshToken,
         contaConectada: integ.google.googleEmail ?? null,
       },
-      adsMeta: { temToken: !!integ.adsMeta.apiKey, preview: this.mascarar(integ.adsMeta.apiKey), contaId: integ.adsMeta.contaId ?? null },
+      adsMeta: {
+        temToken: !!integ.adsMeta.apiKey,
+        preview: this.mascarar(integ.adsMeta.apiKey),
+        contaId: integ.adsMeta.contaId ?? null,
+        temAppId: !!integ.adsMeta.appId,
+        temAppSecret: !!integ.adsMeta.appSecret,
+        appId: integ.adsMeta.appId ?? null,
+        pageId: integ.adsMeta.pageId ?? null,
+        pixelId: integ.adsMeta.pixelId ?? null,
+      },
       adsGoogle: { temToken: !!integ.adsGoogle.apiKey, preview: this.mascarar(integ.adsGoogle.apiKey), contaId: integ.adsGoogle.contaId ?? null },
       receita: { temToken: !!integ.receita.apiKey, preview: this.mascarar(integ.receita.apiKey) },
     };
@@ -134,6 +150,27 @@ export class IntegracoesConfigService {
     };
   }
 
+  // Uso interno (MetaAdsService): credenciais BRUTAS do Meta Ads (nunca expostas
+  // por controller). Le do banco e cai para .env como fallback.
+  async obterAdsMetaRaw(): Promise<{
+    token: string | null;
+    contaId: string | null;
+    appId: string | null;
+    appSecret: string | null;
+    pageId: string | null;
+    pixelId: string | null;
+  }> {
+    const integ = await this.lerParametros();
+    return {
+      token: integ.adsMeta.apiKey ?? process.env.META_ADS_TOKEN ?? null,
+      contaId: integ.adsMeta.contaId ?? process.env.META_ADS_CONTA_ID ?? null,
+      appId: integ.adsMeta.appId ?? process.env.META_ADS_APP_ID ?? null,
+      appSecret: integ.adsMeta.appSecret ?? process.env.META_ADS_APP_SECRET ?? null,
+      pageId: integ.adsMeta.pageId ?? process.env.META_ADS_PAGE_ID ?? null,
+      pixelId: integ.adsMeta.pixelId ?? process.env.META_ADS_PIXEL_ID ?? null,
+    };
+  }
+
   async atualizar(dto: {
     asaasApiKey?: string;
     asaasSandbox?: boolean;
@@ -150,6 +187,10 @@ export class IntegracoesConfigService {
     googleImpersonateEmail?: string;
     adsMetaToken?: string;
     adsMetaContaId?: string;
+    adsMetaAppId?: string;
+    adsMetaAppSecret?: string;
+    adsMetaPageId?: string;
+    adsMetaPixelId?: string;
     adsGoogleToken?: string;
     adsGoogleContaId?: string;
     receitaToken?: string;
@@ -186,6 +227,10 @@ export class IntegracoesConfigService {
       adsMeta: {
         apiKey: limpavel(dto.adsMetaToken, integ.adsMeta.apiKey),
         contaId: limpavel(dto.adsMetaContaId, integ.adsMeta.contaId),
+        appId: limpavel(dto.adsMetaAppId, integ.adsMeta.appId),
+        appSecret: limpavel(dto.adsMetaAppSecret, integ.adsMeta.appSecret),
+        pageId: limpavel(dto.adsMetaPageId, integ.adsMeta.pageId),
+        pixelId: limpavel(dto.adsMetaPixelId, integ.adsMeta.pixelId),
       },
       adsGoogle: {
         apiKey: limpavel(dto.adsGoogleToken, integ.adsGoogle.apiKey),
