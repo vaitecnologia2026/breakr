@@ -99,13 +99,15 @@ interface TokenDebugDados {
   scopes?: string[];
 }
 
+// O `value` continua sendo o código que a Meta exige (OUTCOME_*); só o texto
+// exibido é amigável, para o usuário leigo entender o objetivo da campanha.
 const OBJETIVOS = [
-  'OUTCOME_TRAFFIC',
-  'OUTCOME_LEADS',
-  'OUTCOME_SALES',
-  'OUTCOME_ENGAGEMENT',
-  'OUTCOME_AWARENESS',
-  'OUTCOME_APP_PROMOTION',
+  { value: 'OUTCOME_TRAFFIC', rotulo: 'Tráfego (visitas ao site/link)' },
+  { value: 'OUTCOME_LEADS', rotulo: 'Leads (cadastros/contatos)' },
+  { value: 'OUTCOME_SALES', rotulo: 'Vendas (conversões)' },
+  { value: 'OUTCOME_ENGAGEMENT', rotulo: 'Engajamento (interações/mensagens)' },
+  { value: 'OUTCOME_AWARENESS', rotulo: 'Reconhecimento (alcance da marca)' },
+  { value: 'OUTCOME_APP_PROMOTION', rotulo: 'Promoção de app (instalações)' },
 ];
 
 const cardStyle: React.CSSProperties = {
@@ -558,8 +560,8 @@ export function MetaAdsPainel() {
                 style={{ flex: '1 1 180px' }}
               >
                 {OBJETIVOS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
+                  <option key={o.value} value={o.value}>
+                    {o.rotulo}
                   </option>
                 ))}
               </select>
