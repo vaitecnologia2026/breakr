@@ -138,8 +138,13 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/contratos',   rotulo: 'Gestão Contratual', icone: <IcoFileText /> },
+      { para: '/processos-juridicos', rotulo: 'Processos Jurídicos', icone: <IcoFileText /> },
+      { para: '/cobranca-protesto', rotulo: 'Cobrança e Protesto', icone: <IcoCreditCard /> },
       { para: '/inventario',  rotulo: 'Inventário',   icone: <IcoLayout /> },
       { para: '/financeiro',  rotulo: 'Financeiro',   icone: <IcoCreditCard /> },
+      { para: '/contas-pagar', rotulo: 'Contas a Pagar', icone: <IcoCreditCard /> },
+      { para: '/contas-receber', rotulo: 'Contas a Receber', icone: <IcoCreditCard /> },
+      { para: '/controladoria', rotulo: 'Controladoria', icone: <IcoCalculator /> },
       { para: '/cobrancas',   rotulo: 'Cobranças',    icone: <IcoCreditCard /> },
       { para: '/centro-custo', rotulo: 'Centro de custo', icone: <IcoCreditCard /> },
       { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
@@ -178,6 +183,9 @@ const GRUPOS: NavGroup[] = [
       { para: '/painel-designer', rotulo: 'Painel do designer', icone: <IcoLayout /> },
       { para: '/estrategia', rotulo: 'Estratégia', icone: <IcoFileText /> },
       { para: '/trafego',   rotulo: 'Tráfego Pago', icone: <IcoTrendingUp /> },
+      { para: '/otimizacoes', rotulo: 'Otimizações', icone: <IcoZap /> },
+      { para: '/gestao-publicos', rotulo: 'Gestão de Públicos', icone: <IcoUsers /> },
+      { para: '/laboratorio-criativos', rotulo: 'Laboratório de Criativos', icone: <IcoImage /> },
     ],
   },
 ];

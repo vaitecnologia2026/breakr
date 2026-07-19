@@ -88,6 +88,18 @@ export class MetaAdsController {
     return this.meta.listarAds({ campanhaId: id, adsetId });
   }
 
+  // GET /trafego/meta/publicos — publicos personalizados (Gestao de Publicos).
+  @Get('publicos')
+  publicos() {
+    return this.meta.listarPublicos();
+  }
+
+  // GET /trafego/meta/criativos — criativos da conta (Laboratorio de Criativos).
+  @Get('criativos')
+  criativos() {
+    return this.meta.listarCriativos();
+  }
+
   // POST /trafego/meta/campanhas — cria campanha (criada PAUSADA por padrao).
   @Post('campanhas')
   @UseGuards(CargosGuard)

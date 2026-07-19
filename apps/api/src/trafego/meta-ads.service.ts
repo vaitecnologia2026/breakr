@@ -250,4 +250,30 @@ export class MetaAdsService {
       )}`,
     );
   }
+
+  // Gestao de Publicos — lista os publicos personalizados (custom audiences) da
+  // conta. Read-only; sem model. Degrada com elegancia como as demais chamadas.
+  async listarPublicos(): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token || !c.contaId) return { ok: false, erro: 'Meta Ads nao configurado (token e conta).' };
+    const fields = 'id,name,subtype,approximate_count,description,operation_status';
+    return this.chamar(
+      `${GRAPH}/${this.conta(c.contaId)}/customaudiences?fields=${fields}&limit=50&access_token=${encodeURIComponent(
+        c.token,
+      )}`,
+    );
+  }
+
+  // Laboratorio de Criativos — lista os criativos (adcreatives) da conta.
+  // Read-only; sem model.
+  async listarCriativos(): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token || !c.contaId) return { ok: false, erro: 'Meta Ads nao configurado (token e conta).' };
+    const fields = 'id,name,title,body,thumbnail_url,object_type';
+    return this.chamar(
+      `${GRAPH}/${this.conta(c.contaId)}/adcreatives?fields=${fields}&limit=50&access_token=${encodeURIComponent(
+        c.token,
+      )}`,
+    );
+  }
 }
