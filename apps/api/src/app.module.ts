@@ -46,6 +46,7 @@ import { DiscModule } from './disc/disc.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { DesempenhoModule } from './desempenho/desempenho.module';
 import { ContasPagarModule } from './contas-pagar/contas-pagar.module';
+import { ProcessosJuridicosModule } from './processos-juridicos/processos-juridicos.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { AgendamentoModule } from './agendamento/agendamento.module';
 import { ComunicadosClienteModule } from './comunicados-cliente/comunicados-cliente.module';
@@ -136,6 +137,8 @@ import { ReceitaModule } from './receita/receita.module';
     DesempenhoModule,
     // Financeiro interno — contas a pagar.
     ContasPagarModule,
+    // Jurídico — contencioso (processos, fases, prazos).
+    ProcessosJuridicosModule,
     // Agenda interna — feriados, sala presencial, home office.
     AgendaModule,
     // Calendario de Agendamento (menu Comercial) — eventos por colaborador.
