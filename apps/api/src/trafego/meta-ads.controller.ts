@@ -70,6 +70,24 @@ export class MetaAdsController {
     return this.meta.diagnosticarToken(token);
   }
 
+  // GET /trafego/meta/insights-serie — serie diaria (grafico gasto x receita).
+  @Get('insights-serie')
+  insightsSerie(@Query('desde') desde?: string, @Query('ate') ate?: string) {
+    return this.meta.insightsSerie({ desde, ate });
+  }
+
+  // GET /trafego/meta/campanhas/:id/adsets — conjuntos de anuncio da campanha.
+  @Get('campanhas/:id/adsets')
+  adsets(@Param('id') id: string) {
+    return this.meta.listarAdsets(id);
+  }
+
+  // GET /trafego/meta/campanhas/:id/ads — anuncios da campanha (ou de um adset).
+  @Get('campanhas/:id/ads')
+  ads(@Param('id') id: string, @Query('adsetId') adsetId?: string) {
+    return this.meta.listarAds({ campanhaId: id, adsetId });
+  }
+
   // POST /trafego/meta/campanhas — cria campanha (criada PAUSADA por padrao).
   @Post('campanhas')
   @UseGuards(CargosGuard)
@@ -93,5 +111,13 @@ export class MetaAdsController {
   @Cargos(...CARGOS_TRAFEGO)
   moverStatus(@Param('id') id: string, @Body() body: { status: string }) {
     return this.meta.moverStatus(id, body.status);
+  }
+
+  // PATCH /trafego/meta/campanhas/:id/orcamento — ajusta o orcamento diario (R$).
+  @Patch('campanhas/:id/orcamento')
+  @UseGuards(CargosGuard)
+  @Cargos(...CARGOS_TRAFEGO)
+  ajustarOrcamento(@Param('id') id: string, @Body() body: { orcamentoDiario: number }) {
+    return this.meta.ajustarOrcamento(id, body.orcamentoDiario);
   }
 }

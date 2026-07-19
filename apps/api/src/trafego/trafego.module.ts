@@ -14,6 +14,7 @@ import {
 import { AlertasTrafegoSchedulerService } from './alertas-trafego-scheduler.service';
 import { MetaAdsService } from './meta-ads.service';
 import { MetaAdsController } from './meta-ads.controller';
+import { MetaCapiService } from './meta-capi.service';
 
 @Module({
   imports: [IaModule, IntegracoesModule, AutomacaoModule, NotificacoesModule],
@@ -23,7 +24,7 @@ import { MetaAdsController } from './meta-ads.controller';
     CronogramaTrafegoController,
     MetaAdsController,
   ],
-  providers: [TrafegoService, AlertasTrafegoSchedulerService, MetaAdsService],
-  exports: [TrafegoService],
+  providers: [TrafegoService, AlertasTrafegoSchedulerService, MetaAdsService, MetaCapiService],
+  exports: [TrafegoService, MetaCapiService],
 })
 export class TrafegoModule {}

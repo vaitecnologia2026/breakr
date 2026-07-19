@@ -7,6 +7,7 @@ import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
 import { EngineService } from '../automacao/engine.service';
+import { MetaCapiService } from '../trafego/meta-capi.service';
 import { CriarLeadDto } from './dto/criar-lead.dto';
 import { AtualizarLeadDto } from './dto/atualizar-lead.dto';
 import { DefinirItensNegocioDto } from './dto/definir-itens-negocio.dto';
@@ -29,6 +30,7 @@ export class ComercialService {
     private readonly prisma: PrismaService,
     private readonly codigoUnico: CodigoUnicoService,
     private readonly engine: EngineService,
+    private readonly capi: MetaCapiService,
   ) {}
 
   // Cria lead. Se veio uma etapa de pipeline, o status inicial vem do status
@@ -211,6 +213,9 @@ export class ComercialService {
     const etapa = await this.prisma.etapaPipeline.findUnique({ where: { id: etapaId } });
     if (!etapa) throw new NotFoundException('Etapa nao encontrada');
     const deNome = atual.etapa?.nome ?? STATUS_LABEL[atual.status];
+    // Closed-loop CRM -> Meta (CAPI): evento offline do novo estagio do funil.
+    // Fire-and-forget: nunca bloqueia nem quebra o movimento do lead.
+    void this.capi.enviarEventoLead(id, etapa.status).catch(() => undefined);
     if (etapa.status === StatusLead.GANHO && !atual.clienteId) {
       await this.prisma.lead.update({ where: { id }, data: { etapaId, pipelineId: etapa.pipelineId } });
       await this.registrarHistorico(id, deNome, etapa.nome, autorId);
@@ -230,6 +235,8 @@ export class ComercialService {
     const lead = await this.obter(id);
     if (lead.status !== novoStatus) {
       await this.registrarHistorico(id, STATUS_LABEL[lead.status], STATUS_LABEL[novoStatus], autorId, 'Status alterado');
+      // Closed-loop CRM -> Meta (CAPI): evento offline do novo status. Fire-and-forget.
+      void this.capi.enviarEventoLead(id, novoStatus).catch(() => undefined);
     }
     if (novoStatus === StatusLead.GANHO && !lead.clienteId) {
       return this.converter(id);

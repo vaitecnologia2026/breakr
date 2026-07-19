@@ -135,7 +135,11 @@ export class MetaAdsService {
   }): Promise<MetaResposta> {
     const c = await this.cred();
     if (!c.token || !c.contaId) return { ok: false, erro: 'Meta Ads nao configurado (token e conta).' };
-    const fields = 'impressions,clicks,spend,reach,cpc,cpm,ctr,frequency,campaign_name,adset_name,ad_name';
+    // Campos base + conversao/receita (actions/action_values/roas): read-only,
+    // aditivo — se a conta nao tiver Pixel/eventos, a Meta simplesmente omite.
+    const fields =
+      'impressions,clicks,spend,reach,cpc,cpm,ctr,frequency,campaign_name,adset_name,ad_name,' +
+      'actions,action_values,purchase_roas,cost_per_action_type';
     const base = params.campanhaId
       ? `${GRAPH}/${params.campanhaId}/insights`
       : `${GRAPH}/${this.conta(c.contaId)}/insights`;
@@ -147,6 +151,61 @@ export class MetaAdsService {
     }
     usp.set('access_token', c.token);
     return this.chamar(`${base}?${usp.toString()}`);
+  }
+
+  // Serie temporal (grafico gasto x receita): insights com time_increment=1.
+  // Traz gasto e valor de conversao por dia. Read-only; sem model.
+  async insightsSerie(params: { desde?: string; ate?: string }): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token || !c.contaId) return { ok: false, erro: 'Meta Ads nao configurado (token e conta).' };
+    const usp = new URLSearchParams();
+    usp.set('fields', 'spend,action_values,purchase_roas,impressions,clicks');
+    usp.set('time_increment', '1');
+    if (params.desde && params.ate) {
+      usp.set('time_range', JSON.stringify({ since: params.desde, until: params.ate }));
+    } else {
+      usp.set('date_preset', 'last_30d');
+    }
+    usp.set('access_token', c.token);
+    return this.chamar(`${GRAPH}/${this.conta(c.contaId)}/insights?${usp.toString()}`);
+  }
+
+  // Hierarquia — conjuntos de anuncio (adsets) de uma campanha. Read-only.
+  async listarAdsets(campanhaId: string): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token) return { ok: false, erro: 'Meta Ads nao configurado (token).' };
+    const fields = 'id,name,status,effective_status,daily_budget,optimization_goal';
+    return this.chamar(
+      `${GRAPH}/${campanhaId}/adsets?fields=${fields}&limit=50&access_token=${encodeURIComponent(c.token)}`,
+    );
+  }
+
+  // Hierarquia — anuncios (ads) de uma campanha ou conjunto. Read-only.
+  async listarAds(params: { campanhaId?: string; adsetId?: string }): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token) return { ok: false, erro: 'Meta Ads nao configurado (token).' };
+    const base = params.adsetId ?? params.campanhaId;
+    if (!base) return { ok: false, erro: 'Informe a campanha ou o conjunto (adset).' };
+    const fields = 'id,name,status,effective_status,creative{id}';
+    return this.chamar(
+      `${GRAPH}/${base}/ads?fields=${fields}&limit=50&access_token=${encodeURIComponent(c.token)}`,
+    );
+  }
+
+  // Fase B (escrita) — ajusta o orcamento diario de uma campanha (ads_management).
+  // Meta cobra em centavos. Degrada com elegancia como as demais chamadas.
+  async ajustarOrcamento(campanhaId: string, orcamentoDiario: number): Promise<MetaResposta> {
+    const c = await this.cred();
+    if (!c.token) return { ok: false, erro: 'Meta Ads nao configurado (token).' };
+    if (!(orcamentoDiario > 0)) return { ok: false, erro: 'Orcamento diario invalido.' };
+    const body = new URLSearchParams();
+    body.set('daily_budget', String(Math.round(orcamentoDiario * 100)));
+    body.set('access_token', c.token);
+    return this.chamar(`${GRAPH}/${campanhaId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
   }
 
   // --- Descoberta / diagnostico (somente leitura) — apoia a configuracao das
