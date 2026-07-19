@@ -81,15 +81,26 @@ interface NavGroup {
 
 // ─── Grupos de navegação ──────────────────────────────────────────────────────
 
+// Organizacao por departamentos (arquivo "Organização dos Menus.md"). Apenas
+// reagrupa/reordena/renomeia itens que JA possuem rota — nenhuma rota foi criada
+// nem removida. Itens do arquivo sem tela ainda (Processos Juridicos, Cobranca e
+// Protesto, Controladoria/DRE, Gestao de Publicos, Lab. de Criativos, etc.) NAO
+// entram aqui para nao gerar link morto — ficam pendentes de criacao da pagina.
 const GRUPOS: NavGroup[] = [
   {
-    label: 'Início',
+    label: 'Geral',
     icone: <IcoHome />,
     items: [
       { para: '/',          rotulo: 'Dashboard',  icone: <IcoHome />, fim: true },
       { para: '/inbox',     rotulo: 'Inbox',      icone: <IcoInbox /> },
+      { para: '/chat',      rotulo: 'Chat interno', icone: <IcoChat /> },
       { para: '/comunicados', rotulo: 'Comunicados', icone: <IcoBullhorn /> },
       { para: '/comunicados-cliente', rotulo: 'Comunicar clientes', icone: <IcoBullhorn /> },
+      { para: '/agendamento', rotulo: 'Agenda', icone: <IcoCalendar />, subItens: [
+        { para: '/reunioes', rotulo: 'Reuniões', icone: <IcoFileText /> },
+        { para: '/agenda',   rotulo: 'Agenda',   icone: <IcoFileText /> },
+      ] },
+      { para: '/atendimento', rotulo: 'Atendimento ao cliente', icone: <IcoMessageCircle /> },
     ],
   },
   {
@@ -99,22 +110,57 @@ const GRUPOS: NavGroup[] = [
     items: [
       { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
       { para: '/meu-painel', rotulo: 'Meu Painel', icone: <IcoHome /> },
+      { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
       { para: '/negocios',   rotulo: 'Negócios',   icone: <IcoBriefcase /> },
       { para: '/contatos',   rotulo: 'Contatos',   icone: <IcoUsers />, subItens: [
         { para: '/contatos/pessoas', rotulo: 'Pessoas', icone: <IcoUsers /> },
         { para: '/contatos/empresas', rotulo: 'Empresas', icone: <IcoBriefcase /> },
       ] },
       { para: '/atividades', rotulo: 'Atividades', icone: <IcoFileText /> },
-      { para: '/agendamento', rotulo: 'Agendamento', icone: <IcoCalendar /> },
-      { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
-      { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoStar /> },
-      { para: '/medalhas',   rotulo: 'Medalhas',   icone: <IcoStar /> },
-      { para: '/contratos',  rotulo: 'Contratos',  icone: <IcoFileText /> },
       { para: '/planos',     rotulo: 'Planos e Produtos', icone: <IcoFileText /> },
-      { para: '/cobrancas',  rotulo: 'Cobranças',  icone: <IcoCreditCard /> },
-      { para: '/financeiro', rotulo: 'Financeiro', icone: <IcoCreditCard /> },
+    ],
+  },
+  {
+    label: 'Sucesso do Cliente',
+    icone: <IcoStar />,
+    collapsible: true,
+    items: [
+      { para: '/nps-cliente', rotulo: 'NPS de cliente', icone: <IcoStar /> },
+      { para: '/onboarding',  rotulo: 'Onboarding', icone: <IcoStar /> },
+      { para: '/medalhas',    rotulo: 'Medalhas',   icone: <IcoStar /> },
+      { para: '/projetos',    rotulo: 'Projetos',   icone: <IcoLayout /> },
+      { para: '/pesquisas',   rotulo: 'Pesquisas',  icone: <IcoFileText /> },
+    ],
+  },
+  {
+    label: 'Administração',
+    icone: <IcoBriefcase />,
+    collapsible: true,
+    items: [
+      { para: '/contratos',   rotulo: 'Gestão Contratual', icone: <IcoFileText /> },
+      { para: '/inventario',  rotulo: 'Inventário',   icone: <IcoLayout /> },
+      { para: '/financeiro',  rotulo: 'Financeiro',   icone: <IcoCreditCard /> },
+      { para: '/cobrancas',   rotulo: 'Cobranças',    icone: <IcoCreditCard /> },
       { para: '/centro-custo', rotulo: 'Centro de custo', icone: <IcoCreditCard /> },
-      { para: '/projetos',   rotulo: 'Projetos',   icone: <IcoLayout /> },
+      { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
+      { para: '/banco-talentos', rotulo: 'Banco de talentos', icone: <IcoUsers /> },
+      { para: '/squads',      rotulo: 'Squads',       icone: <IcoDiamond /> },
+      { para: '/desempenho',  rotulo: 'Desempenho',   icone: <IcoTrendingUp /> },
+      { para: '/ouvidoria',   rotulo: 'Ouvidoria',    icone: <IcoFileText /> },
+      { para: '/enps',        rotulo: 'eNPS',         icone: <IcoStar /> },
+      { para: '/automacoes',  rotulo: 'Automações',   icone: <IcoZap /> },
+    ],
+  },
+  {
+    label: 'Operações',
+    icone: <IcoSettings />,
+    collapsible: true,
+    items: [
+      { para: '/educacional',  rotulo: 'Educacional',  icone: <IcoStar /> },
+      { para: '/metas',        rotulo: 'Metas',        icone: <IcoTrendingUp /> },
+      { para: '/documentos',   rotulo: 'Documentos',   icone: <IcoFileText /> },
+      { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: <IcoCode /> },
+      { para: '/compras',      rotulo: 'Compras',      icone: <IcoShoppingBag /> },
     ],
   },
   {
@@ -124,46 +170,14 @@ const GRUPOS: NavGroup[] = [
     items: [
       { para: '/dashboard-marketing', rotulo: 'Dashboard de Marketing', icone: <IcoTrendingUp /> },
       { para: '/metricas-marketing', rotulo: 'Métricas de Marketing', icone: <IcoTrendingUp /> },
-      { para: '/conteudos', rotulo: 'Conteúdo', icone: <IcoImage /> },
-      { para: '/campanhas', rotulo: 'Campanhas', icone: <IcoBullhorn /> },
       { para: '/aprovacoes-marketing', rotulo: 'Aprovações internas', icone: <IcoUserCheck /> },
+      { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },
+      { para: '/conteudos', rotulo: 'Produção de Conteúdo', icone: <IcoImage /> },
+      { para: '/campanhas', rotulo: 'Campanhas', icone: <IcoBullhorn /> },
       { para: '/templates-campanha', rotulo: 'Templates & lote', icone: <IcoLayout /> },
       { para: '/painel-designer', rotulo: 'Painel do designer', icone: <IcoLayout /> },
       { para: '/estrategia', rotulo: 'Estratégia', icone: <IcoFileText /> },
-      { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },
-      { para: '/trafego',   rotulo: 'Tráfego',   icone: <IcoTrendingUp /> },
-    ],
-  },
-  {
-    label: 'Operações',
-    icone: <IcoSettings />,
-    collapsible: true,
-    items: [
-      { para: '/squads',       rotulo: 'Squads',       icone: <IcoDiamond /> },
-      { para: '/reunioes',     rotulo: 'Reuniões',     icone: <IcoFileText /> },
-      { para: '/agenda',       rotulo: 'Agenda',       icone: <IcoFileText /> },
-      { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
-      { para: '/banco-talentos', rotulo: 'Banco de talentos', icone: <IcoUsers /> },
-      { para: '/compras',      rotulo: 'Compras',      icone: <IcoShoppingBag /> },
-      { para: '/inventario',   rotulo: 'Inventário',   icone: <IcoLayout /> },
-      { para: '/educacional',  rotulo: 'Educacional',  icone: <IcoStar /> },
-      { para: '/metas',        rotulo: 'Metas',        icone: <IcoTrendingUp /> },
-      { para: '/ouvidoria',    rotulo: 'Ouvidoria',    icone: <IcoFileText /> },
-      { para: '/enps',         rotulo: 'eNPS',         icone: <IcoStar /> },
-      { para: '/documentos',   rotulo: 'Documentos',   icone: <IcoFileText /> },
-      { para: '/desempenho',   rotulo: 'Desempenho',   icone: <IcoTrendingUp /> },
-      { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: <IcoCode /> },
-      { para: '/automacoes',   rotulo: 'Automações',   icone: <IcoZap /> },
-    ],
-  },
-  {
-    label: 'Atendimento',
-    icone: <IcoMessageCircle />,
-    items: [
-      { para: '/atendimento', rotulo: 'Atendimento',  icone: <IcoMessageCircle /> },
-      { para: '/nps-cliente', rotulo: 'NPS de cliente', icone: <IcoStar /> },
-      { para: '/pesquisas',   rotulo: 'Pesquisas',    icone: <IcoFileText /> },
-      { para: '/chat',        rotulo: 'Chat interno', icone: <IcoChat /> },
+      { para: '/trafego',   rotulo: 'Tráfego Pago', icone: <IcoTrendingUp /> },
     ],
   },
 ];
