@@ -356,16 +356,16 @@ model Cliente {
 /// Historico de troca de squad de um cliente (Briefing Marketing — Secao 2).
 /// Cada mudanca do squad responsavel pelo cliente gera um registro.
 model HistoricoSquadCliente {
-  id           String   @id @default(uuid())
-  clienteId    String   @map("cliente_id")
-  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  deSquadId    String?  @map("de_squad_id")
-  deSquadNome  String?  @map("de_squad_nome")
-  paraSquadId  String?  @map("para_squad_id")
-  paraSquadNome String? @map("para_squad_nome")
-  autorId      String?  @map("autor_id")
-  autorNome    String?  @map("autor_nome")
-  criadoEm     DateTime @default(now()) @map("criado_em")
+  id            String   @id @default(uuid())
+  clienteId     String   @map("cliente_id")
+  cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  deSquadId     String?  @map("de_squad_id")
+  deSquadNome   String?  @map("de_squad_nome")
+  paraSquadId   String?  @map("para_squad_id")
+  paraSquadNome String?  @map("para_squad_nome")
+  autorId       String?  @map("autor_id")
+  autorNome     String?  @map("autor_nome")
+  criadoEm      DateTime @default(now()) @map("criado_em")
 
   @@index([clienteId])
   @@map("historico_squad_cliente")
@@ -1330,20 +1330,20 @@ enum StatusMaterial {
 /// etapa 1 Planejamento). Reune os materiais que percorrem o pipeline. Distinta
 /// da Campanha de trafego pago (model Campanha).
 model CampanhaMarketing {
-  id           String   @id @default(uuid())
-  nome         String
-  objetivo     String?
+  id                         String    @id @default(uuid())
+  nome                       String
+  objetivo                   String?
   // PLANEJADA | EM_ANDAMENTO | CONCLUIDA (situacao geral da campanha).
-  situacao     String   @default("PLANEJADA")
-  prazo        DateTime?
-  codigoUnico  String   @unique @map("codigo_unico")
+  situacao                   String    @default("PLANEJADA")
+  prazo                      DateTime?
+  codigoUnico                String    @unique @map("codigo_unico")
   // Aprovacao interdepartamental (Briefing Marketing — Secao 8). Nulo = nao requer
   // (cliente marketing-only vai direto para producao). Valores: AGUARDANDO_GESTAO |
   // AGUARDANDO_FINANCEIRO | APROVADO_INT | EM_ALINHAMENTO. Comentario = ultimo aval/ajuste.
-  statusAprovacaoInterna     String?  @map("status_aprovacao_interna")
-  aprovacaoInternaComentario String?  @map("aprovacao_interna_comentario")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  statusAprovacaoInterna     String?   @map("status_aprovacao_interna")
+  aprovacaoInternaComentario String?   @map("aprovacao_interna_comentario")
+  criadoEm                   DateTime  @default(now()) @map("criado_em")
+  atualizadoEm               DateTime  @updatedAt @map("atualizado_em")
 
   clienteId String  @map("cliente_id")
   cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -1364,15 +1364,15 @@ model CampanhaMarketing {
 /// Historico da aprovacao interdepartamental de uma campanha (Briefing Marketing —
 /// Secao 8): cada envio/aval/ajuste/reprovacao gera um registro com autor e comentario.
 model HistoricoAprovacaoInterna {
-  id         String   @id @default(uuid())
-  campanhaId String   @map("campanha_id")
+  id         String            @id @default(uuid())
+  campanhaId String            @map("campanha_id")
   campanha   CampanhaMarketing @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
   de         String?
   para       String?
-  autorId    String?  @map("autor_id")
-  autorNome  String?  @map("autor_nome")
+  autorId    String?           @map("autor_id")
+  autorNome  String?           @map("autor_nome")
   comentario String?
-  criadoEm   DateTime @default(now()) @map("criado_em")
+  criadoEm   DateTime          @default(now()) @map("criado_em")
 
   @@index([campanhaId])
   @@map("historico_aprovacao_interna")
@@ -1381,22 +1381,22 @@ model HistoricoAprovacaoInterna {
 /// Material (tarefa) de uma campanha de marketing — percorre o pipeline de status
 /// (Briefing Marketing — Secao 3). destino: TRAFEGO_PAGO | ORGANICO | IMPRESSAO.
 model MaterialCampanha {
-  id           String         @id @default(uuid())
-  titulo       String
-  tipo         String? // ex.: criativo de antecipacao, video curto...
-  destino      String         @default("TRAFEGO_PAGO")
-  status       StatusMaterial @default(PLANEJADO)
-  prazo        DateTime?
+  id                String         @id @default(uuid())
+  titulo            String
+  tipo              String? // ex.: criativo de antecipacao, video curto...
+  destino           String         @default("TRAFEGO_PAGO")
+  status            StatusMaterial @default(PLANEJADO)
+  prazo             DateTime?
   // Numero de vezes que o material voltou para ajuste (retrabalho).
-  reworkCount  Int            @default(0) @map("rework_count")
+  reworkCount       Int            @default(0) @map("rework_count")
   // Aprovacao do material pelo cliente no portal (Briefing Marketing — Secao 9,
   // Modulo 1). decisaoCliente: APROVADO | RESSALVAS | REPROVADO. comentarioCliente
   // e o feedback (obrigatorio ao reprovar) vinculado a esta tarefa interna.
-  decisaoCliente    String?   @map("decisao_cliente")
-  comentarioCliente String?   @map("comentario_cliente")
-  aprovadoEm        DateTime? @map("aprovado_em")
-  criadoEm     DateTime       @default(now()) @map("criado_em")
-  atualizadoEm DateTime       @updatedAt @map("atualizado_em")
+  decisaoCliente    String?        @map("decisao_cliente")
+  comentarioCliente String?        @map("comentario_cliente")
+  aprovadoEm        DateTime?      @map("aprovado_em")
+  criadoEm          DateTime       @default(now()) @map("criado_em")
+  atualizadoEm      DateTime       @updatedAt @map("atualizado_em")
 
   campanhaId String            @map("campanha_id")
   campanha   CampanhaMarketing @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
@@ -1430,14 +1430,14 @@ model TemplateCampanha {
 
 /// Material padrao de um template (vira um MaterialCampanha na geracao em lote).
 model TemplateMaterial {
-  id         String   @id @default(uuid())
-  templateId String   @map("template_id")
+  id         String           @id @default(uuid())
+  templateId String           @map("template_id")
   template   TemplateCampanha @relation(fields: [templateId], references: [id], onDelete: Cascade)
   titulo     String
   tipo       String?
-  destino    String   @default("TRAFEGO_PAGO")
-  ordem      Int      @default(0)
-  criadoEm   DateTime @default(now()) @map("criado_em")
+  destino    String           @default("TRAFEGO_PAGO")
+  ordem      Int              @default(0)
+  criadoEm   DateTime         @default(now()) @map("criado_em")
 
   @@index([templateId])
   @@map("template_material")
@@ -1848,6 +1848,33 @@ model ContaPagar {
   @@map("conta_pagar")
 }
 
+/// Processo do contencioso jurídico (Administração › Jurídico). Domínio novo e
+/// independente — não referencia outros models para permanecer 100% aditivo.
+/// status: ATIVO | SUSPENSO | ARQUIVADO | ENCERRADO. valorCausa em reais.
+model ProcessoJuridico {
+  id           String                 @id @default(uuid())
+  numero       String
+  parte        String
+  vara         String?
+  fase         String?
+  status       StatusProcessoJuridico @default(ATIVO)
+  valorCausa   Decimal?               @map("valor_causa") @db.Decimal(12, 2)
+  proximoPrazo DateTime?              @map("proximo_prazo")
+  observacao   String?
+  criadoEm     DateTime               @default(now()) @map("criado_em")
+  atualizadoEm DateTime               @updatedAt @map("atualizado_em")
+
+  @@index([status])
+  @@map("processo_juridico")
+}
+
+enum StatusProcessoJuridico {
+  ATIVO
+  SUSPENSO
+  ARQUIVADO
+  ENCERRADO
+}
+
 /// Documento do colaborador (holerite, folha, contrato, manual). Por link +
 /// assinatura: o colaborador assina dentro do sistema (assinadoEm). tipo:
 /// HOLERITE | FOLHA | CONTRATO | MANUAL | OUTRO. competencia ex.: "2026-06".
@@ -1966,23 +1993,23 @@ model RespostaPesquisa {
 /// um colaborador (responsavel). tipo VIDEO|PRESENCIAL|OUTRO controla o icone;
 /// comCliente marca reunioes com cliente (icone destacado no card).
 model Agendamento {
-  id            String   @id @default(uuid())
-  titulo        String
-  inicio        DateTime
-  fim           DateTime
-  tipo          String   @default("VIDEO") // VIDEO | PRESENCIAL | OUTRO
-  comCliente    Boolean  @default(false) @map("com_cliente")
-  local         String?
-  observacao    String?
-  cor           String? // opcional; se vazio, deriva a cor do colaborador
+  id             String   @id @default(uuid())
+  titulo         String
+  inicio         DateTime
+  fim            DateTime
+  tipo           String   @default("VIDEO") // VIDEO | PRESENCIAL | OUTRO
+  comCliente     Boolean  @default(false) @map("com_cliente")
+  local          String?
+  observacao     String?
+  cor            String? // opcional; se vazio, deriva a cor do colaborador
   // Ids dos colaboradores convidados para a reuniao (alem do responsavel).
-  convidadosIds String[] @map("convidados_ids")
+  convidadosIds  String[] @map("convidados_ids")
   // Link do Google Meet gerado ao criar o agendamento (integracao Google Agenda).
-  meetLink        String? @map("meet_link")
-  googleEventId   String? @map("google_event_id")
-  googleHtmlLink  String? @map("google_html_link")
-  criadoEm      DateTime @default(now()) @map("criado_em")
-  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  meetLink       String?  @map("meet_link")
+  googleEventId  String?  @map("google_event_id")
+  googleHtmlLink String?  @map("google_html_link")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
 
   responsavelId String  @map("responsavel_id")
   responsavel   Usuario @relation("AgendamentoResponsavel", fields: [responsavelId], references: [id], onDelete: Cascade)
