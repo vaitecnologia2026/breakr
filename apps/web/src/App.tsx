@@ -70,6 +70,14 @@ import { CentroCusto } from './pages/CentroCusto';
 import { NpsCliente } from './pages/NpsCliente';
 import { BancoTalentos } from './pages/BancoTalentos';
 import { Pesquisas } from './pages/Pesquisas';
+import { ContasPagar } from './pages/ContasPagar';
+import { ContasReceber } from './pages/ContasReceber';
+import { Controladoria } from './pages/Controladoria';
+import { CobrancaProtesto } from './pages/CobrancaProtesto';
+import { Otimizacoes } from './pages/Otimizacoes';
+import { GestaoPublicos } from './pages/GestaoPublicos';
+import { LaboratorioCriativos } from './pages/LaboratorioCriativos';
+import { ProcessosJuridicos } from './pages/ProcessosJuridicos';
 
 export function App() {
   if (SISTEMA_BLOQUEADO) return <Bloqueio />;
@@ -123,6 +131,14 @@ export function App() {
         <Route path="nps-cliente" element={<NpsCliente />} />
         <Route path="banco-talentos" element={<BancoTalentos />} />
         <Route path="pesquisas" element={<Pesquisas />} />
+        <Route path="contas-pagar" element={<ContasPagar />} />
+        <Route path="contas-receber" element={<ContasReceber />} />
+        <Route path="controladoria" element={<Controladoria />} />
+        <Route path="cobranca-protesto" element={<CobrancaProtesto />} />
+        <Route path="otimizacoes" element={<Otimizacoes />} />
+        <Route path="gestao-publicos" element={<GestaoPublicos />} />
+        <Route path="laboratorio-criativos" element={<LaboratorioCriativos />} />
+        <Route path="processos-juridicos" element={<ProcessosJuridicos />} />
         <Route path="qualidade" element={<Qualidade />} />
         <Route path="trafego" element={<Trafego />} />
         <Route path="squads" element={<Squads />} />
