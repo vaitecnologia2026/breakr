@@ -28,6 +28,10 @@ interface CampanhaMeta {
   daily_budget?: string;
   created_time?: string;
 }
+interface AcaoMeta {
+  action_type?: string;
+  value?: string;
+}
 interface InsightRow {
   impressions?: string;
   clicks?: string;
@@ -36,6 +40,45 @@ interface InsightRow {
   cpc?: string;
   cpm?: string;
   ctr?: string;
+  frequency?: string;
+  actions?: AcaoMeta[];
+  action_values?: AcaoMeta[];
+  purchase_roas?: AcaoMeta[];
+}
+interface SerieDia {
+  date_start?: string;
+  spend?: string;
+  action_values?: AcaoMeta[];
+  purchase_roas?: AcaoMeta[];
+}
+interface AdsetMeta {
+  id?: string;
+  name?: string;
+  status?: string;
+  effective_status?: string;
+  daily_budget?: string;
+}
+// Deriva conversoes/receita/ROAS/CPA/CPL dos campos actions/action_values da Meta.
+function derivarConversao(row: InsightRow | null): {
+  conversoes: number;
+  receita: number;
+  roas: number | null;
+  cpa: number | null;
+  cpl: number | null;
+} {
+  if (!row) return { conversoes: 0, receita: 0, roas: null, cpa: null, cpl: null };
+  const soma = (arr: AcaoMeta[] | undefined, filtro: (t: string) => boolean) =>
+    (arr ?? []).reduce((s, a) => (filtro((a.action_type ?? '').toLowerCase()) ? s + Number(a.value ?? 0) : s), 0);
+  const leads = soma(row.actions, (t) => t.includes('lead'));
+  const compras = soma(row.actions, (t) => t.includes('purchase'));
+  const conversoes = leads + compras;
+  const receita = soma(row.action_values, (t) => t.includes('purchase'));
+  const spend = Number(row.spend ?? 0);
+  const roasCampo = Number(row.purchase_roas?.[0]?.value ?? 0);
+  const roas = roasCampo > 0 ? roasCampo : receita > 0 && spend > 0 ? receita / spend : null;
+  const cpa = conversoes > 0 && spend > 0 ? spend / conversoes : null;
+  const cpl = leads > 0 && spend > 0 ? spend / leads : null;
+  return { conversoes, receita, roas, cpa, cpl };
 }
 interface ContaAnuncio {
   account_id?: string;
@@ -107,6 +150,14 @@ export function MetaAdsPainel() {
   const [tokenDebug, setTokenDebug] = useState<TokenDebugDados | null>(null);
   const [tokenErro, setTokenErro] = useState<string | null>(null);
   const [carregandoToken, setCarregandoToken] = useState(false);
+
+  const [serie, setSerie] = useState<SerieDia[]>([]);
+  const [serieErro, setSerieErro] = useState<string | null>(null);
+  const [carregandoSerie, setCarregandoSerie] = useState(false);
+
+  const [adsetsPor, setAdsetsPor] = useState<Record<string, AdsetMeta[]>>({});
+  const [adsetsErro, setAdsetsErro] = useState<string | null>(null);
+  const [orcamentoEdit, setOrcamentoEdit] = useState<Record<string, string>>({});
 
   async function carregarStatus() {
     setCarregandoStatus(true);
@@ -217,6 +268,63 @@ export function MetaAdsPainel() {
       setTokenErro('Não foi possível diagnosticar o token.');
     } finally {
       setCarregandoToken(false);
+    }
+  }
+
+  async function carregarSerie() {
+    setCarregandoSerie(true);
+    setSerieErro(null);
+    try {
+      const { data } = await api.get<MetaResp<{ data?: SerieDia[] }>>('/trafego/meta/insights-serie');
+      if (!data.ok) {
+        setSerie([]);
+        setSerieErro(data.erro ?? 'Não foi possível ler a série de gasto × receita.');
+      } else {
+        setSerie(data.dados?.data ?? []);
+        if (!data.dados?.data?.length) setSerieErro('Sem dados no período.');
+      }
+    } catch {
+      setSerieErro('Não foi possível ler a série de gasto × receita.');
+    } finally {
+      setCarregandoSerie(false);
+    }
+  }
+
+  async function carregarAdsets(campanhaId: string) {
+    setAdsetsErro(null);
+    try {
+      const { data } = await api.get<MetaResp<{ data?: AdsetMeta[] }>>(
+        `/trafego/meta/campanhas/${campanhaId}/adsets`,
+      );
+      if (!data.ok) {
+        setAdsetsErro(data.erro ?? 'Não foi possível listar os conjuntos.');
+      } else {
+        setAdsetsPor((m) => ({ ...m, [campanhaId]: data.dados?.data ?? [] }));
+      }
+    } catch {
+      setAdsetsErro('Não foi possível listar os conjuntos.');
+    }
+  }
+
+  async function ajustarOrcamento(campanhaId: string) {
+    const valor = Number(orcamentoEdit[campanhaId]);
+    if (!(valor > 0)) return;
+    setAcaoErro(null);
+    setFeedback(null);
+    try {
+      const { data } = await api.patch<MetaResp<unknown>>(
+        `/trafego/meta/campanhas/${campanhaId}/orcamento`,
+        { orcamentoDiario: valor },
+      );
+      if (!data.ok) {
+        setAcaoErro(data.erro ?? 'Não foi possível ajustar o orçamento na Meta.');
+      } else {
+        setFeedback('Orçamento diário ajustado na Meta.');
+        setOrcamentoEdit((m) => ({ ...m, [campanhaId]: '' }));
+        carregarCampanhas();
+      }
+    } catch {
+      setAcaoErro('Não foi possível ajustar o orçamento na Meta.');
     }
   }
 
@@ -496,28 +604,67 @@ export function MetaAdsPainel() {
                 key={c.id}
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 8,
+                  flexDirection: 'column',
+                  gap: 6,
                   padding: '8px 0',
                   borderTop: '1px solid var(--borda)',
                 }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
-                    {c.objective ?? '—'} · {c.effective_status ?? c.status ?? '—'}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
+                      {c.objective ?? '—'} · {c.effective_status ?? c.status ?? '—'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {c.status !== 'ACTIVE' ? (
+                      <BotaoSecundario onClick={() => mover(c.id, 'ACTIVE')}>Ativar</BotaoSecundario>
+                    ) : (
+                      <BotaoSecundario onClick={() => mover(c.id, 'PAUSED')}>Pausar</BotaoSecundario>
+                    )}
+                    <BotaoSecundario onClick={() => carregarAdsets(c.id)}>Conjuntos</BotaoSecundario>
+                  </div>
+                </div>
+                {/* Fase B — ajustar orçamento diário (escreve na Meta) */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    className="brk-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Novo orçamento diário (R$)"
+                    value={orcamentoEdit[c.id] ?? ''}
+                    onChange={(e) => setOrcamentoEdit((m) => ({ ...m, [c.id]: e.target.value }))}
+                    style={{ flex: '1 1 160px' }}
+                  />
+                  <BotaoSecundario
+                    onClick={() => ajustarOrcamento(c.id)}
+                    disabled={!(Number(orcamentoEdit[c.id]) > 0)}
+                  >
+                    Ajustar orçamento
+                  </BotaoSecundario>
+                </div>
+                {/* Hierarquia — conjuntos (adsets) da campanha */}
+                {adsetsPor[c.id]?.map((a) => (
+                  <span
+                    key={a.id}
+                    style={{ fontSize: 11.5, color: 'var(--texto-suave)', paddingLeft: 8 }}
+                  >
+                    ↳ {a.name ?? a.id} · {a.effective_status ?? a.status ?? '—'}
+                    {a.daily_budget ? ` · R$ ${(Number(a.daily_budget) / 100).toFixed(2)}/d` : ''}
                   </span>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {c.status !== 'ACTIVE' ? (
-                    <BotaoSecundario onClick={() => mover(c.id, 'ACTIVE')}>Ativar</BotaoSecundario>
-                  ) : (
-                    <BotaoSecundario onClick={() => mover(c.id, 'PAUSED')}>Pausar</BotaoSecundario>
-                  )}
-                </div>
+                ))}
               </div>
             ))}
+            {adsetsErro && <span style={{ fontSize: 12.5, color: '#fca5a5' }}>Conjuntos — {adsetsErro}</span>}
           </div>
 
           {/* Resultados (insights) */}
@@ -536,7 +683,66 @@ export function MetaAdsPainel() {
                 <span>Cliques: <strong>{insights.clicks ?? '0'}</strong></span>
                 <span>CTR: <strong>{insights.ctr ?? '0'}%</strong></span>
                 <span>CPC: <strong>R$ {insights.cpc ?? '0'}</strong></span>
+                <span>CPM: <strong>R$ {insights.cpm ?? '0'}</strong></span>
                 <span>Alcance: <strong>{insights.reach ?? '0'}</strong></span>
+                <span>Frequência: <strong>{insights.frequency ?? '0'}</strong></span>
+                {(() => {
+                  const d = derivarConversao(insights);
+                  return (
+                    <>
+                      <span>Conversões: <strong>{d.conversoes}</strong></span>
+                      <span>Receita: <strong>R$ {d.receita.toFixed(2)}</strong></span>
+                      <span>ROAS: <strong>{d.roas != null ? `${d.roas.toFixed(2)}x` : '—'}</strong></span>
+                      <span>CPA: <strong>{d.cpa != null ? `R$ ${d.cpa.toFixed(2)}` : '—'}</strong></span>
+                      <span>CPL: <strong>{d.cpl != null ? `R$ ${d.cpl.toFixed(2)}` : '—'}</strong></span>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Série gasto × receita (30 dias) */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ fontSize: 13 }}>Gasto × Receita (30 dias)</strong>
+              <BotaoSecundario onClick={carregarSerie}>
+                {carregandoSerie ? 'Carregando…' : 'Ver série'}
+              </BotaoSecundario>
+            </div>
+            {serieErro && <span style={{ fontSize: 12.5, color: '#fca5a5' }}>Meta: {serieErro}</span>}
+            {serie.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {(() => {
+                  const linhas = serie.map((d) => {
+                    const gasto = Number(d.spend ?? 0);
+                    const receita = (d.action_values ?? []).reduce(
+                      (s, a) => (String(a.action_type ?? '').toLowerCase().includes('purchase') ? s + Number(a.value ?? 0) : s),
+                      0,
+                    );
+                    return { data: d.date_start ?? '', gasto, receita };
+                  });
+                  const max = Math.max(1, ...linhas.map((l) => Math.max(l.gasto, l.receita)));
+                  return linhas.map((l) => (
+                    <div key={l.data} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5 }}>
+                      <span style={{ width: 74, color: 'var(--texto-fraco)' }}>{l.data}</span>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div style={{ height: 6, borderRadius: 3, background: 'var(--superficie-3)', overflow: 'hidden' }}>
+                          <div style={{ width: `${(l.gasto / max) * 100}%`, height: '100%', background: '#4c7cf2' }} />
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: 'var(--superficie-3)', overflow: 'hidden' }}>
+                          <div style={{ width: `${(l.receita / max) * 100}%`, height: '100%', background: '#2ed88f' }} />
+                        </div>
+                      </div>
+                      <span style={{ width: 150, textAlign: 'right', color: 'var(--texto-suave)' }}>
+                        R$ {l.gasto.toFixed(0)} · R$ {l.receita.toFixed(0)}
+                      </span>
+                    </div>
+                  ));
+                })()}
+                <span style={{ fontSize: 11, color: 'var(--texto-fraco)', marginTop: 2 }}>
+                  Azul = gasto · Verde = receita (por dia).
+                </span>
               </div>
             )}
           </div>
