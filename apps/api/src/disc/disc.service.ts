@@ -5,6 +5,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { SalvarPerguntaDto } from './dto/salvar-pergunta.dto';
 import { CandidaturaDiscDto } from './dto/candidatura-disc.dto';
+import { interpretarPerfil } from './disc-perfis';
 
 type Dimensao = 'D' | 'I' | 'S' | 'C';
 interface OpcaoDisc {
@@ -135,6 +136,13 @@ export class DiscService {
         vagaId: dto.vagaId,
       },
     });
-    return { ok: true, candidatoId: candidato.id, perfil: resumo };
+
+    // Dimensões predominantes (apenas as com pontuação) → interpretação do perfil.
+    const predominantes = ranking.filter((d) => placar[d] > 0);
+    const primario = predominantes[0] ?? null;
+    const secundario = predominantes[1] ?? null;
+    const interpretacao = interpretarPerfil(primario, secundario);
+
+    return { ok: true, candidatoId: candidato.id, perfil: resumo, primario, secundario, interpretacao };
   }
 }
