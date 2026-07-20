@@ -90,4 +90,20 @@ export class RhController {
   ) {
     return this.rhService.atualizarTags(id, tags);
   }
+
+  // POST /rh/vagas/:id/triagem-ia — classifica os candidatos ativos da vaga em
+  // Alto/Médio/Baixo Fit via IA (inspirado no InHire) — Admin/Superadmin.
+  @Post('vagas/:id/triagem-ia')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  triagemIa(@Param('id', ParseUUIDPipe) id: string) {
+    return this.rhService.triagemIa(id);
+  }
+
+  // GET /rh/source-of-hire — origem das candidaturas com total e taxa de
+  // aprovação por canal (qualquer autenticado).
+  @Get('source-of-hire')
+  sourceOfHire() {
+    return this.rhService.sourceOfHire();
+  }
 }

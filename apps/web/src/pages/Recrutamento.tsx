@@ -47,8 +47,11 @@ interface Vaga {
   titulo: string;
   departamento: string | null;
   aberta: boolean;
+  codigoUnico?: string;
   _count?: { candidatos: number };
 }
+
+type FitNivel = 'ALTO' | 'MEDIO' | 'BAIXO';
 
 interface Candidato {
   id: string;
@@ -59,7 +62,20 @@ interface Candidato {
   perfilDisc: string | null;
   vagaId: string;
   vaga?: { titulo: string };
+  // Aditivos (InHire): origem (Source of Hire) e Fit da Triagem com IA.
+  origem?: string | null;
+  indicadoPor?: string | null;
+  fitNivel?: FitNivel | null;
+  fitPontuacao?: number | null;
+  fitJustificativa?: string | null;
 }
+
+// Rótulo + cor por nível de Fit (Triagem com IA).
+const FIT_META: Record<FitNivel, { rotulo: string; cor: string; bg: string }> = {
+  ALTO: { rotulo: 'Alto Fit', cor: '#2ecc71', bg: 'rgba(46,204,113,0.14)' },
+  MEDIO: { rotulo: 'Médio Fit', cor: '#ff9406', bg: 'rgba(255,148,6,0.14)' },
+  BAIXO: { rotulo: 'Baixo Fit', cor: '#ff6b6b', bg: 'rgba(255,107,107,0.14)' },
+};
 
 // Ordem das colunas do funil (esquerda → direita).
 const ORDEM_STATUS: StatusCandidato[] = [
@@ -108,6 +124,8 @@ export function Recrutamento() {
   const [modalVaga, setModalVaga] = useState(false);
   const [filtroVaga, setFiltroVaga] = useState<string>(TODAS);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [triando, setTriando] = useState(false);
   const [busca, setBusca] = useState('');
 
   async function carregarVagas() {
@@ -141,6 +159,46 @@ export function Recrutamento() {
     carregar();
   }, []);
 
+  // Triagem com IA (Fit) — roda para a vaga selecionada no filtro (InHire).
+  async function rodarTriagem() {
+    if (triando) return;
+    if (!filtroVaga) {
+      setAviso(null);
+      setErroAcao('Selecione uma vaga no filtro acima para rodar a Triagem com IA.');
+      return;
+    }
+    setTriando(true);
+    setErroAcao(null);
+    setAviso(null);
+    try {
+      const { data } = await api.post<{ total: number }>(`/rh/vagas/${filtroVaga}/triagem-ia`);
+      setAviso(`Triagem concluída: ${data.total} candidato(s) avaliados com IA.`);
+      await carregar();
+    } catch (e) {
+      const msg =
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Falha na triagem. Verifique se a IA está ativa em Configurações → Integrações.';
+      setErroAcao(msg);
+    } finally {
+      setTriando(false);
+    }
+  }
+
+  // Copia o link da Página de Carreiras (da vaga filtrada, ou o portal geral).
+  async function copiarLinkCarreiras() {
+    const base = window.location.origin;
+    const vagaSel = vagas.find((v) => v.id === filtroVaga);
+    const url =
+      vagaSel?.codigoUnico ? `${base}/carreiras/${vagaSel.codigoUnico}` : `${base}/carreiras`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setErroAcao(null);
+      setAviso(`Link da Página de Carreiras copiado: ${url}`);
+    } catch {
+      setAviso(`Link da Página de Carreiras: ${url}`);
+    }
+  }
+
   const porVaga =
     filtroVaga === TODAS
       ? candidatos
@@ -162,6 +220,10 @@ export function Recrutamento() {
       subtitulo="Vagas e candidatos"
       acao={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <BotaoSecundario onClick={copiarLinkCarreiras}>Link de Carreiras</BotaoSecundario>
+          <BotaoSecundario onClick={rodarTriagem} disabled={triando}>
+            {triando ? 'Triando…' : 'Triagem IA'}
+          </BotaoSecundario>
           <BotaoSecundario onClick={() => setModalVaga(true)}>+ Nova vaga</BotaoSecundario>
           <BotaoPrimario onClick={() => setModalCandidato(true)}>+ Novo candidato</BotaoPrimario>
         </div>
@@ -201,6 +263,23 @@ export function Recrutamento() {
             </div>
           </div>
           {erroAcao && <MensagemErro texto={erroAcao} />}
+          {aviso && (
+            <div
+              style={{
+                fontSize: 13,
+                color: '#67e0a3',
+                background: 'rgba(103,224,163,0.10)',
+                border: '1px solid rgba(103,224,163,0.35)',
+                borderRadius: 10,
+                padding: '9px 12px',
+                marginBottom: 10,
+                wordBreak: 'break-all',
+              }}
+            >
+              {aviso}
+            </div>
+          )}
+          <FontesResumo />
           {visiveis.length === 0 ? (
             <PainelVazio
               titulo="Nenhum resultado"
@@ -451,6 +530,68 @@ function ChipContagem({ total }: { total: number }) {
   );
 }
 
+/* --------------------- Source of Hire (origem) --------------------- */
+interface Fonte {
+  origem: string;
+  total: number;
+  aprovados: number;
+  taxaAprovacao: number;
+}
+
+// Painel compacto com a origem das candidaturas (total + taxa de aprovação por
+// canal) — inspirado no Source of Hire do InHire. Degrada em silêncio se a API
+// não responder (não quebra o quadro).
+function FontesResumo() {
+  const [fontes, setFontes] = useState<Fonte[]>([]);
+
+  useEffect(() => {
+    let ativo = true;
+    api
+      .get<Fonte[]>('/rh/source-of-hire')
+      .then(({ data }) => {
+        if (ativo) setFontes(data);
+      })
+      .catch(() => {
+        /* silencioso — painel apenas some */
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  if (fontes.length === 0) return null;
+
+  return (
+    <div className="brk-card brk-card-p" style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--texto-suave)', marginBottom: 8 }}>
+        Origem das candidaturas (Source of Hire)
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        {fontes.map((f) => (
+          <div
+            key={f.origem}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              padding: '8px 12px',
+              borderRadius: 10,
+              background: 'var(--superficie-2)',
+              border: '1px solid var(--borda)',
+              minWidth: 130,
+            }}
+          >
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto)' }}>{f.origem}</span>
+            <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)', fontVariantNumeric: 'tabular-nums' }}>
+              {f.total} candidato(s) · {f.taxaAprovacao}% aprov.
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------- Card ------------------------------- */
 
 function CardCandidato({
@@ -510,6 +651,17 @@ function CardCandidato({
       )}
 
       {candidato.perfilDisc && <PilulaPerfil perfil={candidato.perfilDisc} />}
+
+      {candidato.fitNivel && (
+        <FitBadge nivel={candidato.fitNivel} pontuacao={candidato.fitPontuacao} justificativa={candidato.fitJustificativa} />
+      )}
+
+      {candidato.origem && (
+        <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>
+          Origem: {candidato.origem}
+          {candidato.indicadoPor ? ` · ${candidato.indicadoPor}` : ''}
+        </span>
+      )}
 
       {candidato.email && (
         <div
@@ -588,6 +740,40 @@ function PilulaPerfil({ perfil }: { perfil: string }) {
       }}
     >
       Perfil {perfil}
+    </span>
+  );
+}
+
+// Selo de Fit (Triagem com IA): nível + pontuação, com justificativa no title.
+function FitBadge({
+  nivel,
+  pontuacao,
+  justificativa,
+}: {
+  nivel: FitNivel;
+  pontuacao?: number | null;
+  justificativa?: string | null;
+}) {
+  const meta = FIT_META[nivel];
+  return (
+    <span
+      title={justificativa ?? undefined}
+      style={{
+        alignSelf: 'flex-start',
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: '0.03em',
+        padding: '3px 8px',
+        borderRadius: 999,
+        background: meta.bg,
+        color: meta.cor,
+        border: `1px solid ${meta.cor}`,
+        whiteSpace: 'nowrap',
+        cursor: justificativa ? 'help' : 'default',
+      }}
+    >
+      {meta.rotulo}
+      {pontuacao != null ? ` · ${pontuacao}` : ''}
     </span>
   );
 }
@@ -699,6 +885,8 @@ function ModalNovoCandidato({
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [origem, setOrigem] = useState('Manual');
+  const [indicadoPor, setIndicadoPor] = useState('');
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -717,6 +905,8 @@ function ModalNovoCandidato({
         nome: nome.trim(),
         email: email.trim() || undefined,
         telefone: telefone.trim() || undefined,
+        origem: origem || undefined,
+        indicadoPor: origem === 'Indicação' ? indicadoPor.trim() || undefined : undefined,
       });
       onCriado();
     } catch {
@@ -780,6 +970,23 @@ function ModalNovoCandidato({
           aoMudar={setTelefone}
           placeholder="(00) 00000-0000 (opcional)"
         />
+
+        <CampoSelect rotulo="Origem" valor={origem} aoMudar={setOrigem}>
+          <option value="Manual">Manual</option>
+          <option value="Indicação">Indicação</option>
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Portal">Portal de vagas</option>
+          <option value="Página de Carreiras">Página de Carreiras</option>
+        </CampoSelect>
+
+        {origem === 'Indicação' && (
+          <Campo
+            rotulo="Indicado por"
+            valor={indicadoPor}
+            aoMudar={setIndicadoPor}
+            placeholder="E-mail/nome de quem indicou (opcional)"
+          />
+        )}
 
         {erro && <MensagemErro texto={erro} />}
 

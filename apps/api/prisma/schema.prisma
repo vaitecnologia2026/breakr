@@ -1129,6 +1129,22 @@ enum StatusCandidato {
   REPROVADO
 }
 
+/// Nível de aderência (Fit) do candidato à vaga, calculado pela Triagem com IA
+/// (inspirado no InHire: Alto/Médio/Baixo Fit). Aditivo — não altera o funil.
+enum FitIA {
+  ALTO
+  MEDIO
+  BAIXO
+}
+
+/// Estado de uma Carta Oferta enviada ao candidato (aditivo — módulo de oferta).
+enum StatusCartaOferta {
+  RASCUNHO
+  ENVIADA
+  ACEITA
+  RECUSADA
+}
+
 /// Vaga aberta de recrutamento.
 model Vaga {
   id           String   @id @default(uuid())
@@ -1157,15 +1173,65 @@ model Candidato {
   observacao   String?
   // Tags do banco de talentos (ex.: "forte", "reavaliacao") — req. l.431.
   tags         String?
+  // Source of Hire (inspirado no InHire): origem da candidatura
+  // (ex.: "Página de Carreiras", "Indicação", "LinkedIn", "Manual") e, quando
+  // indicado, o colaborador/e-mail que indicou. Aditivos — opcionais.
+  origem       String?
+  indicadoPor  String?         @map("indicado_por")
+  // Triagem com IA (Fit): nível, pontuação (0-100), justificativa e data.
+  fitNivel        FitIA?    @map("fit_nivel")
+  fitPontuacao    Int?      @map("fit_pontuacao")
+  fitJustificativa String?  @map("fit_justificativa")
+  fitAvaliadoEm   DateTime? @map("fit_avaliado_em")
   criadoEm     DateTime        @default(now()) @map("criado_em")
   atualizadoEm DateTime        @updatedAt @map("atualizado_em")
 
   vagaId String @map("vaga_id")
   vaga   Vaga   @relation(fields: [vagaId], references: [id], onDelete: Cascade)
 
+  cartas CartaOferta[]
+
   @@index([vagaId])
   @@index([status])
   @@map("candidato")
+}
+
+/// Modelo de Carta Oferta parametrizável (inspirado no InHire). O conteúdo usa
+/// variáveis na sintaxe {{campo}} ou {{campo;tipo}} que são substituídas por
+/// valores ao gerar a carta de um candidato. Aditivo — módulo próprio de oferta.
+model CartaOfertaTemplate {
+  id           String        @id @default(uuid())
+  nome         String
+  assunto      String?
+  conteudo     String        @db.Text
+  ativo        Boolean       @default(true)
+  criadoEm     DateTime      @default(now()) @map("criado_em")
+  atualizadoEm DateTime      @updatedAt @map("atualizado_em")
+
+  cartas CartaOferta[]
+
+  @@map("carta_oferta_template")
+}
+
+/// Carta Oferta gerada para um candidato a partir de um modelo, com os valores
+/// preenchidos e o conteúdo já renderizado. Aditivo.
+model CartaOferta {
+  id                  String            @id @default(uuid())
+  titulo              String
+  conteudoRenderizado String            @map("conteudo_renderizado") @db.Text
+  valores             Json?
+  status              StatusCartaOferta @default(RASCUNHO)
+  criadoEm            DateTime          @default(now()) @map("criado_em")
+  atualizadoEm        DateTime          @updatedAt @map("atualizado_em")
+
+  candidatoId String    @map("candidato_id")
+  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+
+  templateId String?              @map("template_id")
+  template   CartaOfertaTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([candidatoId])
+  @@map("carta_oferta")
 }
 
 /// Pergunta do teste DISC (editável pelo admin em Configurações). Cada pergunta
