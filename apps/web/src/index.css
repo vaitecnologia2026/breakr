@@ -246,15 +246,18 @@ input, textarea, select { font-family: inherit; }
 .brk-sidebar-item.active .brk-sidebar-icon { color: var(--amarelo-fagulha); }
 
 /* Label collapses smoothly */
+/* Expandido: quebra em várias linhas p/ mostrar o texto completo (rótulos longos
+   e subitens indentados não são mais cortados com "…"). Recolhido mantém nowrap
+   para a animação de recolher continuar limpa (ver regra .collapsed abaixo). */
 .brk-sidebar-item-label {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; white-space: normal; overflow-wrap: break-word;
   max-width: 180px; opacity: 1;
   transition: max-width 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s;
 }
 
 /* Collapsed sidebar item */
 .brk-sidebar.collapsed .brk-sidebar-item { justify-content: center; padding: 8px 0; gap: 0; }
-.brk-sidebar.collapsed .brk-sidebar-item-label { max-width: 0; opacity: 0; }
+.brk-sidebar.collapsed .brk-sidebar-item-label { max-width: 0; opacity: 0; white-space: nowrap; }
 .brk-sidebar.collapsed .brk-sidebar-group { padding-bottom: 8px; }
 
 /* Tooltip on collapsed hover */
