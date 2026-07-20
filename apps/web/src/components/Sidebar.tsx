@@ -150,6 +150,7 @@ const GRUPOS: NavGroup[] = [
       { para: '/centro-custo', rotulo: 'Centro de custo', icone: <IcoCreditCard /> },
       { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
       { para: '/cartas-oferta', rotulo: 'Cartas Oferta', icone: <IcoFileText /> },
+      { para: '/carreiras', rotulo: 'Página de Carreiras', icone: <IcoBriefcase /> },
       { para: '/banco-talentos', rotulo: 'Banco de talentos', icone: <IcoUsers /> },
       { para: '/squads',      rotulo: 'Squads',       icone: <IcoDiamond /> },
       { para: '/desempenho',  rotulo: 'Desempenho',   icone: <IcoTrendingUp /> },
