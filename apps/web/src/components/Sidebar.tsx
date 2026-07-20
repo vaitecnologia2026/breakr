@@ -148,10 +148,12 @@ const GRUPOS: NavGroup[] = [
       { para: '/controladoria', rotulo: 'Controladoria', icone: <IcoCalculator /> },
       { para: '/cobrancas',   rotulo: 'Cobranças',    icone: <IcoCreditCard /> },
       { para: '/centro-custo', rotulo: 'Centro de custo', icone: <IcoCreditCard /> },
-      { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
-      { para: '/cartas-oferta', rotulo: 'Cartas Oferta', icone: <IcoFileText /> },
-      { para: '/carreiras', rotulo: 'Página de Carreiras', icone: <IcoBriefcase /> },
-      { para: '/banco-talentos', rotulo: 'Banco de talentos', icone: <IcoUsers /> },
+      { para: '/recrutamento', rotulo: 'Recrutamento & Talentos', icone: <IcoUserPlus />, subItens: [
+        { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
+        { para: '/cartas-oferta', rotulo: 'Cartas Oferta', icone: <IcoFileText /> },
+        { para: '/carreiras', rotulo: 'Página de Carreiras', icone: <IcoBriefcase /> },
+        { para: '/banco-talentos', rotulo: 'Banco de talentos', icone: <IcoUsers /> },
+      ] },
       { para: '/squads',      rotulo: 'Squads',       icone: <IcoDiamond /> },
       { para: '/desempenho',  rotulo: 'Desempenho',   icone: <IcoTrendingUp /> },
       { para: '/ouvidoria',   rotulo: 'Ouvidoria',    icone: <IcoFileText /> },
@@ -227,10 +229,20 @@ export interface CatalogoMenuItem { para: string; rotulo: string }
 export interface CatalogoMenuGrupo { grupo: string; itens: CatalogoMenuItem[] }
 export const CATALOGO_MENUS: CatalogoMenuGrupo[] = [...GRUPOS, GRUPO_ADMINISTRATIVO, GRUPO_ADMIN].map((g) => ({
   grupo: g.label,
-  itens: g.items.flatMap((i) => [
-    { para: i.para, rotulo: i.rotulo },
-    ...((i.subItens ?? []).map((s) => ({ para: s.para, rotulo: s.rotulo }))),
-  ]),
+  // Dedup por rota: um item pode aparecer como pai e como subitem (ex.: o próprio
+  // '/recrutamento' encabeça o grupo "Recrutamento & Talentos" e também é o
+  // primeiro subitem para permanecer navegável no modo expandido). Sem isso a
+  // tela de Perfis geraria duas linhas/keys iguais para a mesma rota.
+  itens: Array.from(
+    new Map(
+      g.items
+        .flatMap((i) => [
+          { para: i.para, rotulo: i.rotulo },
+          ...((i.subItens ?? []).map((s) => ({ para: s.para, rotulo: s.rotulo }))),
+        ])
+        .map((it) => [it.para, it]),
+    ).values(),
+  ),
 }));
 
 // ─── Status de teste por tela (bolinha ao lado do item) ───────────────────────
