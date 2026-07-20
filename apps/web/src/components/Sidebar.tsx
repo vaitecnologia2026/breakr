@@ -30,7 +30,6 @@ const IcoLayout = () => <Ico><rect x="3" y="3" width="18" height="18" rx="2" ry=
 const IcoImage = () => <Ico><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Ico>;
 const IcoStar = () => <Ico><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Ico>;
 const IcoTrendingUp = () => <Ico><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></Ico>;
-const IcoDiamond = () => <Ico><path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z"/></Ico>;
 const IcoUserPlus = () => <Ico><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></Ico>;
 const IcoShoppingBag = () => <Ico><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ico>;
 const IcoCode = () => <Ico><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></Ico>;
@@ -46,6 +45,17 @@ const IcoCalculator = () => <Ico><rect x="4" y="2" width="16" height="20" rx="2"
 const IcoChevronLeft = () => <Ico><polyline points="15 18 9 12 15 6"/></Ico>;
 const IcoChevronRight = () => <Ico><polyline points="9 18 15 12 9 6"/></Ico>;
 const IcoLogOut = () => <Ico><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Ico>;
+// Ícones adicionais para deixar cada item do menu correspondente ao seu texto.
+const IcoVideo = () => <Ico><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></Ico>;
+const IcoBuilding = () => <Ico><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="2" x2="9" y2="22"/><line x1="15" y1="2" x2="15" y2="22"/><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></Ico>;
+const IcoTarget = () => <Ico><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></Ico>;
+const IcoAward = () => <Ico><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></Ico>;
+const IcoBook = () => <Ico><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></Ico>;
+const IcoPackage = () => <Ico><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></Ico>;
+const IcoScale = () => <Ico><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></Ico>;
+const IcoDollar = () => <Ico><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Ico>;
+const IcoClipboard = () => <Ico><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></Ico>;
+const IcoGrid = () => <Ico><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></Ico>;
 
 function IcoStar16({ filled }: { filled: boolean }) {
   return (
@@ -98,8 +108,8 @@ const GRUPOS: NavGroup[] = [
       { para: '/comunicados', rotulo: 'Comunicados', icone: <IcoBullhorn /> },
       { para: '/comunicados-cliente', rotulo: 'Comunicar clientes', icone: <IcoBullhorn /> },
       { para: '/agendamento', rotulo: 'Agenda', icone: <IcoCalendar />, subItens: [
-        { para: '/reunioes', rotulo: 'Reuniões', icone: <IcoFileText /> },
-        { para: '/agenda',   rotulo: 'Agenda',   icone: <IcoFileText /> },
+        { para: '/reunioes', rotulo: 'Reuniões', icone: <IcoVideo /> },
+        { para: '/agenda',   rotulo: 'Agenda',   icone: <IcoCalendar /> },
       ] },
       { para: '/atendimento', rotulo: 'Atendimento ao cliente', icone: <IcoMessageCircle /> },
     ],
@@ -110,15 +120,15 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
-      { para: '/meu-painel', rotulo: 'Meu Painel', icone: <IcoHome /> },
+      { para: '/meu-painel', rotulo: 'Meu Painel', icone: <IcoLayout /> },
       { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
       { para: '/negocios',   rotulo: 'Negócios',   icone: <IcoBriefcase /> },
       { para: '/contatos',   rotulo: 'Contatos',   icone: <IcoUsers />, subItens: [
         { para: '/contatos/pessoas', rotulo: 'Pessoas', icone: <IcoUsers /> },
-        { para: '/contatos/empresas', rotulo: 'Empresas', icone: <IcoBriefcase /> },
+        { para: '/contatos/empresas', rotulo: 'Empresas', icone: <IcoBuilding /> },
       ] },
-      { para: '/atividades', rotulo: 'Atividades', icone: <IcoFileText /> },
-      { para: '/planos',     rotulo: 'Planos e Produtos', icone: <IcoFileText /> },
+      { para: '/atividades', rotulo: 'Atividades', icone: <IcoClipboard /> },
+      { para: '/planos',     rotulo: 'Planos e Produtos', icone: <IcoShoppingBag /> },
     ],
   },
   {
@@ -127,10 +137,10 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/nps-cliente', rotulo: 'NPS de cliente', icone: <IcoStar /> },
-      { para: '/onboarding',  rotulo: 'Onboarding', icone: <IcoStar /> },
-      { para: '/medalhas',    rotulo: 'Medalhas',   icone: <IcoStar /> },
+      { para: '/onboarding',  rotulo: 'Onboarding', icone: <IcoUserPlus /> },
+      { para: '/medalhas',    rotulo: 'Medalhas',   icone: <IcoAward /> },
       { para: '/projetos',    rotulo: 'Projetos',   icone: <IcoLayout /> },
-      { para: '/pesquisas',   rotulo: 'Pesquisas',  icone: <IcoFileText /> },
+      { para: '/pesquisas',   rotulo: 'Pesquisas',  icone: <IcoClipboard /> },
     ],
   },
   {
@@ -139,9 +149,9 @@ const GRUPOS: NavGroup[] = [
     collapsible: true,
     items: [
       { para: '/contratos',   rotulo: 'Gestão Contratual', icone: <IcoFileText /> },
-      { para: '/processos-juridicos', rotulo: 'Processos Jurídicos', icone: <IcoFileText /> },
-      { para: '/inventario',  rotulo: 'Inventário',   icone: <IcoLayout /> },
-      { para: '/financeiro', rotulo: 'Financeiro & Cobranças', icone: <IcoCreditCard />, subItens: [
+      { para: '/processos-juridicos', rotulo: 'Processos Jurídicos', icone: <IcoScale /> },
+      { para: '/inventario',  rotulo: 'Inventário',   icone: <IcoPackage /> },
+      { para: '/financeiro', rotulo: 'Financeiro & Cobranças', icone: <IcoDollar />, subItens: [
         { para: '/financeiro',  rotulo: 'Financeiro',   icone: <IcoCreditCard /> },
         { para: '/contas-pagar', rotulo: 'Contas a Pagar', icone: <IcoCreditCard /> },
         { para: '/contas-receber', rotulo: 'Contas a Receber', icone: <IcoCreditCard /> },
@@ -156,9 +166,9 @@ const GRUPOS: NavGroup[] = [
         { para: '/carreiras', rotulo: 'Página de Carreiras', icone: <IcoBriefcase /> },
         { para: '/banco-talentos', rotulo: 'Banco de talentos', icone: <IcoUsers /> },
       ] },
-      { para: '/squads',      rotulo: 'Squads',       icone: <IcoDiamond /> },
+      { para: '/squads',      rotulo: 'Squads',       icone: <IcoGrid /> },
       { para: '/desempenho',  rotulo: 'Desempenho',   icone: <IcoTrendingUp /> },
-      { para: '/ouvidoria',   rotulo: 'Ouvidoria',    icone: <IcoFileText /> },
+      { para: '/ouvidoria',   rotulo: 'Ouvidoria',    icone: <IcoMessageCircle /> },
       { para: '/enps',        rotulo: 'eNPS',         icone: <IcoStar /> },
       { para: '/automacoes',  rotulo: 'Automações',   icone: <IcoZap /> },
     ],
@@ -168,8 +178,8 @@ const GRUPOS: NavGroup[] = [
     icone: <IcoSettings />,
     collapsible: true,
     items: [
-      { para: '/educacional',  rotulo: 'Educacional',  icone: <IcoStar /> },
-      { para: '/metas',        rotulo: 'Metas',        icone: <IcoTrendingUp /> },
+      { para: '/educacional',  rotulo: 'Educacional',  icone: <IcoBook /> },
+      { para: '/metas',        rotulo: 'Metas',        icone: <IcoTarget /> },
       { para: '/documentos',   rotulo: 'Documentos',   icone: <IcoFileText /> },
       { para: '/desenvolvimento', rotulo: 'Bugs & Dev', icone: <IcoCode /> },
       { para: '/compras',      rotulo: 'Compras',      icone: <IcoShoppingBag /> },
@@ -180,15 +190,15 @@ const GRUPOS: NavGroup[] = [
     icone: <IcoImage />,
     collapsible: true,
     items: [
-      { para: '/dashboard-marketing', rotulo: 'Dashboard de Marketing', icone: <IcoTrendingUp /> },
+      { para: '/dashboard-marketing', rotulo: 'Dashboard de Marketing', icone: <IcoLayout /> },
       { para: '/metricas-marketing', rotulo: 'Métricas de Marketing', icone: <IcoTrendingUp /> },
       { para: '/aprovacoes-marketing', rotulo: 'Aprovações internas', icone: <IcoUserCheck /> },
-      { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoStar /> },
+      { para: '/qualidade', rotulo: 'Qualidade', icone: <IcoAward /> },
       { para: '/conteudos', rotulo: 'Produção de Conteúdo', icone: <IcoImage /> },
       { para: '/campanhas', rotulo: 'Campanhas', icone: <IcoBullhorn /> },
       { para: '/templates-campanha', rotulo: 'Templates & lote', icone: <IcoLayout /> },
       { para: '/painel-designer', rotulo: 'Painel do designer', icone: <IcoLayout /> },
-      { para: '/estrategia', rotulo: 'Estratégia', icone: <IcoFileText /> },
+      { para: '/estrategia', rotulo: 'Estratégia', icone: <IcoTarget /> },
       { para: '/trafego',   rotulo: 'Tráfego Pago', icone: <IcoTrendingUp /> },
       { para: '/otimizacoes', rotulo: 'Otimizações', icone: <IcoZap /> },
       { para: '/gestao-publicos', rotulo: 'Gestão de Públicos', icone: <IcoUsers /> },
@@ -213,12 +223,12 @@ const GRUPO_ADMINISTRATIVO: NavGroup = {
   collapsible: true,
   items: [
     { para: '/contratos',  rotulo: 'Contratos',  icone: <IcoFileText /> },
-    { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoStar /> },
-    { para: '/captacao',   rotulo: 'Captação',   icone: <IcoFileText /> },
-    { para: '/ouvidoria',  rotulo: 'Ouvidoria',  icone: <IcoFileText /> },
+    { para: '/onboarding', rotulo: 'Onboarding', icone: <IcoUserPlus /> },
+    { para: '/captacao',   rotulo: 'Captação',   icone: <IcoTarget /> },
+    { para: '/ouvidoria',  rotulo: 'Ouvidoria',  icone: <IcoMessageCircle /> },
     { para: '/equipe',     rotulo: 'Equipe',     icone: <IcoUserCheck /> },
     { para: '/usuarios',   rotulo: 'Usuários',   icone: <IcoUsers /> },
-    { para: '/comissao',   rotulo: 'Comissão',   icone: <IcoCalculator /> },
+    { para: '/comissao',   rotulo: 'Comissão',   icone: <IcoDollar /> },
   ],
 };
 
