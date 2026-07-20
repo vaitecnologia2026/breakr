@@ -140,14 +140,16 @@ const GRUPOS: NavGroup[] = [
     items: [
       { para: '/contratos',   rotulo: 'Gestão Contratual', icone: <IcoFileText /> },
       { para: '/processos-juridicos', rotulo: 'Processos Jurídicos', icone: <IcoFileText /> },
-      { para: '/cobranca-protesto', rotulo: 'Cobrança e Protesto', icone: <IcoCreditCard /> },
       { para: '/inventario',  rotulo: 'Inventário',   icone: <IcoLayout /> },
-      { para: '/financeiro',  rotulo: 'Financeiro',   icone: <IcoCreditCard /> },
-      { para: '/contas-pagar', rotulo: 'Contas a Pagar', icone: <IcoCreditCard /> },
-      { para: '/contas-receber', rotulo: 'Contas a Receber', icone: <IcoCreditCard /> },
-      { para: '/controladoria', rotulo: 'Controladoria', icone: <IcoCalculator /> },
-      { para: '/cobrancas',   rotulo: 'Cobranças',    icone: <IcoCreditCard /> },
-      { para: '/centro-custo', rotulo: 'Centro de custo', icone: <IcoCreditCard /> },
+      { para: '/financeiro', rotulo: 'Financeiro & Cobranças', icone: <IcoCreditCard />, subItens: [
+        { para: '/financeiro',  rotulo: 'Financeiro',   icone: <IcoCreditCard /> },
+        { para: '/contas-pagar', rotulo: 'Contas a Pagar', icone: <IcoCreditCard /> },
+        { para: '/contas-receber', rotulo: 'Contas a Receber', icone: <IcoCreditCard /> },
+        { para: '/controladoria', rotulo: 'Controladoria', icone: <IcoCalculator /> },
+        { para: '/cobrancas',   rotulo: 'Cobranças',    icone: <IcoCreditCard /> },
+        { para: '/centro-custo', rotulo: 'Centro de custo', icone: <IcoCreditCard /> },
+        { para: '/cobranca-protesto', rotulo: 'Cobrança e Protesto', icone: <IcoCreditCard /> },
+      ] },
       { para: '/recrutamento', rotulo: 'Recrutamento & Talentos', icone: <IcoUserPlus />, subItens: [
         { para: '/recrutamento', rotulo: 'Recrutamento', icone: <IcoUserPlus /> },
         { para: '/cartas-oferta', rotulo: 'Cartas Oferta', icone: <IcoFileText /> },
