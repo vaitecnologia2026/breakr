@@ -92,6 +92,7 @@ const GRUPOS: NavGroup[] = [
     icone: <IcoHome />,
     items: [
       { para: '/',          rotulo: 'Dashboard',  icone: <IcoHome />, fim: true },
+      { para: '/coordenacao', rotulo: 'Coordenação', icone: <IcoTrendingUp /> },
       { para: '/inbox',     rotulo: 'Inbox',      icone: <IcoInbox /> },
       { para: '/chat',      rotulo: 'Chat interno', icone: <IcoChat /> },
       { para: '/comunicados', rotulo: 'Comunicados', icone: <IcoBullhorn /> },

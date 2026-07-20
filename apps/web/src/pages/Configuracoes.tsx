@@ -405,7 +405,7 @@ function AbaIntegracoes() {
     {
       chave: 'adsMeta',
       nome: 'Meta Ads — Anúncios',
-      descricao: 'Credenciais da conta de anúncios do Meta (Facebook/Instagram). Guarda o token e o ID da conta; a leitura automática de métricas é etapa futura (Fase 2). Enquanto isso, os dados de tráfego alimentam o portal pela tela de Tráfego.',
+      descricao: 'Credenciais da conta de anúncios do Meta (Facebook/Instagram): token, ID da conta, App ID/Secret, página e pixel. Com credenciais válidas e o app Meta liberado (fora do "Data Use Checkup"), o sistema já lê dados reais — Públicos, Criativos, insights de campanhas e conversões (CAPI) aparecem nas telas de Marketing/Tráfego. Enquanto não estiver configurado ou liberado, essas telas degradam com aviso e o tráfego segue sendo alimentado pela tela de Tráfego.',
       campos: (
         <>
           <Campo
