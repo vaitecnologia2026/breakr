@@ -12,6 +12,7 @@
     "prisma:generate": "prisma generate",
     "seed": "ts-node prisma/seed.ts",
     "seed:demo": "ts-node prisma/seed-demo.ts",
+    "seed:disc": "ts-node prisma/seed-disc-pt.ts",
     "import:clickup": "ts-node prisma/import-clickup.ts"
   },
   "dependencies": {

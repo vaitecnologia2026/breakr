@@ -11,6 +11,15 @@ import { api } from '../lib/api';
 interface Vaga { id: string; titulo: string; departamento: string | null }
 interface OpcaoPub { indice: number; texto: string }
 interface PerguntaPub { id: string; enunciado: string | null; opcoes: OpcaoPub[] }
+interface InterpretacaoDisc { titulo: string; descricao: string; pontosFortes: string; desafios: string }
+interface RespostaCandidatura {
+  ok: boolean;
+  candidatoId: string;
+  perfil: string;
+  primario: string | null;
+  secundario: string | null;
+  interpretacao: InterpretacaoDisc | null;
+}
 
 const campo: React.CSSProperties = {
   width: '100%', background: 'var(--superficie-2)', border: '1px solid var(--borda-forte)',
@@ -30,6 +39,7 @@ export function AvaliacaoDisc() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [resultado, setResultado] = useState<RespostaCandidatura | null>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -59,7 +69,7 @@ export function AvaliacaoDisc() {
     setEnviando(true);
     setErro(null);
     try {
-      await api.post('/disc/candidatura', {
+      const { data } = await api.post<RespostaCandidatura>('/disc/candidatura', {
         vagaId,
         nome: nome.trim(),
         email: email.trim() || undefined,
@@ -67,6 +77,7 @@ export function AvaliacaoDisc() {
         curriculoUrl: curriculoUrl.trim() || undefined,
         respostas: perguntas.map((p) => ({ perguntaId: p.id, opcaoIndice: respostas[p.id] })),
       });
+      setResultado(data);
       setOk(true);
     } catch {
       setErro('Falha ao enviar a candidatura. Tente novamente.');
@@ -85,9 +96,28 @@ export function AvaliacaoDisc() {
         </p>
 
         {ok ? (
-          <div className="brk-card" style={{ padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#67e0a3' }}>Candidatura enviada! ✅</span>
-            <span style={{ fontSize: 14, color: 'var(--texto-suave)' }}>Recebemos seu currículo e seu perfil. Boa sorte!</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="brk-card" style={{ padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#67e0a3' }}>Candidatura enviada! ✅</span>
+              <span style={{ fontSize: 14, color: 'var(--texto-suave)' }}>Recebemos seu currículo e seu perfil. Boa sorte!</span>
+            </div>
+            {resultado?.interpretacao && (
+              <div className="brk-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Seu perfil comportamental</span>
+                  <h2 className="brk-gradient-text" style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{resultado.interpretacao.titulo}</h2>
+                </div>
+                <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--texto-suave)' }}>{resultado.interpretacao.descricao}</p>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#67e0a3' }}>Pontos fortes</span>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--texto-suave)', marginTop: 2 }}>{resultado.interpretacao.pontosFortes}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--texto)' }}>Pontos de atenção</span>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--texto-suave)', marginTop: 2 }}>{resultado.interpretacao.desafios}</p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <form onSubmit={enviar} className="brk-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
