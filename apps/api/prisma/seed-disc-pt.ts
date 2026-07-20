@@ -3,9 +3,11 @@
 // uma para cada dimensão D/I/S/C; o candidato escolhe a que mais se identifica e a
 // dimensão da opção recebe +1 no scoring (ver disc.service.ts).
 //
-// Idempotente e NÃO destrutivo: só cria a pergunta se ainda não existir uma com o
-// mesmo enunciado. NUNCA apaga nem edita perguntas já existentes (inclusive as que
-// o admin tenha criado). Seguro para rodar novamente.
+// Idempotente e NÃO destrutivo: casa a pergunta pelo enunciado. Se ainda não
+// existir, cria; se já existir (pertence a este lote gerenciado), atualiza as
+// opções para a versão canônica abaixo. NUNCA apaga perguntas nem toca em
+// perguntas de outros enunciados (ex.: criadas manualmente pelo admin). Seguro
+// para rodar novamente.
 //
 // Rodar: npm run seed:disc --workspace @breakr/api
 
@@ -56,7 +58,7 @@ const ITENS: { enunciado: string; op: Record<Dim, string> }[] = [
     C: 'Detalhista e cuidadoso(a).' } },
   { enunciado: 'Sob pressão, eu:', op: {
     D: 'Tomo a frente e ajo.',
-    I: 'Busco apoio e mantenho o otimismo.',
+    I: 'Mantenho o otimismo e engajo as pessoas.',
     S: 'Mantenho a calma e a constância.',
     C: 'Reviso tudo para não errar.' } },
   { enunciado: 'O que mais me motiva é:', op: {
@@ -72,7 +74,7 @@ const ITENS: { enunciado: string; op: Record<Dim, string> }[] = [
   { enunciado: 'Diante de riscos, eu:', op: {
     D: 'Assumo se a recompensa valer a pena.',
     I: 'Encaro com otimismo.',
-    S: 'Sou cauteloso(a) e prefiro segurança.',
+    S: 'Prefiro segurança e evito me arriscar.',
     C: 'Avalio cuidadosamente antes de agir.' } },
   { enunciado: 'Minha forma de organizar tarefas é:', op: {
     D: 'Focar no que traz resultado rápido.',
@@ -132,7 +134,7 @@ const ITENS: { enunciado: string; op: Record<Dim, string> }[] = [
   { enunciado: 'Diante de prazos apertados, eu:', op: {
     D: 'Acelero e priorizo o essencial.',
     I: 'Mobilizo pessoas para ajudar.',
-    S: 'Mantenho a firmeza e sigo o plano.',
+    S: 'Mantenho a firmeza e o ritmo constante.',
     C: 'Reviso para garantir que está correto.' } },
   { enunciado: 'O que mais me incomoda é:', op: {
     D: 'Lentidão e falta de decisão.',
@@ -146,18 +148,27 @@ const ROT: Dim[] = ['D', 'I', 'S', 'C'];
 
 async function main() {
   let criadas = 0;
-  let existentes = 0;
+  let atualizadas = 0;
 
   for (let i = 0; i < ITENS.length; i++) {
     const item = ITENS[i];
-    const ja = await prisma.discPergunta.findFirst({ where: { enunciado: item.enunciado } });
-    if (ja) {
-      existentes++;
-      continue;
-    }
     const inicio = i % 4;
     const ordemDim = [0, 1, 2, 3].map((k) => ROT[(inicio + k) % 4]);
     const opcoes = ordemDim.map((d) => ({ texto: item.op[d], dimensao: d }));
+
+    const ja = await prisma.discPergunta.findFirst({ where: { enunciado: item.enunciado } });
+    if (ja) {
+      await prisma.discPergunta.update({
+        where: { id: ja.id },
+        data: {
+          ordem: i + 1,
+          ativo: true,
+          opcoes: opcoes as unknown as Prisma.InputJsonValue,
+        },
+      });
+      atualizadas++;
+      continue;
+    }
 
     await prisma.discPergunta.create({
       data: {
@@ -170,7 +181,7 @@ async function main() {
     criadas++;
   }
 
-  console.log(`[seed:disc] Perguntas PT-BR — criadas: ${criadas}, já existentes (ignoradas): ${existentes}, total no lote: ${ITENS.length}`);
+  console.log(`[seed:disc] Perguntas PT-BR — criadas: ${criadas}, atualizadas: ${atualizadas}, total no lote: ${ITENS.length}`);
 }
 
 main()
