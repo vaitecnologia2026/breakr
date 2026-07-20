@@ -9,6 +9,7 @@ import { Portal } from './pages/Portal';
 import { Captacao } from './pages/Captacao';
 import { CadastroPublico } from './pages/CadastroPublico';
 import { AvaliacaoDisc } from './pages/AvaliacaoDisc';
+import { CarreirasPublico } from './pages/CarreirasPublico';
 import { Dashboard } from './pages/Dashboard';
 import { Inicio } from './pages/Inicio';
 import { Clientes } from './pages/Clientes';
@@ -29,6 +30,7 @@ import { Empresas } from './pages/Empresas';
 import { Atividades } from './pages/Atividades';
 import { Metricas } from './pages/Metricas';
 import { Recrutamento } from './pages/Recrutamento';
+import { CartasOferta } from './pages/CartasOferta';
 import { Compras } from './pages/Compras';
 import { Desenvolvimento } from './pages/Desenvolvimento';
 import { Automacoes } from './pages/Automacoes';
@@ -90,6 +92,8 @@ export function App() {
       <Route path="/captacao" element={<Captacao />} />
       <Route path="/cadastro/:token" element={<CadastroPublico />} />
       <Route path="/avaliacao-disc" element={<AvaliacaoDisc />} />
+      <Route path="/carreiras" element={<CarreirasPublico />} />
+      <Route path="/carreiras/:codigo" element={<CarreirasPublico />} />
       <Route path="/agendar" element={<AgendarPublico />} />
       <Route path="/avaliar-atendimento/:id" element={<AvaliarAtendimento />} />
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
@@ -145,6 +149,7 @@ export function App() {
         <Route path="trafego" element={<Trafego />} />
         <Route path="squads" element={<Squads />} />
         <Route path="recrutamento" element={<Recrutamento />} />
+        <Route path="cartas-oferta" element={<CartasOferta />} />
         <Route path="compras" element={<Compras />} />
         <Route path="desenvolvimento" element={<Desenvolvimento />} />
         <Route path="automacoes" element={<Automacoes />} />

@@ -1,17 +1,20 @@
 // Servico de RH — recrutamento e selecao (M19). Cada Vaga reune Candidatos que
 // percorrem o funil de selecao (INSCRITO ate APROVADO/REPROVADO).
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Candidato, Prisma, StatusCandidato, Vaga } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Candidato, FitIA, Prisma, StatusCandidato, Vaga } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
+import { IaService } from '../ia/ia.service';
 import { CriarVagaDto } from './dto/criar-vaga.dto';
 import { CriarCandidatoDto } from './dto/criar-candidato.dto';
+import { CandidatarPublicoDto } from './dto/candidatar-publico.dto';
 
 @Injectable()
 export class RhService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly codigoUnico: CodigoUnicoService,
+    private readonly ia: IaService,
   ) {}
 
   // Cria uma vaga (aberta por padrao) com codigo unico gerado (prefixo VAGA).
@@ -53,6 +56,10 @@ export class RhService {
         telefone: dto.telefone,
         perfilDisc: dto.perfilDisc,
         observacao: dto.observacao,
+        // Source of Hire: origem informada no cadastro (default "Manual") e,
+        // quando indicado, o colaborador que indicou. Aditivos.
+        origem: dto.origem?.trim() || 'Manual',
+        indicadoPor: dto.indicadoPor?.trim() || undefined,
         status: StatusCandidato.INSCRITO,
       },
     });
@@ -138,5 +145,197 @@ export class RhService {
       throw new NotFoundException('Candidato nao encontrado');
     }
     return this.prisma.candidato.update({ where: { id }, data: { tags } });
+  }
+
+  // ── Página de Carreiras pública (inspirada no InHire) ──────────────────────
+  // Vagas abertas para o portal público (sem login).
+  vagasPublicas() {
+    return this.prisma.vaga.findMany({
+      where: { aberta: true },
+      orderBy: { criadoEm: 'desc' },
+      select: {
+        codigoUnico: true,
+        titulo: true,
+        departamento: true,
+        descricao: true,
+      },
+    });
+  }
+
+  // Detalhe de uma vaga aberta pelo código único (público).
+  async vagaPublica(codigoUnico: string) {
+    const vaga = await this.prisma.vaga.findFirst({
+      where: { codigoUnico, aberta: true },
+      select: {
+        codigoUnico: true,
+        titulo: true,
+        departamento: true,
+        descricao: true,
+      },
+    });
+    if (!vaga) {
+      throw new NotFoundException('Vaga não encontrada ou já encerrada');
+    }
+    return vaga;
+  }
+
+  // Inscrição pública sem login: cria o Candidato em INSCRITO com a origem
+  // rastreada (Página de Carreiras ou Indicação, quando informado o indicador).
+  async candidatarPublico(codigoUnico: string, dto: CandidatarPublicoDto) {
+    const vaga = await this.prisma.vaga.findFirst({
+      where: { codigoUnico, aberta: true },
+    });
+    if (!vaga) {
+      throw new NotFoundException('Vaga não encontrada ou já encerrada');
+    }
+    const indicadoPor = dto.indicadoPor?.trim() || undefined;
+    const candidato = await this.prisma.candidato.create({
+      data: {
+        vagaId: vaga.id,
+        nome: dto.nome.trim(),
+        email: dto.email,
+        telefone: dto.telefone,
+        curriculoUrl: dto.curriculoUrl,
+        observacao: dto.mensagem,
+        origem: indicadoPor ? 'Indicação' : 'Página de Carreiras',
+        indicadoPor,
+        status: StatusCandidato.INSCRITO,
+      },
+    });
+    return { ok: true, candidatoId: candidato.id };
+  }
+
+  // ── Source of Hire (origem das candidaturas) ───────────────────────────────
+  // Agrega os candidatos por origem, com total e taxa de aprovação — permite
+  // saber quais canais geram as melhores contratações (inspirado no InHire).
+  async sourceOfHire() {
+    const candidatos = await this.prisma.candidato.findMany({
+      select: { origem: true, status: true },
+    });
+    const mapa = new Map<string, { total: number; aprovados: number }>();
+    for (const c of candidatos) {
+      const chave = c.origem?.trim() || 'Não informado';
+      const atual = mapa.get(chave) ?? { total: 0, aprovados: 0 };
+      atual.total += 1;
+      if (c.status === StatusCandidato.APROVADO) atual.aprovados += 1;
+      mapa.set(chave, atual);
+    }
+    return Array.from(mapa.entries())
+      .map(([origem, v]) => ({
+        origem,
+        total: v.total,
+        aprovados: v.aprovados,
+        taxaAprovacao: v.total ? Math.round((v.aprovados / v.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }
+
+  // ── Triagem com IA (Fit Alto/Médio/Baixo) ──────────────────────────────────
+  // Para cada candidato ativo da vaga, pede à IA um índice de aderência entre o
+  // descritivo da vaga e os dados do candidato, gravando nível + pontuação +
+  // justificativa. Degrada com mensagem clara se a IA não estiver configurada.
+  async triagemIa(vagaId: string) {
+    const vaga = await this.prisma.vaga.findUnique({ where: { id: vagaId } });
+    if (!vaga) {
+      throw new NotFoundException('Vaga não encontrada');
+    }
+    if (!(await this.ia.disponivel())) {
+      throw new BadRequestException(
+        'IA não configurada — ative e informe a chave do provedor em Configurações.',
+      );
+    }
+    const candidatos = await this.prisma.candidato.findMany({
+      where: {
+        vagaId,
+        status: { notIn: [StatusCandidato.APROVADO, StatusCandidato.REPROVADO] },
+      },
+      orderBy: { criadoEm: 'desc' },
+    });
+
+    const avaliados: {
+      id: string;
+      nome: string;
+      fitNivel: FitIA;
+      fitPontuacao: number;
+    }[] = [];
+
+    for (const c of candidatos) {
+      const prompt = this.montarPromptFit(vaga, c);
+      let nivel: FitIA = FitIA.MEDIO;
+      let pontuacao = 50;
+      let justificativa = 'Sem avaliação.';
+      try {
+        const resp = await this.ia.completar(prompt);
+        const parsed = this.parseFit(resp);
+        nivel = parsed.nivel;
+        pontuacao = parsed.pontuacao;
+        justificativa = parsed.justificativa;
+      } catch {
+        justificativa = 'Não foi possível avaliar este candidato com a IA.';
+      }
+      await this.prisma.candidato.update({
+        where: { id: c.id },
+        data: {
+          fitNivel: nivel,
+          fitPontuacao: pontuacao,
+          fitJustificativa: justificativa,
+          fitAvaliadoEm: new Date(),
+        },
+      });
+      avaliados.push({ id: c.id, nome: c.nome, fitNivel: nivel, fitPontuacao: pontuacao });
+    }
+
+    return { ok: true, total: avaliados.length, avaliados };
+  }
+
+  private montarPromptFit(vaga: Vaga, c: Candidato): string {
+    return [
+      'Você é um especialista em recrutamento e seleção. Avalie a aderência (fit)',
+      'do candidato à vaga, de forma objetiva e transparente.',
+      '',
+      'VAGA:',
+      `- Título: ${vaga.titulo}`,
+      `- Departamento: ${vaga.departamento ?? '—'}`,
+      `- Descrição/requisitos: ${vaga.descricao ?? '(não informada)'}`,
+      '',
+      'CANDIDATO:',
+      `- Nome: ${c.nome}`,
+      `- Perfil DISC: ${c.perfilDisc ?? '—'}`,
+      `- Observações/currículo: ${c.observacao ?? c.curriculoUrl ?? '(sem dados adicionais)'}`,
+      '',
+      'Responda APENAS com um JSON válido (sem markdown, sem texto extra) no formato:',
+      '{"nivel":"ALTO|MEDIO|BAIXO","pontuacao":<inteiro 0-100>,"justificativa":"<1 a 2 frases>"}',
+    ].join('\n');
+  }
+
+  // Interpreta a resposta da IA de forma robusta (tolera cercas de código e
+  // texto ao redor do JSON). Sempre retorna valores válidos.
+  private parseFit(resp: string): {
+    nivel: FitIA;
+    pontuacao: number;
+    justificativa: string;
+  } {
+    let nivel: FitIA = FitIA.MEDIO;
+    let pontuacao = 50;
+    let justificativa = 'Sem justificativa.';
+    try {
+      const inicio = resp.indexOf('{');
+      const fim = resp.lastIndexOf('}');
+      const bruto = inicio >= 0 && fim > inicio ? resp.slice(inicio, fim + 1) : resp;
+      const obj = JSON.parse(bruto) as {
+        nivel?: string;
+        pontuacao?: number;
+        justificativa?: string;
+      };
+      const n = String(obj.nivel ?? '').toUpperCase();
+      if (n === 'ALTO' || n === 'MEDIO' || n === 'BAIXO') nivel = n as FitIA;
+      if (typeof obj.pontuacao === 'number' && !Number.isNaN(obj.pontuacao)) {
+        pontuacao = Math.max(0, Math.min(100, Math.round(obj.pontuacao)));
+      }
+      if (obj.justificativa) justificativa = String(obj.justificativa).slice(0, 500);
+    } catch {
+      // Resposta fora do formato — mantém defaults (MEDIO/50).
+    }
+    return { nivel, pontuacao, justificativa };
   }
 }

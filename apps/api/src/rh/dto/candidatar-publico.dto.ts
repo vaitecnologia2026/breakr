@@ -1,17 +1,14 @@
-// DTO de criacao de candidato.
+// DTO da inscrição pública na Página de Carreiras (sem login). Aditivo.
 import {
   IsEmail,
   IsOptional,
   IsString,
-  IsUUID,
+  IsUrl,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
-export class CriarCandidatoDto {
-  @IsUUID()
-  vagaId!: string;
-
+export class CandidatarPublicoDto {
   @IsString()
   @MinLength(2)
   @MaxLength(120)
@@ -27,22 +24,17 @@ export class CriarCandidatoDto {
   telefone?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(60)
-  perfilDisc?: string;
+  @IsUrl()
+  @MaxLength(500)
+  curriculoUrl?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(2000)
-  observacao?: string;
+  mensagem?: string;
 
-  // Source of Hire: origem da candidatura (ex.: "Indicação", "LinkedIn",
-  // "Portal"). Default "Manual" no serviço quando ausente. Aditivos.
-  @IsOptional()
-  @IsString()
-  @MaxLength(60)
-  origem?: string;
-
+  // E-mail/nome do colaborador que indicou (Programa de Indicação). Se presente,
+  // a origem do candidato é marcada como "Indicação".
   @IsOptional()
   @IsString()
   @MaxLength(160)
