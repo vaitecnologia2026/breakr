@@ -20,6 +20,7 @@ import { Trafego } from './pages/Trafego';
 import Qualidade from './pages/Qualidade';
 import { Projetos } from './pages/Projetos';
 import { Comercial } from './pages/Comercial';
+import { Coordenacao } from './pages/Coordenacao';
 import { MeuPainel } from './pages/MeuPainel';
 import { Negocios } from './pages/Negocios';
 import { Contatos } from './pages/Contatos';
@@ -103,6 +104,7 @@ export function App() {
       >
         <Route index element={<Inicio />} />
         <Route path="comercial" element={<Comercial />} />
+        <Route path="coordenacao" element={<Coordenacao />} />
         <Route path="meu-painel" element={<MeuPainel />} />
         <Route path="negocios" element={<Negocios />} />
         <Route path="contatos" element={<Contatos />} />

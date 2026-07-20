@@ -638,8 +638,10 @@ input, textarea, select { font-family: inherit; }
 .brk-topbar-breadcrumb-atual { color: var(--texto); font-weight: 600; font-size: 14px; }
 .brk-topbar-breadcrumb-root { font-size: 13px; color: var(--texto-fraco); }
 .brk-topbar-acoes { display: flex; align-items: center; gap: 8px; }
-.brk-topbar-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.brk-topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.brk-topbar-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
+.brk-topbar-center { display: flex; align-items: center; justify-content: center; flex: 0 1 480px; min-width: 0; }
+.brk-topbar-center .brk-topbar-search-btn { width: 100%; max-width: 460px; justify-content: flex-start; }
+.brk-topbar-right { display: flex; align-items: center; gap: 8px; flex: 1 1 0; justify-content: flex-end; }
 .brk-topbar-sep { opacity: 0.3; }
 
 /* ── Cabeçalho de página ── */
