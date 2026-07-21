@@ -3,6 +3,7 @@
 // Aditivo e isolado do Tráfego pago (página Trafego).
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import {
   PaginaHeader, Btn, Campo, CampoSelect, Modal, Badge,
   Carregando, Vazio, ErroEstado, Alerta,
@@ -62,11 +63,16 @@ const APROVACAO_INTERNA_ROTULO: Record<string, string> = {
 interface Opcao { id: string; nome: string }
 
 export function CampanhasMarketing() {
+  const { usuario } = useAuth();
+  // Excluir campanha é ação destrutiva (cascata nos materiais) — só ADMIN/SUPERADMIN,
+  // mesmo padrão já validado na exclusão de peça em Produção de Conteúdo.
+  const podeExcluir = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
   const [campanhas, setCampanhas] = useState<CampanhaLista[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalNova, setModalNova] = useState(false);
   const [abertaId, setAbertaId] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   function carregar() {
     setCarregando(true);
@@ -77,6 +83,21 @@ export function CampanhasMarketing() {
       .finally(() => setCarregando(false));
   }
   useEffect(() => { carregar(); }, []);
+
+  async function excluirCampanha(c: CampanhaLista) {
+    if (excluindoId) return;
+    if (!window.confirm(`Excluir a campanha "${c.nome}" definitivamente? Os materiais dela também serão removidos. Esta ação não pode ser desfeita.`)) return;
+    setExcluindoId(c.id);
+    setErro(null);
+    try {
+      await api.delete(`/campanhas-marketing/${c.id}`);
+      carregar();
+    } catch {
+      setErro('Não foi possível excluir a campanha.');
+    } finally {
+      setExcluindoId(null);
+    }
+  }
 
   if (abertaId) {
     return <CampanhaBoard id={abertaId} onVoltar={() => { setAbertaId(null); carregar(); }} />;
@@ -101,26 +122,38 @@ export function CampanhasMarketing() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {campanhas.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setAbertaId(c.id)}
-              className="brk-card brk-card-p"
-              style={{ textAlign: 'left', cursor: 'pointer', border: '1px solid var(--borda)', display: 'flex', flexDirection: 'column', gap: 8 }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--texto)' }}>{c.nome}</span>
-                <Badge cor={c.situacao === 'CONCLUIDA' ? 'verde' : c.situacao === 'EM_ANDAMENTO' ? 'azul' : 'amarelo'}>
-                  {SITUACAO_ROTULO[c.situacao] ?? c.situacao}
-                </Badge>
-              </div>
-              <span style={{ fontSize: 12, color: 'var(--texto-suave)' }}>{c.cliente ?? '—'}{c.squad ? ` · ${c.squad}` : ''}</span>
-              {c.objetivo && <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>{c.objetivo}</span>}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-                <span style={{ fontSize: 11, color: 'var(--texto-suave)' }}>{c.totalMateriais} material(is)</span>
-                {c.prazo && <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>· prazo {new Date(c.prazo).toLocaleDateString('pt-BR')}</span>}
-              </div>
-            </button>
+            <div key={c.id} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setAbertaId(c.id)}
+                className="brk-card brk-card-p"
+                style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid var(--borda)', display: 'flex', flexDirection: 'column', gap: 8 }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--texto)' }}>{c.nome}</span>
+                  <Badge cor={c.situacao === 'CONCLUIDA' ? 'verde' : c.situacao === 'EM_ANDAMENTO' ? 'azul' : 'amarelo'}>
+                    {SITUACAO_ROTULO[c.situacao] ?? c.situacao}
+                  </Badge>
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--texto-suave)' }}>{c.cliente ?? '—'}{c.squad ? ` · ${c.squad}` : ''}</span>
+                {c.objetivo && <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>{c.objetivo}</span>}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                  <span style={{ fontSize: 11, color: 'var(--texto-suave)' }}>{c.totalMateriais} material(is)</span>
+                  {c.prazo && <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>· prazo {new Date(c.prazo).toLocaleDateString('pt-BR')}</span>}
+                </div>
+              </button>
+              {podeExcluir && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); excluirCampanha(c); }}
+                  disabled={excluindoId === c.id}
+                  title="Excluir campanha definitivamente"
+                  style={{ position: 'absolute', bottom: 8, right: 8, background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 6, color: 'var(--vermelho)', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: '4px 7px' }}
+                >
+                  {excluindoId === c.id ? '…' : '🗑'}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
