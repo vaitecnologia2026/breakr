@@ -4,7 +4,7 @@
 // briefing + a central de alertas por prioridade. Nao cria/edita nenhuma entidade
 // e nao altera nenhum modelo — apenas deriva visoes.
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { StatusMaterial } from '@prisma/client';
+import { StatusMaterial } from '../common/status-material';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Parametros de prazo (Secao 6 — "prazos configuraveis" pela coordenadora). Padroes

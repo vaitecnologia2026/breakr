@@ -23,6 +23,12 @@ const STATUS: { v: string; r: string }[] = [
   { v: 'CONCLUIDO', r: 'Concluído' },
 ];
 
+// Estilo dos mini-botões de gestão de coluna no cabeçalho (só admin/superadmin).
+const ESTILO_BTN_COLUNA = {
+  background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 4,
+  color: 'var(--texto-suave)', cursor: 'pointer', fontSize: 10, lineHeight: 1, padding: '2px 4px',
+};
+
 const DESTINOS: { v: string; r: string }[] = [
   { v: 'TRAFEGO_PAGO', r: 'Tráfego pago' },
   { v: 'ORGANICO', r: 'Orgânico' },
@@ -51,6 +57,11 @@ interface CampanhaDetalhe {
   // Aprovacao interdepartamental (Seção 8). Null = não requer.
   statusAprovacaoInterna: string | null;
   aprovacaoInternaComentario: string | null;
+}
+// Coluna do board (config global, vinda de GET /colunas-material). `chave` = valor
+// gravado em Material.status. `nucleo` = uma das 9 etapas validadas (não excluível).
+interface Coluna {
+  id: string; chave: string; rotulo: string; ordem: number; nucleo: boolean; oculta: boolean;
 }
 
 // Rótulos do status de aprovação interdepartamental (Seção 8).
@@ -248,6 +259,14 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
   // Drag-and-drop dos cards entre colunas (aditivo — reusa mudarStatus).
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
+  // Gestão das colunas do board (config global). Só admin/superadmin vê os controles.
+  const { usuario } = useAuth();
+  const podeGerir = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
+  // Colunas do board. Inicia com o núcleo padrão (fallback até o fetch) para o board
+  // nunca aparecer vazio; é substituído pelos dados reais de GET /colunas-material.
+  const [colunas, setColunas] = useState<Coluna[]>(() =>
+    STATUS.map((s, i) => ({ id: s.v, chave: s.v, rotulo: s.r, ordem: i, nucleo: true, oculta: false })),
+  );
 
   function carregar() {
     setCarregando(true);
@@ -259,6 +278,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
   }
   useEffect(() => {
     carregar();
+    carregarColunas();
     api.get<{ id: string; nome: string }[]>('/usuarios').then(({ data }) => setUsuarios(data.map((u) => ({ id: u.id, nome: u.nome })))).catch(() => setUsuarios([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -286,7 +306,59 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
     }
   }
 
+  // --- Gestão das colunas do board (config global; só admin/superadmin) ---
+  function carregarColunas() {
+    api.get<Coluna[]>('/colunas-material')
+      .then(({ data }) => { if (Array.isArray(data) && data.length) setColunas(data); })
+      .catch(() => { /* mantém o fallback do núcleo */ });
+  }
+  function msgErro(err: unknown, fallback: string) {
+    const m = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+    return (Array.isArray(m) ? m.join(' ') : m) || fallback;
+  }
+  async function addColuna() {
+    const rotulo = window.prompt('Nome da nova coluna:');
+    if (!rotulo || !rotulo.trim()) return;
+    try { await api.post('/colunas-material', { rotulo: rotulo.trim() }); carregarColunas(); }
+    catch (err) { alert(msgErro(err, 'Não foi possível criar a coluna.')); }
+  }
+  async function renomearColuna(c: Coluna) {
+    const rotulo = window.prompt('Renomear coluna:', c.rotulo);
+    if (rotulo == null) return;
+    const novo = rotulo.trim();
+    if (!novo || novo === c.rotulo) return;
+    try { await api.patch(`/colunas-material/${c.id}`, { rotulo: novo }); carregarColunas(); }
+    catch (err) { alert(msgErro(err, 'Não foi possível renomear a coluna.')); }
+  }
+  async function moverColuna(c: Coluna, dir: -1 | 1) {
+    const ord = [...colunas].sort((a, b) => a.ordem - b.ordem);
+    const i = ord.findIndex((x) => x.id === c.id);
+    const j = i + dir;
+    if (j < 0 || j >= ord.length) return;
+    const outra = ord[j];
+    try {
+      await api.patch(`/colunas-material/${c.id}`, { ordem: outra.ordem });
+      await api.patch(`/colunas-material/${outra.id}`, { ordem: c.ordem });
+      carregarColunas();
+    } catch (err) { alert(msgErro(err, 'Não foi possível reordenar a coluna.')); }
+  }
+  async function ocultarColuna(c: Coluna) {
+    try { await api.patch(`/colunas-material/${c.id}`, { oculta: !c.oculta }); carregarColunas(); }
+    catch (err) { alert(msgErro(err, 'Não foi possível ocultar a coluna.')); }
+  }
+  async function excluirColuna(c: Coluna) {
+    if (!window.confirm(`Excluir a coluna "${c.rotulo}"? Os materiais nela voltam para "Planejado".`)) return;
+    try { await api.delete(`/colunas-material/${c.id}`); carregarColunas(); carregar(); }
+    catch (err) { alert(msgErro(err, 'Não foi possível excluir a coluna.')); }
+  }
+
   const pilares = campanha?.cliente?.pilares ?? [];
+  // Colunas a exibir: visíveis + as ocultas que ainda tenham material (nada desaparece).
+  const usados = new Set((campanha?.materiais ?? []).map((m) => m.status));
+  const colsRender = colunas.filter((c) => !c.oculta || usados.has(c.chave)).sort((a, b) => a.ordem - b.ordem);
+  // Opções do seletor de status de um card: visíveis + a coluna atual do card.
+  const colunasSelect = (statusAtual: string) =>
+    colunas.filter((c) => !c.oculta || c.chave === statusAtual).sort((a, b) => a.ordem - b.ordem);
   const temGestao = pilares.includes('GESTAO');
   const temFinanceiro = pilares.includes('FINANCEIRO');
   const emAprovacao =
@@ -301,6 +373,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
         acoes={
           <div style={{ display: 'flex', gap: 8 }}>
             <Btn variante="secondary" onClick={onVoltar}>← Voltar</Btn>
+            {podeGerir && <Btn variante="secondary" onClick={addColuna}>+ Coluna</Btn>}
             <Btn onClick={() => setModalMaterial(true)}>+ Material</Btn>
           </div>
         }
@@ -335,13 +408,13 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
         <ErroEstado mensagem={erro ?? 'Campanha não encontrada.'} onTentar={carregar} />
       ) : (
         <div style={{ overflowX: 'auto', width: '100%', maxWidth: '100%' }} className="brk-kanban-scroll">
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${STATUS.length}, minmax(180px, 1fr))`, gap: 10, alignItems: 'start' }}>
-            {STATUS.map((col) => {
-              const itens = campanha.materiais.filter((m) => m.status === col.v);
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colsRender.length}, minmax(180px, 1fr))`, gap: 10, alignItems: 'start' }}>
+            {colsRender.map((col) => {
+              const itens = campanha.materiais.filter((m) => m.status === col.chave);
               return (
                 <div
-                  key={col.v}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (colunaAlvo !== col.v) setColunaAlvo(col.v); }}
+                  key={col.chave}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (colunaAlvo !== col.chave) setColunaAlvo(col.chave); }}
                   onDrop={(e) => {
                     e.preventDefault();
                     const mid = e.dataTransfer.getData('text/plain') || arrastandoId;
@@ -349,19 +422,30 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                     setArrastandoId(null);
                     if (mid) {
                       const mat = campanha.materiais.find((x) => x.id === mid);
-                      if (mat && mat.status !== col.v) mudarStatus(mid, col.v);
+                      if (mat && mat.status !== col.chave) mudarStatus(mid, col.chave);
                     }
                   }}
                   style={{
-                    background: colunaAlvo === col.v ? 'var(--borda)' : 'var(--superficie-2)',
-                    border: `1px solid ${colunaAlvo === col.v ? 'var(--texto-suave)' : 'var(--borda)'}`,
-                    borderRadius: 8, padding: 8, minWidth: 0,
+                    background: colunaAlvo === col.chave ? 'var(--borda)' : 'var(--superficie-2)',
+                    border: `1px solid ${colunaAlvo === col.chave ? 'var(--texto-suave)' : 'var(--borda)'}`,
+                    borderRadius: 8, padding: 8, minWidth: 0, opacity: col.oculta ? 0.6 : 1,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--texto-suave)' }}>{col.r}</span>
-                    <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>{itens.length}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: podeGerir ? 6 : 8, gap: 4 }}>
+                    <span title={col.rotulo} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--texto-suave)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.rotulo}</span>
+                    <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flexShrink: 0 }}>{itens.length}</span>
                   </div>
+                  {podeGerir && (
+                    <div style={{ display: 'flex', gap: 2, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <button type="button" onClick={() => moverColuna(col, -1)} title="Mover para a esquerda" style={ESTILO_BTN_COLUNA}>◀</button>
+                      <button type="button" onClick={() => moverColuna(col, 1)} title="Mover para a direita" style={ESTILO_BTN_COLUNA}>▶</button>
+                      <button type="button" onClick={() => renomearColuna(col)} title="Renomear coluna" style={ESTILO_BTN_COLUNA}>✎</button>
+                      <button type="button" onClick={() => ocultarColuna(col)} title={col.oculta ? 'Mostrar coluna' : 'Ocultar coluna'} style={ESTILO_BTN_COLUNA}>{col.oculta ? '🙈' : '👁'}</button>
+                      {!col.nucleo && (
+                        <button type="button" onClick={() => excluirColuna(col)} title="Excluir coluna" style={{ ...ESTILO_BTN_COLUNA, color: 'var(--vermelho)' }}>🗑</button>
+                      )}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {itens.map((m) => (
                       <div
@@ -397,7 +481,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                           className="brk-input"
                           style={{ fontSize: 11.5, padding: '3px 6px' }}
                         >
-                          {STATUS.map((s) => <option key={s.v} value={s.v}>{s.r}</option>)}
+                          {colunasSelect(m.status).map((s) => <option key={s.chave} value={s.chave}>{s.rotulo}</option>)}
                         </select>
                         {m.prazo && <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)' }}>prazo {new Date(m.prazo).toLocaleDateString('pt-BR')}</span>}
                       </div>

@@ -60,6 +60,7 @@ import { NpsClienteModule } from './nps-cliente/nps-cliente.module';
 import { PesquisasModule } from './pesquisas/pesquisas.module';
 import { ComissoesModule } from './comissoes/comissoes.module';
 import { CampanhasMarketingModule } from './campanhas-marketing/campanhas-marketing.module';
+import { ColunasMaterialModule } from './colunas-material/colunas-material.module';
 import { TemplatesCampanhaModule } from './templates-campanha/templates-campanha.module';
 import { DashboardMarketingModule } from './dashboard-marketing/dashboard-marketing.module';
 import { MetricasMarketingModule } from './metricas-marketing/metricas-marketing.module';
@@ -165,6 +166,7 @@ import { ModelosMensagemModule } from './modelos-mensagem/modelos-mensagem.modul
     PesquisasModule,
     ComissoesModule,
     CampanhasMarketingModule,
+    ColunasMaterialModule,
     TemplatesCampanhaModule,
     DashboardMarketingModule,
     MetricasMarketingModule,

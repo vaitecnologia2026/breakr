@@ -2,7 +2,8 @@
 // Cada campanha reune materiais que percorrem o pipeline de status. Aditivo e
 // isolado do dominio de trafego pago (model Campanha).
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { StatusMaterial, StatusConteudo, TipoConteudo } from '@prisma/client';
+import { StatusConteudo, TipoConteudo } from '@prisma/client';
+import { StatusMaterial } from '../common/status-material';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
@@ -183,6 +184,16 @@ export class CampanhasMarketingService {
     });
     if (!atual) {
       throw new NotFoundException('Material nao encontrado');
+    }
+    // Mover de coluna: a coluna de destino (chave) precisa existir no board.
+    if (dto.status !== undefined) {
+      const col = await this.prisma.colunaMaterial.findUnique({
+        where: { chave: dto.status },
+        select: { chave: true },
+      });
+      if (!col) {
+        throw new BadRequestException('Coluna de destino inexistente.');
+      }
     }
     const voltouParaAjuste =
       dto.status === StatusMaterial.EM_AJUSTE && atual.status !== StatusMaterial.EM_AJUSTE;
