@@ -82,6 +82,7 @@ interface Candidato {
   // DISC computado (modelo do documento) e Job Fit calculado no cliente.
   discResultado?: DiscResultado | null;
   _match?: number | null;
+  _guia?: GuiaItem[];
 }
 
 // Job Fit: distância euclidiana entre os percentis do candidato e o perfil ideal
@@ -96,6 +97,36 @@ function calcularMatch(vaga: Vaga | undefined, disc: DiscResultado | null | unde
     (p.D - reqPercD) ** 2 + (p.I - reqPercI) ** 2 + (p.S - reqPercS) ** 2 + (p.C - reqPercC) ** 2,
   );
   return Math.max(0, Math.min(100, Math.round((1 - dist / 200) * 100)));
+}
+
+// Guião dinâmico de entrevista (documento §5): para cada dimensão em que o
+// candidato fica abaixo do exigido pela vaga (lacuna ≥ 20 pts), sugere uma
+// pergunta de investigação comportamental. Ordenado pela maior lacuna.
+interface GuiaItem { dim: string; rotulo: string; gap: number; pergunta: string }
+const DIM_ROTULO: Record<'D' | 'I' | 'S' | 'C', string> = {
+  D: 'Dominância', I: 'Influência', S: 'Estabilidade', C: 'Conformidade',
+};
+const GUIA_PERGUNTAS: Record<'D' | 'I' | 'S' | 'C', string> = {
+  D: 'A análise sugere preferência por consenso e cautela na decisão. Conte uma situação em que precisou tomar uma decisão rápida e impopular, sem ter todos os dados — como conduziu e qual foi o resultado?',
+  I: 'A vaga exige bastante interação e persuasão. Descreva como você constrói relacionamento e engaja as pessoas quando entra em um ambiente novo, onde ainda não conhece ninguém.',
+  S: 'A função pede constância e paciência em rotinas de longo prazo. Conte uma experiência em que manteve consistência e apoio ao time por um período prolongado, mesmo em tarefas repetitivas.',
+  C: 'A posição exige rigor e atenção ao detalhe/compliance. Descreva um processo em que garantiu execução metódica e livre de erros, seguindo normas rígidas por longos períodos de concentração.',
+};
+function guiaEntrevista(vaga: Vaga | undefined, disc: DiscResultado | null | undefined): GuiaItem[] {
+  if (!vaga) return [];
+  const req: Record<'D' | 'I' | 'S' | 'C', number | null | undefined> = {
+    D: vaga.reqPercD, I: vaga.reqPercI, S: vaga.reqPercS, C: vaga.reqPercC,
+  };
+  const p = disc?.percentis;
+  if (!p) return [];
+  const itens: GuiaItem[] = [];
+  (['D', 'I', 'S', 'C'] as const).forEach((d) => {
+    const r = req[d];
+    if (r == null) return;
+    const gap = r - p[d];
+    if (gap >= 20) itens.push({ dim: d, rotulo: DIM_ROTULO[d], gap, pergunta: GUIA_PERGUNTAS[d] });
+  });
+  return itens.sort((a, b) => b.gap - a.gap);
 }
 
 // Rótulo + cor por nível de Fit (Triagem com IA).
@@ -326,10 +357,14 @@ export function Recrutamento() {
             />
           ) : (
             <Kanban
-              candidatos={visiveis.map((c) => ({
-                ...c,
-                _match: calcularMatch(vagas.find((v) => v.id === c.vagaId), c.discResultado),
-              }))}
+              candidatos={visiveis.map((c) => {
+                const vagaC = vagas.find((v) => v.id === c.vagaId);
+                return {
+                  ...c,
+                  _match: calcularMatch(vagaC, c.discResultado),
+                  _guia: guiaEntrevista(vagaC, c.discResultado),
+                };
+              })}
               aoAtualizar={carregar}
               aoErroAcao={setErroAcao}
             />
@@ -647,6 +682,7 @@ function CardCandidato({
 }) {
   // Trava as ações enquanto um PATCH deste candidato está em voo.
   const [ocupado, setOcupado] = useState(false);
+  const [guiaAberta, setGuiaAberta] = useState(false);
 
   async function mover(novo: StatusCandidato) {
     if (ocupado || novo === candidato.status) return;
@@ -695,6 +731,26 @@ function CardCandidato({
       {candidato.perfilDisc && <PilulaPerfil perfil={candidato.perfilDisc} />}
 
       {candidato._match != null && <MatchBadge match={candidato._match} />}
+
+      {candidato._match != null && (
+        <button
+          type="button"
+          onClick={() => setGuiaAberta(true)}
+          style={{
+            alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em',
+            padding: '3px 8px', borderRadius: 999, border: '1px solid var(--borda-forte)',
+            background: 'transparent', color: 'var(--texto-suave)', cursor: 'pointer',
+          }}
+        >
+          🎤 Guia de entrevista{candidato._guia && candidato._guia.length > 0 ? ` (${candidato._guia.length})` : ''}
+        </button>
+      )}
+      {guiaAberta && (
+        <ModalGuiaEntrevista
+          candidato={candidato}
+          onFechar={() => setGuiaAberta(false)}
+        />
+      )}
 
       {candidato.fitNivel && (
         <FitBadge nivel={candidato.fitNivel} pontuacao={candidato.fitPontuacao} justificativa={candidato.fitJustificativa} />
@@ -802,6 +858,48 @@ function MatchBadge({ match }: { match: number }) {
     >
       Match DISC {match}%
     </span>
+  );
+}
+
+// Guião dinâmico de entrevista (documento §5): lista as perguntas de investigação
+// sugeridas a partir das lacunas DISC entre o candidato e o perfil ideal da vaga.
+function ModalGuiaEntrevista({ candidato, onFechar }: { candidato: Candidato; onFechar: () => void }) {
+  const itens = candidato._guia ?? [];
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onFechar}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 60 }}
+    >
+      <div className="brk-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Guia de entrevista</span>
+            <h2 style={{ fontSize: 18, fontWeight: 800, marginTop: 2 }}>{candidato.nome}</h2>
+          </div>
+          <button type="button" onClick={onFechar} aria-label="Fechar" style={{ background: 'transparent', border: 'none', color: 'var(--texto-suave)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+        {candidato._match != null && (
+          <p style={{ fontSize: 13, color: 'var(--texto-suave)' }}>Aderência ao perfil ideal da vaga: <strong>{candidato._match}%</strong>.</p>
+        )}
+        {itens.length === 0 ? (
+          <p style={{ fontSize: 13.5, color: 'var(--texto-suave)', lineHeight: 1.5 }}>
+            Sem lacunas comportamentais relevantes frente ao perfil ideal — conduza a entrevista normalmente, explorando as competências técnicas da vaga.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>Lacunas detectadas (candidato abaixo do exigido). Perguntas de investigação sugeridas:</p>
+            {itens.map((g) => (
+              <div key={g.dim} style={{ background: 'var(--superficie-2)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#f59e0b' }}>{g.rotulo} ({g.dim}) — lacuna de {g.gap} pts</span>
+                <p style={{ fontSize: 13.5, color: 'var(--texto-suave)', lineHeight: 1.55 }}>{g.pergunta}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
