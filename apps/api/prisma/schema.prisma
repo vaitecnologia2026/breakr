@@ -2159,3 +2159,18 @@ model Publico {
   @@index([personaId])
   @@map("publico")
 }
+
+// ─── Marketing: Modelos de Mensagem (templates de texto) — inspirado no eKyte ─
+// Template reutilizável de texto (título + tipo + corpo) para acelerar
+// comunicação. NÃO se confunde com TemplateCampanha (geração de tarefas em lote).
+model ModeloMensagem {
+  id           String   @id @default(uuid())
+  titulo       String
+  tipo         String?
+  corpo        String
+  criadoPorId  String?  @map("criado_por_id")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("modelo_mensagem")
+}

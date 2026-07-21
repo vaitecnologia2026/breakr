@@ -66,6 +66,7 @@ import { MetricasMarketingModule } from './metricas-marketing/metricas-marketing
 import { ReceitaModule } from './receita/receita.module';
 import { PersonasModule } from './personas/personas.module';
 import { PublicosModule } from './publicos/publicos.module';
+import { ModelosMensagemModule } from './modelos-mensagem/modelos-mensagem.module';
 
 @Module({
   imports: [
@@ -173,6 +174,8 @@ import { PublicosModule } from './publicos/publicos.module';
     PersonasModule,
     // Marketing — Públicos (planejamento de audiências, inspirado no eKyte).
     PublicosModule,
+    // Marketing — Modelos de Mensagem (templates de texto, inspirado no eKyte).
+    ModelosMensagemModule,
   ],
 })
 export class AppModule {}
