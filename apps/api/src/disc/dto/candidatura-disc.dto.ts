@@ -17,9 +17,24 @@ export class RespostaDiscDto {
   @IsUUID()
   perguntaId!: string;
 
+  // Compatível com o formato antigo (escolha única). Opcional a partir do
+  // modelo ipsativo Most/Least.
+  @IsOptional()
   @IsInt()
   @Min(0)
-  opcaoIndice!: number;
+  opcaoIndice?: number;
+
+  // Modelo ipsativo (documento): índice da opção que MAIS descreve o candidato.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maisIndice?: number;
+
+  // Modelo ipsativo (documento): índice da opção que MENOS descreve o candidato.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  menosIndice?: number;
 }
 
 export class CandidaturaDiscDto {
