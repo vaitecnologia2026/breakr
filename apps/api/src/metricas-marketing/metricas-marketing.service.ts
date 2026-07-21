@@ -3,7 +3,7 @@
 // pipeline (MaterialCampanha) por squad, membro e cliente, e a evolucao mensal.
 // Nao cria/edita nada; nao altera modelos.
 import { Injectable } from '@nestjs/common';
-import { StatusMaterial } from '@prisma/client';
+import { StatusMaterial } from '../common/status-material';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Momento de conclusao aproximado: usamos atualizadoEm do material CONCLUIDO como

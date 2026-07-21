@@ -1,6 +1,5 @@
 // DTO de atualizacao de material de campanha (status, responsavel, prazo, etc.).
-import { IsEnum, IsIn, IsISO8601, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
-import { StatusMaterial } from '@prisma/client';
+import { IsIn, IsISO8601, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 const DESTINOS = ['TRAFEGO_PAGO', 'ORGANICO', 'IMPRESSAO'] as const;
 
@@ -20,9 +19,13 @@ export class AtualizarMaterialDto {
   @IsIn(DESTINOS)
   destino?: string;
 
+  // Chave da coluna de destino (ColunaMaterial.chave). String p/ aceitar colunas
+  // customizadas; a existencia da chave e validada no service (atualizarMaterial).
   @IsOptional()
-  @IsEnum(StatusMaterial)
-  status?: StatusMaterial;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  status?: string;
 
   @IsOptional()
   @IsUUID()

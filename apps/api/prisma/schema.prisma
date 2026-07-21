@@ -1467,7 +1467,11 @@ model MaterialCampanha {
   titulo            String
   tipo              String? // ex.: criativo de antecipacao, video curto...
   destino           String         @default("TRAFEGO_PAGO")
-  status            StatusMaterial @default(PLANEJADO)
+  // Status = chave de uma coluna do board (ColunaMaterial.chave). Era o enum
+  // StatusMaterial; virou String para permitir COLUNAS CUSTOMIZADAS no board sem
+  // perder as 9 do nucleo. Os 9 valores originais continuam identicos (PLANEJADO,
+  // EM_COPY, ...), entao toda a logica que compara com StatusMaterial.* segue valendo.
+  status            String         @default("PLANEJADO")
   prazo             DateTime?
   // Numero de vezes que o material voltou para ajuste (retrabalho).
   reworkCount       Int            @default(0) @map("rework_count")
@@ -1493,6 +1497,24 @@ model MaterialCampanha {
   @@index([campanhaId])
   @@index([status])
   @@map("material_campanha")
+}
+
+/// Coluna do board de Campanhas de Marketing (GLOBAL — vale para todas as campanhas).
+/// `chave` e o valor gravado em MaterialCampanha.status. As 9 do nucleo (nucleo=true)
+/// sao as etapas validadas (PLANEJADO..CONCLUIDO): podem ser renomeadas/reordenadas/
+/// ocultadas, mas NAO excluidas (a logica de retrabalho/metricas/portal depende delas).
+/// Colunas novas (nucleo=false) tem CRUD livre.
+model ColunaMaterial {
+  id           String   @id @default(uuid())
+  chave        String   @unique
+  rotulo       String
+  ordem        Int      @default(0)
+  nucleo       Boolean  @default(false)
+  oculta       Boolean  @default(false)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("coluna_material")
 }
 
 /// Template de campanha (Briefing Marketing — Secao 4). Define os materiais
