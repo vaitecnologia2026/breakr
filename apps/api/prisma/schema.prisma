@@ -2120,3 +2120,42 @@ model Persona {
   @@index([clienteId])
   @@map("persona")
 }
+
+// ─── Marketing: Públicos (planejamento de audiências) — inspirado no eKyte ───
+enum TipoSegmentacao {
+  REMARKETING
+  SEGUIDORES
+  SEGMENTADO
+  NAO_SEGMENTADO
+  LISTA_EMAIL
+}
+
+enum PrioridadePublico {
+  MUITO_ALTA
+  ALTA
+  NORMAL
+  BAIXA
+}
+
+// Público como entidade própria (planejável), vinculável a uma Persona pelo id
+// (escalar, sem relação formal — mantém o módulo isolado). Convive com a leitura
+// read-only das custom audiences do Meta já existente em /trafego/meta/publicos.
+model Publico {
+  id              String            @id @default(uuid())
+  nome            String
+  clienteId       String?           @map("cliente_id")
+  personaId       String?           @map("persona_id")
+  tamanho         Int?
+  tipoSegmentacao TipoSegmentacao?  @map("tipo_segmentacao")
+  prioridade      PrioridadePublico @default(NORMAL)
+  idMeta          String?           @map("id_meta")
+  importadoMeta   Boolean           @default(false) @map("importado_meta")
+  ativo           Boolean           @default(true)
+  criadoPorId     String?           @map("criado_por_id")
+  criadoEm        DateTime          @default(now()) @map("criado_em")
+  atualizadoEm    DateTime          @updatedAt @map("atualizado_em")
+
+  @@index([clienteId])
+  @@index([personaId])
+  @@map("publico")
+}
