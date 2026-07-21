@@ -308,7 +308,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
               return (
                 <div
                   key={col.v}
-                  onDragOver={(e) => { if (arrastandoId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (colunaAlvo !== col.v) setColunaAlvo(col.v); } }}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (colunaAlvo !== col.v) setColunaAlvo(col.v); }}
                   onDrop={(e) => {
                     e.preventDefault();
                     const mid = e.dataTransfer.getData('text/plain') || arrastandoId;
