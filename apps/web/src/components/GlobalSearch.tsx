@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { CATALOGO_MENUS } from './Sidebar';
 
 // ─── Ícones ───────────────────────────────────────────────────────────────────
 
@@ -44,27 +45,22 @@ interface ResultItem {
   icone: React.ReactNode;
 }
 
-const PAGINAS: ResultItem[] = [
-  { id: 'pg-dash',   rotulo: 'Dashboard',    path: '/',               categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-com',    rotulo: 'Comercial',     path: '/comercial',      categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-cli',    rotulo: 'Clientes',      path: '/clientes',       categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-cont',   rotulo: 'Contratos',     path: '/contratos',      categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-cob',    rotulo: 'Cobranças',     path: '/cobrancas',      categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-proj',   rotulo: 'Projetos',      path: '/projetos',       categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-cont2',  rotulo: 'Conteúdo',      path: '/conteudos',      categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-qual',   rotulo: 'Qualidade',     path: '/qualidade',      categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-traf',   rotulo: 'Tráfego',       path: '/trafego',        categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-sq',     rotulo: 'Squads',        path: '/squads',         categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-rec',    rotulo: 'Recrutamento',  path: '/recrutamento',   categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-comp',   rotulo: 'Compras',       path: '/compras',        categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-dev',    rotulo: 'Bugs & Dev',    path: '/desenvolvimento', categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-aut',    rotulo: 'Automações',    path: '/automacoes',     categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-ate',    rotulo: 'Atendimento',   path: '/atendimento',    categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-eq',     rotulo: 'Equipe',        path: '/equipe',         categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-cfg',    rotulo: 'Configurações', path: '/configuracoes',  categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-inbox',  rotulo: 'Inbox',         path: '/inbox',          categoria: 'Páginas', icone: <IcoPage /> },
-  { id: 'pg-comu',   rotulo: 'Comunicados',   path: '/comunicados',    categoria: 'Páginas', icone: <IcoPage /> },
-];
+// Lista de páginas do buscador derivada do catálogo de menus (fonte única de
+// verdade: CATALOGO_MENUS, o mesmo que monta a sidebar). Antes era uma lista fixa
+// de 19 páginas; agora cobre TODOS os nomes do menu. Montada dentro do componente
+// (useMemo) para não acessar CATALOGO_MENUS no topo do módulo — evita problema de
+// import circular com Sidebar (que importa abrirBusca daqui). Dedup por rota, pois
+// a mesma rota pode aparecer em mais de um grupo (ex.: /contratos, /ouvidoria).
+function construirPaginas(): ResultItem[] {
+  return Array.from(
+    new Map(
+      CATALOGO_MENUS.flatMap((g) => g.itens).map((it): [string, ResultItem] => [
+        it.para,
+        { id: `pg-${it.para}`, rotulo: it.rotulo, path: it.para, categoria: 'Páginas', icone: <IcoPage /> },
+      ]),
+    ).values(),
+  );
+}
 
 // ─── Hook de exposição global ─────────────────────────────────────────────────
 
@@ -80,6 +76,9 @@ export function GlobalSearch() {
   const [ativo, setAtivo] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Todas as páginas do menu (nomes + rotas), derivadas do catálogo da sidebar.
+  const paginas = useMemo(() => construirPaginas(), []);
 
   // Expõe setAberto globalmente
   useEffect(() => { _setAberto = setAberto; return () => { _setAberto = null; }; }, []);
@@ -133,8 +132,8 @@ export function GlobalSearch() {
 
   // Resultados filtrados
   const pagsFiltradas = query
-    ? PAGINAS.filter((p) => p.rotulo.toLowerCase().includes(query.toLowerCase()))
-    : PAGINAS.slice(0, 6);
+    ? paginas.filter((p) => p.rotulo.toLowerCase().includes(query.toLowerCase()))
+    : paginas.slice(0, 6);
 
   const todos: ResultItem[] = [...pagsFiltradas, ...clientes];
 
