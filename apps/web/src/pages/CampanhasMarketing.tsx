@@ -212,6 +212,9 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
   const [erro, setErro] = useState<string | null>(null);
   const [usuarios, setUsuarios] = useState<Opcao[]>([]);
   const [modalMaterial, setModalMaterial] = useState(false);
+  // Drag-and-drop dos cards entre colunas (aditivo — reusa mudarStatus).
+  const [arrastandoId, setArrastandoId] = useState<string | null>(null);
+  const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
 
   function carregar() {
     setCarregando(true);
@@ -303,14 +306,40 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
             {STATUS.map((col) => {
               const itens = campanha.materiais.filter((m) => m.status === col.v);
               return (
-                <div key={col.v} style={{ background: 'var(--superficie-2)', border: '1px solid var(--borda)', borderRadius: 8, padding: 8, minWidth: 0 }}>
+                <div
+                  key={col.v}
+                  onDragOver={(e) => { if (arrastandoId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (colunaAlvo !== col.v) setColunaAlvo(col.v); } }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const mid = e.dataTransfer.getData('text/plain') || arrastandoId;
+                    setColunaAlvo(null);
+                    setArrastandoId(null);
+                    if (mid) {
+                      const mat = campanha.materiais.find((x) => x.id === mid);
+                      if (mat && mat.status !== col.v) mudarStatus(mid, col.v);
+                    }
+                  }}
+                  style={{
+                    background: colunaAlvo === col.v ? 'var(--borda)' : 'var(--superficie-2)',
+                    border: `1px solid ${colunaAlvo === col.v ? 'var(--texto-suave)' : 'var(--borda)'}`,
+                    borderRadius: 8, padding: 8, minWidth: 0,
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--texto-suave)' }}>{col.r}</span>
                     <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>{itens.length}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {itens.map((m) => (
-                      <div key={m.id} className="brk-card" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div
+                        key={m.id}
+                        className="brk-card"
+                        draggable
+                        onDragStart={(e) => { setArrastandoId(m.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', m.id); }}
+                        onDragEnd={() => { setArrastandoId(null); setColunaAlvo(null); }}
+                        title="Arraste para mover de coluna"
+                        style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6, cursor: 'grab', opacity: arrastandoId === m.id ? 0.5 : 1 }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto)' }}>{m.titulo}</span>
                           <button type="button" onClick={() => removerMaterial(m.id)} title="Remover" style={{ background: 'none', border: 'none', color: 'var(--texto-fraco)', cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>✕</button>
