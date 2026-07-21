@@ -81,6 +81,17 @@ interface Conteudo {
   cliente?: { nomeFantasia: string };
   squad?: { nome: string } | null;
   responsavel?: { nome: string } | null;
+  // Resumo da campanha de marketing que originou a peça (peça criada via "+ Material").
+  // Preenchido pelo backend em GET /conteudos/:id; null quando a peça não veio de campanha.
+  campanhaVinculada?: {
+    campanhaId: string;
+    nome: string;
+    situacao: string;
+    codigoUnico: string;
+    materialStatus: string;
+    totalMateriais: number;
+    materiaisConcluidos: number;
+  } | null;
 }
 
 interface ClienteOpt {
@@ -128,6 +139,27 @@ const TIPO_META: Record<TipoConteudo, string> = {
 };
 
 const TIPOS: TipoConteudo[] = ['POST', 'REELS', 'STORY', 'CARROSSEL', 'VIDEO', 'ARTIGO'];
+
+// Rótulo amigável do estágio do material no pipeline da campanha (mesmas colunas do
+// board de Campanhas de Marketing). Usado no bloco "Campanha" do detalhe da peça.
+const MATERIAL_STATUS_ROTULO: Record<string, string> = {
+  PLANEJADO: 'Planejado',
+  EM_COPY: 'Em Copy',
+  COPY_CONCLUIDA: 'Copy Concluída',
+  EM_DESIGN: 'Em Design',
+  AGUARDANDO_APROVACAO: 'Aguard. Aprovação',
+  APROVADO: 'Aprovado',
+  EM_AJUSTE: 'Em Ajuste',
+  ATIVO_TRAFEGO: 'Ativo (Tráfego)',
+  CONCLUIDO: 'Concluído',
+};
+
+// Rótulo + cor da situação geral da campanha (PLANEJADA | EM_ANDAMENTO | CONCLUIDA).
+const SITUACAO_CAMPANHA: Record<string, { rotulo: string; cor: string }> = {
+  PLANEJADA: { rotulo: 'Planejada', cor: '#9aa0ad' },
+  EM_ANDAMENTO: { rotulo: 'Em andamento', cor: '#ff9406' },
+  CONCLUIDA: { rotulo: 'Concluída', cor: '#2ecc71' },
+};
 
 const MOCK_CONTEUDOS: Conteudo[] = [
   { id: 'cn1', titulo: 'Post: Promocao Dia dos Namorados', descricao: 'Post estatico para feed com oferta especial.', tipo: 'POST', status: 'IDEIA', codigoUnico: 'CNT-001', dataAgendada: '2026-06-18T12:00:00Z', estrelas: null, paraTrafego: false, clienteId: 'c1', squadId: 'sq1', responsavelId: null, cliente: { nomeFantasia: 'Tua Pizza' }, squad: { nome: 'Squad Restaurantes' }, responsavel: { nome: 'Leticia Dias' } },
@@ -891,6 +923,20 @@ function DetalheConteudo({
   const [fData, setFData] = useState(isoParaInputLocal(conteudo.dataAgendada));
   const [fTrafego, setFTrafego] = useState(conteudo.paraTrafego);
 
+  // Campanha vinculada: o modal recebe a peça da lista (que não traz o vínculo), então
+  // busca o detalhe (GET /conteudos/:id) ao abrir para saber de qual campanha a peça
+  // nasceu e em que estágio ela está. Somente leitura; se a peça não veio de campanha,
+  // fica null e o bloco simplesmente não aparece (nada muda para peças antigas/avulsas).
+  const [campanha, setCampanha] = useState(conteudo.campanhaVinculada ?? null);
+  useEffect(() => {
+    let ativo = true;
+    api
+      .get<Conteudo>(`/conteudos/${conteudo.id}`)
+      .then(({ data }) => { if (ativo) setCampanha(data?.campanhaVinculada ?? null); })
+      .catch(() => { /* silencioso: sem detalhe, o bloco de campanha não é exibido */ });
+    return () => { ativo = false; };
+  }, [conteudo.id]);
+
   // Desfaz as edições, voltando aos valores atuais da peça.
   function resetForm() {
     setFTitulo(conteudo.titulo);
@@ -1033,6 +1079,56 @@ function DetalheConteudo({
               : '—'}
           />
         </div>
+
+        {/* Campanha vinculada (somente leitura): de qual campanha de marketing a peça
+            nasceu, a situação geral da campanha, o estágio desta peça no board e o
+            progresso. Só aparece quando a peça tem vínculo (criada via "+ Material"). */}
+        {campanha && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              padding: 14,
+              borderRadius: 12,
+              border: '1px solid var(--borda)',
+              background: 'rgba(127,127,127,0.06)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Campanha
+              </span>
+              {(() => {
+                const s = SITUACAO_CAMPANHA[campanha.situacao] ?? { rotulo: campanha.situacao, cor: '#9aa0ad' };
+                return (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--texto-suave)' }}>
+                    <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: s.cor, flexShrink: 0 }} />
+                    {s.rotulo}
+                  </span>
+                );
+              })()}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--texto)' }}>{campanha.nome}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Estágio desta peça</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>
+                  {MATERIAL_STATUS_ROTULO[campanha.materialStatus] ?? campanha.materialStatus}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Progresso da campanha</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>
+                  {campanha.materiaisConcluidos}/{campanha.totalMateriais} concluídos
+                </span>
+              </div>
+            </div>
+            <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
+              Campanha Nº {campanha.codigoUnico}
+            </span>
+          </div>
+        )}
 
         {/* Descrição / briefing */}
         {editando ? (

@@ -140,8 +140,12 @@ export class CampanhasMarketingService {
     const destino = dto.destino ?? 'TRAFEGO_PAGO';
     const titulo = dto.titulo.trim();
     // Cria o material e a peca de conteudo de forma atomica (ou os dois, ou nenhum).
-    const [material] = await this.prisma.$transaction([
-      this.prisma.materialCampanha.create({
+    // Transacao interativa: cria o material primeiro para gravar o vinculo persistente
+    // (materialCampanhaId) na peca — assim a Producao de Conteudo sabe de qual campanha
+    // a peca nasceu e exibe o estagio da campanha. Comportamento inalterado (a peca
+    // continua nascendo em IDEIA); so passa a guardar o fio que antes se perdia.
+    const material = await this.prisma.$transaction(async (tx) => {
+      const mat = await tx.materialCampanha.create({
         data: {
           campanhaId,
           titulo,
@@ -150,8 +154,8 @@ export class CampanhasMarketingService {
           responsavelId: dto.responsavelId,
           prazo: this.data(dto.prazo),
         },
-      }),
-      this.prisma.conteudo.create({
+      });
+      await tx.conteudo.create({
         data: {
           clienteId: campanha.clienteId,
           titulo,
@@ -162,9 +166,11 @@ export class CampanhasMarketingService {
           paraTrafego: destino === 'TRAFEGO_PAGO',
           status: StatusConteudo.IDEIA,
           codigoUnico: this.codigoUnico.gerar('CNT'),
+          materialCampanhaId: mat.id,
         },
-      }),
-    ]);
+      });
+      return mat;
+    });
     return material;
   }
 
