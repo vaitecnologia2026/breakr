@@ -1,17 +1,22 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { DiscRadar, type SerieRadar } from '../components/DiscRadar';
 
 /**
- * Página PÚBLICA de candidatura + teste DISC.
+ * Página PÚBLICA de candidatura + teste DISC (modelo ipsativo Most/Least).
  *  GET  /disc/vagas
  *  GET  /disc/teste
- *  POST /disc/candidatura { vagaId, nome, email?, telefone?, curriculoUrl?, respostas: [{ perguntaId, opcaoIndice }] }
+ *  POST /disc/candidatura { vagaId, nome, email?, telefone?, curriculoUrl?,
+ *        respostas: [{ perguntaId, maisIndice, menosIndice }] }
  */
 
 interface Vaga { id: string; titulo: string; departamento: string | null }
 interface OpcaoPub { indice: number; texto: string }
 interface PerguntaPub { id: string; enunciado: string | null; opcoes: OpcaoPub[] }
 interface InterpretacaoDisc { titulo: string; descricao: string; pontosFortes: string; desafios: string }
+type Placar4 = { D: number; I: number; S: number; C: number };
+interface GraficosDisc { adaptado: Placar4; natural: Placar4; combinado: Placar4 }
+type Anomalia = 'OVERSHIFT' | 'UNDERSHIFT' | 'COMPRIMIDO' | null;
 interface RespostaCandidatura {
   ok: boolean;
   candidatoId: string;
@@ -19,13 +24,26 @@ interface RespostaCandidatura {
   primario: string | null;
   secundario: string | null;
   interpretacao: InterpretacaoDisc | null;
+  graficos?: GraficosDisc;
+  percentis?: Placar4;
+  anomalia?: Anomalia;
 }
+
+// Marcação Most/Least de um bloco.
+interface RespBloco { mais?: number; menos?: number }
 
 const campo: React.CSSProperties = {
   width: '100%', background: 'var(--superficie-2)', border: '1px solid var(--borda-forte)',
   borderRadius: 10, padding: '11px 13px', color: 'var(--texto)', fontSize: 14, outline: 'none',
 };
 const rotulo: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-suave)', marginBottom: 4, display: 'block' };
+
+const DIMS: (keyof Placar4)[] = ['D', 'I', 'S', 'C'];
+const ANOMALIA_TXT: Record<Exclude<Anomalia, null>, string> = {
+  OVERSHIFT: 'Sobreposição — todos os fatores acima da média; respostas possivelmente superestimadas.',
+  UNDERSHIFT: 'Sub-representação — nenhum estilo comportamental predominante claro.',
+  COMPRIMIDO: 'Padrão comprimido — respostas muito neutras/cautelosas, sem picos definidos.',
+};
 
 export function AvaliacaoDisc() {
   const [vagas, setVagas] = useState<Vaga[]>([]);
@@ -35,7 +53,7 @@ export function AvaliacaoDisc() {
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
   const [curriculoUrl, setCurriculoUrl] = useState('');
-  const [respostas, setRespostas] = useState<Record<string, number>>({});
+  const [respostas, setRespostas] = useState<Record<string, RespBloco>>({});
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -60,7 +78,22 @@ export function AvaliacaoDisc() {
     return () => { ativo = false; };
   }, []);
 
-  const todasRespondidas = perguntas.length > 0 && perguntas.every((p) => respostas[p.id] !== undefined);
+  function marcar(pid: string, coluna: 'mais' | 'menos', indice: number) {
+    setRespostas((prev) => {
+      const atual: RespBloco = { ...prev[pid] };
+      atual[coluna] = indice;
+      // A mesma opção não pode ser Mais e Menos ao mesmo tempo.
+      const outra = coluna === 'mais' ? 'menos' : 'mais';
+      if (atual[outra] === indice) atual[outra] = undefined;
+      return { ...prev, [pid]: atual };
+    });
+  }
+
+  const blocoOk = (pid: string) => {
+    const r = respostas[pid];
+    return !!r && r.mais !== undefined && r.menos !== undefined && r.mais !== r.menos;
+  };
+  const todasRespondidas = perguntas.length > 0 && perguntas.every((p) => blocoOk(p.id));
   const valido = vagaId !== '' && nome.trim().length >= 2 && todasRespondidas;
 
   async function enviar(e: FormEvent) {
@@ -75,7 +108,11 @@ export function AvaliacaoDisc() {
         email: email.trim() || undefined,
         telefone: telefone.trim() || undefined,
         curriculoUrl: curriculoUrl.trim() || undefined,
-        respostas: perguntas.map((p) => ({ perguntaId: p.id, opcaoIndice: respostas[p.id] })),
+        respostas: perguntas.map((p) => ({
+          perguntaId: p.id,
+          maisIndice: respostas[p.id].mais,
+          menosIndice: respostas[p.id].menos,
+        })),
       });
       setResultado(data);
       setOk(true);
@@ -83,6 +120,24 @@ export function AvaliacaoDisc() {
       setErro('Falha ao enviar a candidatura. Tente novamente.');
       setEnviando(false);
     }
+  }
+
+  // Séries do radar (0..100): Percentil (G3), Máscara (G1) e Essência (G2)
+  // normalizadas pelo total de blocos. Atrito = maior gap entre Máscara e Essência.
+  const totalBlocos = perguntas.length || 1;
+  const series: SerieRadar[] = [];
+  let atrito = 0;
+  if (resultado?.percentis && resultado.graficos) {
+    const mask: Placar4 = { D: 0, I: 0, S: 0, C: 0 };
+    const ess: Placar4 = { D: 0, I: 0, S: 0, C: 0 };
+    for (const d of DIMS) {
+      mask[d] = Math.round((resultado.graficos.adaptado[d] / totalBlocos) * 100);
+      ess[d] = Math.round((resultado.graficos.natural[d] / totalBlocos) * 100);
+      atrito = Math.max(atrito, Math.abs(mask[d] - ess[d]));
+    }
+    series.push({ nome: 'Percentil', cor: '#8b5cf6', valores: resultado.percentis });
+    series.push({ nome: 'Máscara (adaptado)', cor: '#3b82f6', valores: mask });
+    series.push({ nome: 'Essência (natural)', cor: '#67e0a3', valores: ess });
   }
 
   return (
@@ -101,6 +156,33 @@ export function AvaliacaoDisc() {
               <span style={{ fontSize: 18, fontWeight: 700, color: '#67e0a3' }}>Candidatura enviada! ✅</span>
               <span style={{ fontSize: 14, color: 'var(--texto-suave)' }}>Recebemos seu currículo e seu perfil. Boa sorte!</span>
             </div>
+
+            {series.length > 0 && resultado?.percentis && (
+              <div className="brk-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Gráficos DISC</span>
+                <DiscRadar series={series} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {DIMS.map((d) => (
+                    <div key={d} style={{ textAlign: 'center', background: 'var(--superficie-2)', borderRadius: 10, padding: '8px 4px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--texto-suave)' }}>{d}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800 }} className="brk-gradient-text">{resultado.percentis![d]}</div>
+                      <div style={{ fontSize: 10, color: 'var(--texto-fraco)' }}>percentil</div>
+                    </div>
+                  ))}
+                </div>
+                {atrito > 25 && (
+                  <div role="status" style={{ fontSize: 12.5, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', borderRadius: 8, padding: '8px 10px' }}>
+                    ⚠️ Distância relevante entre Máscara e Essência ({atrito} pts) — indica esforço de adaptação.
+                  </div>
+                )}
+                {resultado.anomalia && (
+                  <div role="status" style={{ fontSize: 12.5, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', borderRadius: 8, padding: '8px 10px' }}>
+                    ⚠️ {ANOMALIA_TXT[resultado.anomalia]}
+                  </div>
+                )}
+              </div>
+            )}
+
             {resultado?.interpretacao && (
               <div className="brk-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
@@ -136,19 +218,34 @@ export function AvaliacaoDisc() {
             <div style={{ borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Avaliação de perfil</h2>
               <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 12 }}>
-                {perguntas.length} perguntas — escolha a opção com que mais se identifica.
+                {perguntas.length} blocos — em cada um, marque a opção que <strong>MAIS</strong> e a que <strong>MENOS</strong> combinam com você.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                 {perguntas.map((p, idx) => (
                   <div key={p.id}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>{idx + 1}. {p.enunciado ?? 'Escolha a opção com que mais se identifica'}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {p.opcoes.map((o) => (
-                        <label key={o.indice} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--texto-suave)', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, background: respostas[p.id] === o.indice ? 'var(--superficie-3)' : 'transparent' }}>
-                          <input type="radio" name={`p-${p.id}`} checked={respostas[p.id] === o.indice} onChange={() => setRespostas((prev) => ({ ...prev, [p.id]: o.indice }))} />
-                          {o.texto}
-                        </label>
-                      ))}
+                    <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>{idx + 1}. {p.enunciado ?? 'Marque a opção que mais e a que menos combinam com você'}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '40px 40px 1fr', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: '#67e0a3', textAlign: 'center' }}>MAIS</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: '#f87171', textAlign: 'center' }}>MENOS</span>
+                      <span />
+                      {p.opcoes.map((o) => {
+                        const r = respostas[p.id] ?? {};
+                        return (
+                          <div key={o.indice} style={{ display: 'contents' }}>
+                            <span style={{ textAlign: 'center' }}>
+                              <input type="radio" name={`mais-${p.id}`} checked={r.mais === o.indice}
+                                disabled={r.menos === o.indice}
+                                onChange={() => marcar(p.id, 'mais', o.indice)} aria-label={`Mais: ${o.texto}`} />
+                            </span>
+                            <span style={{ textAlign: 'center' }}>
+                              <input type="radio" name={`menos-${p.id}`} checked={r.menos === o.indice}
+                                disabled={r.mais === o.indice}
+                                onChange={() => marcar(p.id, 'menos', o.indice)} aria-label={`Menos: ${o.texto}`} />
+                            </span>
+                            <span style={{ fontSize: 13.5, color: 'var(--texto-suave)', padding: '4px 0' }}>{o.texto}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}

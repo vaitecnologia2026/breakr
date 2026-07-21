@@ -1168,7 +1168,10 @@ model Candidato {
   email        String?
   telefone     String?
   status       StatusCandidato @default(INSCRITO)
-  perfilDisc   String?         @map("perfil_disc") // resultado do teste DISC
+  perfilDisc   String?         @map("perfil_disc") // resultado do teste DISC (resumo textual)
+  // Resultado DISC computado (modelo do documento): 3 gráficos (adaptado/natural/
+  // combinado), percentis, anomalia e perfil primário/secundário. Aditivo, nullable.
+  discResultado Json?          @map("disc_resultado")
   curriculoUrl String?         @map("curriculo_url")
   observacao   String?
   // Tags do banco de talentos (ex.: "forte", "reavaliacao") — req. l.431.

@@ -3,9 +3,17 @@
 // cria o Candidato na vaga com o perfil calculado.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { SalvarPerguntaDto } from './dto/salvar-pergunta.dto';
 import { CandidaturaDiscDto } from './dto/candidatura-disc.dto';
 import { interpretarPerfil } from './disc-perfis';
+import {
+  calcularGraficos,
+  calcularPercentis,
+  detectarAnomalia,
+  DIMENSOES,
+  type Placar,
+} from './disc-calculo';
 
 type Dimensao = 'D' | 'I' | 'S' | 'C';
 interface OpcaoDisc {
@@ -110,21 +118,45 @@ export class DiscService {
     });
     const mapa = new Map(perguntas.map((p) => [p.id, p.opcoes as unknown as OpcaoDisc[]]));
 
-    const placar: Record<Dimensao, number> = { D: 0, I: 0, S: 0, C: 0 };
+    // Contagem ipsativa: "Mais" (adaptado) e "Menos" (rejeição), por dimensão.
+    // Compatível com o formato antigo (opcaoIndice = uma escolha "Mais", sem "Menos").
+    const mais: Placar = { D: 0, I: 0, S: 0, C: 0 };
+    const menos: Placar = { D: 0, I: 0, S: 0, C: 0 };
+    let blocos = 0;
     for (const r of dto.respostas) {
       const opcoes = mapa.get(r.perguntaId);
-      const opcao = opcoes?.[r.opcaoIndice];
-      if (opcao) placar[opcao.dimensao] += 1;
+      if (!opcoes) continue;
+      blocos++;
+      const idxMais = r.maisIndice ?? r.opcaoIndice;
+      if (idxMais !== undefined && opcoes[idxMais]) mais[opcoes[idxMais].dimensao] += 1;
+      if (r.menosIndice !== undefined && r.menosIndice !== idxMais && opcoes[r.menosIndice]) {
+        menos[opcoes[r.menosIndice].dimensao] += 1;
+      }
     }
 
-    // Ordena dimensões por pontuação (desc) → perfil primário/secundário/terciário.
-    const ranking = (Object.keys(placar) as Dimensao[]).sort((a, b) => placar[b] - placar[a]);
+    // 3 gráficos (Adaptado/Natural/Combinado), percentis e anomalia (documento).
+    const graficos = calcularGraficos(mais, menos, blocos);
+    const percentis = calcularPercentis(graficos.combinado);
+    const anomalia = detectarAnomalia(percentis);
+
+    // Perfil primário/secundário pelo Gráfico 3 (Combinado) via percentis.
+    const rankCombinado = DIMENSOES.slice().sort((a, b) => percentis[b] - percentis[a]);
+    const predominantes = rankCombinado.filter((d) => graficos.combinado[d] > 0);
+    const primario = predominantes[0] ?? rankCombinado[0] ?? null;
+    const secundario = predominantes[1] ?? rankCombinado[1] ?? null;
+    const interpretacao = interpretarPerfil(primario, secundario);
+
+    // Resumo textual (compatibilidade com Recrutamento/BancoTalentos) — baseado no
+    // Gráfico Adaptado (Mais), como no comportamento validado anterior.
+    const rankAdaptado = DIMENSOES.slice().sort((a, b) => graficos.adaptado[b] - graficos.adaptado[a]);
     const perfil =
-      ranking
-        .filter((d) => placar[d] > 0)
-        .map((d) => `${d} (${placar[d]})`)
+      rankAdaptado
+        .filter((d) => graficos.adaptado[d] > 0)
+        .map((d) => `${d} (${graficos.adaptado[d]})`)
         .join(' · ') || 'Sem respostas';
-    const resumo = `Perfil: ${ranking.slice(0, 2).map((d) => ROTULO_DIM[d]).join(' / ')} — ${perfil}`;
+    const resumo = `Perfil: ${rankAdaptado.slice(0, 2).map((d) => ROTULO_DIM[d]).join(' / ')} — ${perfil}`;
+
+    const discResultado = { graficos, percentis, anomalia, primario, secundario };
 
     const candidato = await this.prisma.candidato.create({
       data: {
@@ -133,16 +165,21 @@ export class DiscService {
         telefone: dto.telefone,
         curriculoUrl: dto.curriculoUrl,
         perfilDisc: resumo,
+        discResultado: discResultado as unknown as Prisma.InputJsonValue,
         vagaId: dto.vagaId,
       },
     });
 
-    // Dimensões predominantes (apenas as com pontuação) → interpretação do perfil.
-    const predominantes = ranking.filter((d) => placar[d] > 0);
-    const primario = predominantes[0] ?? null;
-    const secundario = predominantes[1] ?? null;
-    const interpretacao = interpretarPerfil(primario, secundario);
-
-    return { ok: true, candidatoId: candidato.id, perfil: resumo, primario, secundario, interpretacao };
+    return {
+      ok: true,
+      candidatoId: candidato.id,
+      perfil: resumo,
+      primario,
+      secundario,
+      interpretacao,
+      graficos,
+      percentis,
+      anomalia,
+    };
   }
 }
