@@ -49,9 +49,20 @@ interface Vaga {
   aberta: boolean;
   codigoUnico?: string;
   _count?: { candidatos: number };
+  // Perfil ideal DISC (Job Fit) — percentis 0..100. Aditivos.
+  reqPercD?: number | null;
+  reqPercI?: number | null;
+  reqPercS?: number | null;
+  reqPercC?: number | null;
 }
 
 type FitNivel = 'ALTO' | 'MEDIO' | 'BAIXO';
+
+// Resultado DISC computado do candidato (subconjunto usado no funil).
+interface DiscResultado {
+  percentis?: { D: number; I: number; S: number; C: number };
+  anomalia?: string | null;
+}
 
 interface Candidato {
   id: string;
@@ -68,6 +79,23 @@ interface Candidato {
   fitNivel?: FitNivel | null;
   fitPontuacao?: number | null;
   fitJustificativa?: string | null;
+  // DISC computado (modelo do documento) e Job Fit calculado no cliente.
+  discResultado?: DiscResultado | null;
+  _match?: number | null;
+}
+
+// Job Fit: distância euclidiana entre os percentis do candidato e o perfil ideal
+// da vaga → Match Score 0..100 (0 = vetores idênticos). null se faltar dado.
+function calcularMatch(vaga: Vaga | undefined, disc: DiscResultado | null | undefined): number | null {
+  if (!vaga) return null;
+  const { reqPercD, reqPercI, reqPercS, reqPercC } = vaga;
+  if (reqPercD == null || reqPercI == null || reqPercS == null || reqPercC == null) return null;
+  const p = disc?.percentis;
+  if (!p) return null;
+  const dist = Math.sqrt(
+    (p.D - reqPercD) ** 2 + (p.I - reqPercI) ** 2 + (p.S - reqPercS) ** 2 + (p.C - reqPercC) ** 2,
+  );
+  return Math.max(0, Math.min(100, Math.round((1 - dist / 200) * 100)));
 }
 
 // Rótulo + cor por nível de Fit (Triagem com IA).
@@ -262,6 +290,13 @@ export function Recrutamento() {
               />
             </div>
           </div>
+          {filtroVaga !== TODAS && vagas.find((v) => v.id === filtroVaga) && (
+            <EditorPerfilIdeal
+              vaga={vagas.find((v) => v.id === filtroVaga)!}
+              aoSalvar={carregar}
+              aoErro={setErroAcao}
+            />
+          )}
           {erroAcao && <MensagemErro texto={erroAcao} />}
           {aviso && (
             <div
@@ -290,7 +325,14 @@ export function Recrutamento() {
               }
             />
           ) : (
-            <Kanban candidatos={visiveis} aoAtualizar={carregar} aoErroAcao={setErroAcao} />
+            <Kanban
+              candidatos={visiveis.map((c) => ({
+                ...c,
+                _match: calcularMatch(vagas.find((v) => v.id === c.vagaId), c.discResultado),
+              }))}
+              aoAtualizar={carregar}
+              aoErroAcao={setErroAcao}
+            />
           )}
         </>
       )}
@@ -652,6 +694,8 @@ function CardCandidato({
 
       {candidato.perfilDisc && <PilulaPerfil perfil={candidato.perfilDisc} />}
 
+      {candidato._match != null && <MatchBadge match={candidato._match} />}
+
       {candidato.fitNivel && (
         <FitBadge nivel={candidato.fitNivel} pontuacao={candidato.fitPontuacao} justificativa={candidato.fitJustificativa} />
       )}
@@ -741,6 +785,91 @@ function PilulaPerfil({ perfil }: { perfil: string }) {
     >
       Perfil {perfil}
     </span>
+  );
+}
+
+// Selo de Job Fit DISC: Match Score 0..100 (distância euclidiana candidato × vaga).
+function MatchBadge({ match }: { match: number }) {
+  const cor = match >= 80 ? '#2ecc71' : match >= 60 ? '#ff9406' : '#ff6b6b';
+  const bg = match >= 80 ? 'rgba(46,204,113,0.14)' : match >= 60 ? 'rgba(255,148,6,0.14)' : 'rgba(255,107,107,0.14)';
+  return (
+    <span
+      title="Aderência DISC do candidato ao perfil ideal da vaga"
+      style={{
+        alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em',
+        padding: '3px 8px', borderRadius: 999, background: bg, color: cor, whiteSpace: 'nowrap',
+      }}
+    >
+      Match DISC {match}%
+    </span>
+  );
+}
+
+// Editor do Perfil Ideal DISC da vaga (Job Fit). PATCH /rh/vagas/:id/perfil-ideal.
+function EditorPerfilIdeal({
+  vaga,
+  aoSalvar,
+  aoErro,
+}: {
+  vaga: Vaga;
+  aoSalvar: () => void;
+  aoErro: (msg: string | null) => void;
+}) {
+  const [d, setD] = useState<number>(vaga.reqPercD ?? 50);
+  const [i, setI] = useState<number>(vaga.reqPercI ?? 50);
+  const [s, setS] = useState<number>(vaga.reqPercS ?? 50);
+  const [c, setC] = useState<number>(vaga.reqPercC ?? 50);
+  const [salvando, setSalvando] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    setD(vaga.reqPercD ?? 50);
+    setI(vaga.reqPercI ?? 50);
+    setS(vaga.reqPercS ?? 50);
+    setC(vaga.reqPercC ?? 50);
+    setOk(false);
+  }, [vaga.id, vaga.reqPercD, vaga.reqPercI, vaga.reqPercS, vaga.reqPercC]);
+
+  const limitar = (n: number) => Math.max(0, Math.min(100, Math.round(n) || 0));
+
+  async function salvar() {
+    if (salvando) return;
+    setSalvando(true);
+    aoErro(null);
+    try {
+      await api.patch(`/rh/vagas/${vaga.id}/perfil-ideal`, {
+        reqPercD: limitar(d), reqPercI: limitar(i), reqPercS: limitar(s), reqPercC: limitar(c),
+      });
+      setOk(true);
+      aoSalvar();
+    } catch {
+      aoErro('Não foi possível salvar o perfil ideal da vaga.');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const campoNum: React.CSSProperties = {
+    width: 60, background: 'var(--superficie-2)', border: '1px solid var(--borda-forte)',
+    borderRadius: 8, padding: '6px 8px', color: 'var(--texto)', fontSize: 13, outline: 'none', textAlign: 'center',
+  };
+  const par: [string, number, (n: number) => void][] = [
+    ['D', d, setD], ['I', i, setI], ['S', s, setS], ['C', c, setC],
+  ];
+
+  return (
+    <div style={{ background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 12, padding: 12, marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--texto-suave)' }}>Perfil ideal DISC (Job Fit):</span>
+      {par.map(([rot, val, set]) => (
+        <label key={rot} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--texto-suave)' }}>
+          <strong>{rot}</strong>
+          <input type="number" min={0} max={100} value={val} style={campoNum}
+            onChange={(e) => set(limitar(Number(e.target.value)))} aria-label={`Percentil ideal ${rot}`} />
+        </label>
+      ))}
+      <BotaoSecundario onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar perfil ideal'}</BotaoSecundario>
+      {ok && <span style={{ fontSize: 12, color: '#67e0a3' }}>Salvo ✓</span>}
+    </div>
   );
 }
 

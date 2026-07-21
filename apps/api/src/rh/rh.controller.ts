@@ -19,6 +19,7 @@ import { RhService } from './rh.service';
 import { CriarVagaDto } from './dto/criar-vaga.dto';
 import { CriarCandidatoDto } from './dto/criar-candidato.dto';
 import { MoverStatusCandidatoDto } from './dto/mover-status-candidato.dto';
+import { PerfilIdealVagaDto } from './dto/perfil-ideal-vaga.dto';
 
 @Controller('rh')
 @UseGuards(JwtAuthGuard)
@@ -37,6 +38,18 @@ export class RhController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
   criarVaga(@Body() dto: CriarVagaDto) {
     return this.rhService.criarVaga(dto);
+  }
+
+  // PATCH /rh/vagas/:id/perfil-ideal — define o Perfil Ideal DISC da vaga
+  // (Job Fit) — Admin/Superadmin.
+  @Patch('vagas/:id/perfil-ideal')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  definirPerfilIdeal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PerfilIdealVagaDto,
+  ) {
+    return this.rhService.definirPerfilIdeal(id, dto);
   }
 
   // GET /rh/candidatos — lista os candidatos (filtros opcionais por vaga e
