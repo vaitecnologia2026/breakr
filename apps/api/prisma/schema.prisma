@@ -1036,6 +1036,13 @@ model Conteudo {
   avaliacoes Avaliacao[]
   reworkLogs ReworkLog[]
 
+  // Peca originada de um material de campanha (Briefing Marketing): ao criar o
+  // material nasce esta peca. Guarda o vinculo persistente para exibir o estagio
+  // da campanha dentro da peca. SetNull: apagar a campanha/material NAO apaga a
+  // peca, apenas solta o vinculo (nada destrutivo). Nullable/unique = 1:1 opcional.
+  materialCampanhaId String?           @unique @map("material_campanha_id")
+  materialCampanha   MaterialCampanha? @relation("ConteudoOrigemMaterial", fields: [materialCampanhaId], references: [id], onDelete: SetNull)
+
   @@index([clienteId])
   @@index([status])
   @@index([squadId])
@@ -1478,6 +1485,10 @@ model MaterialCampanha {
 
   responsavelId String?  @map("responsavel_id")
   responsavel   Usuario? @relation("MaterialResponsavel", fields: [responsavelId], references: [id])
+
+  // Peca de Producao de Conteudo originada deste material (vinculo 1:1, semeado na
+  // criacao do material). Back-relation de Conteudo.materialCampanha.
+  conteudo Conteudo? @relation("ConteudoOrigemMaterial")
 
   @@index([campanhaId])
   @@index([status])

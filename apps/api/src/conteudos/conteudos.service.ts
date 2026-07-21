@@ -4,7 +4,7 @@
 // criacao/transicao dispara o motor; ao ir para APROVACAO_CLIENTE o CS e
 // notificado para acompanhar a aprovacao no portal.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Conteudo, Prisma, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { Conteudo, Prisma, StatusConteudo, StatusEstrategia, StatusMaterial, TipoConteudo } from '@prisma/client';
 import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
@@ -86,16 +86,49 @@ export class ConteudosService {
     });
   }
 
-  // Busca uma peca pelo id (com as relacoes amigaveis).
+  // Busca uma peca pelo id (com as relacoes amigaveis). Quando a peca nasceu de um
+  // material de campanha, anexa um resumo da campanha vinculada (nome, situacao, o
+  // estagio deste material no pipeline e o progresso) para a Producao de Conteudo
+  // mostrar "em que nivel a campanha esta". Peca sem vinculo => campanhaVinculada null.
   async obter(id: string): Promise<Conteudo> {
     const conteudo = await this.prisma.conteudo.findUnique({
       where: { id },
-      include: INCLUDE_PADRAO,
+      include: {
+        ...INCLUDE_PADRAO,
+        materialCampanha: {
+          select: {
+            status: true,
+            campanha: {
+              select: {
+                id: true,
+                nome: true,
+                situacao: true,
+                codigoUnico: true,
+                materiais: { select: { status: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!conteudo) {
       throw new NotFoundException('Conteudo nao encontrado');
     }
-    return conteudo;
+    const { materialCampanha, ...rest } = conteudo;
+    const campanhaVinculada = materialCampanha?.campanha
+      ? {
+          campanhaId: materialCampanha.campanha.id,
+          nome: materialCampanha.campanha.nome,
+          situacao: materialCampanha.campanha.situacao,
+          codigoUnico: materialCampanha.campanha.codigoUnico,
+          materialStatus: materialCampanha.status,
+          totalMateriais: materialCampanha.campanha.materiais.length,
+          materiaisConcluidos: materialCampanha.campanha.materiais.filter(
+            (m) => m.status === StatusMaterial.CONCLUIDO,
+          ).length,
+        }
+      : null;
+    return { ...rest, campanhaVinculada } as unknown as Conteudo;
   }
 
   // Edita as informacoes da peca (titulo, tipo, descricao, midia, trafego,
