@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import {
   PaginaShell,
@@ -517,6 +518,24 @@ function CardConteudo({
   // Com o modal de detalhes/edição aberto, o card não pode ser arrastado — evita
   // que a seleção de texto nos inputs dispare o drag (mesma regra do editor de mídia).
   const podeArrastar = !movendo && !editMidia && !detalheAberto;
+  // Exclusao definitiva da peca — restrita a ADMIN/SUPERADMIN (o time de producao
+  // usa "Arquivado"). Backend valida o cargo; aqui so mostramos o botao a eles.
+  const { usuario } = useAuth();
+  const podeExcluir = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
+
+  async function excluir() {
+    if (movendo) return;
+    if (!window.confirm('Excluir esta peça definitivamente? Esta ação não pode ser desfeita.')) return;
+    setMovendo(true);
+    aoErroAcao(null);
+    try {
+      await api.delete(`/conteudos/${conteudo.id}`);
+      aoAtualizar();
+    } catch {
+      aoErroAcao('Não foi possível excluir a peça.');
+      setMovendo(false);
+    }
+  }
 
   async function mover(novo: StatusConteudo) {
     if (movendo || novo === conteudo.status) return;
@@ -739,6 +758,18 @@ function CardConteudo({
           style={{ fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--texto-suave)', cursor: movendo ? 'default' : 'pointer', textAlign: 'left' }}
         >
           {conteudo.midiaUrl ? '🎬 Editar mídia' : '🎬 Anexar mídia'}
+        </button>
+      )}
+
+      {podeExcluir && (
+        <button
+          type="button"
+          onClick={excluir}
+          disabled={movendo}
+          title="Excluir peça definitivamente"
+          style={{ fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--borda)', background: 'transparent', color: 'var(--vermelho)', cursor: movendo ? 'default' : 'pointer', textAlign: 'left' }}
+        >
+          🗑 Excluir peça
         </button>
       )}
 

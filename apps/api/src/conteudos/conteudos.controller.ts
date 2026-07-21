@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -227,5 +228,15 @@ export class ConteudosController {
     const base = `${req.protocol}://${req.get('host')}`;
     const url = `${base}/uploads/${nomeArquivo}`;
     return this.conteudosService.atualizarMidia(id, url);
+  }
+
+  // DELETE /conteudos/:id — exclui a peca definitivamente (avaliacoes e reworkLogs
+  // sao removidos em cascata pelo schema). Acao destrutiva restrita a ADMIN/
+  // SUPERADMIN; o time de producao continua usando "Arquivado" para encerrar.
+  @Delete(':id')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN)
+  remover(@Param('id', ParseUUIDPipe) id: string) {
+    return this.conteudosService.remover(id);
   }
 }

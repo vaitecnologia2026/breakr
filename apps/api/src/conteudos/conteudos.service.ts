@@ -182,6 +182,20 @@ export class ConteudosService {
     return this.obter(id);
   }
 
+  // Exclui a peca definitivamente. Avaliacoes e reworkLogs sao removidos em cascata
+  // (relacao onDelete: Cascade no schema). Restrito a ADMIN/SUPERADMIN pelo controller.
+  async remover(id: string): Promise<{ ok: true }> {
+    const existe = await this.prisma.conteudo.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existe) {
+      throw new NotFoundException('Peca de conteudo nao encontrada');
+    }
+    await this.prisma.conteudo.delete({ where: { id } });
+    return { ok: true };
+  }
+
   // Resolve o membro do squad do cliente por funcao (ex.: DESIGNER, ESTRATEGISTA).
   private async membroDoSquad(
     clienteId: string,
