@@ -1169,31 +1169,31 @@ model Vaga {
 
 /// Candidato a uma vaga. Percorre o funil de recrutamento.
 model Candidato {
-  id           String          @id @default(uuid())
-  nome         String
-  email        String?
-  telefone     String?
-  status       StatusCandidato @default(INSCRITO)
-  perfilDisc   String?         @map("perfil_disc") // resultado do teste DISC (resumo textual)
+  id               String          @id @default(uuid())
+  nome             String
+  email            String?
+  telefone         String?
+  status           StatusCandidato @default(INSCRITO)
+  perfilDisc       String?         @map("perfil_disc") // resultado do teste DISC (resumo textual)
   // Resultado DISC computado (modelo do documento): 3 gráficos (adaptado/natural/
   // combinado), percentis, anomalia e perfil primário/secundário. Aditivo, nullable.
-  discResultado Json?          @map("disc_resultado")
-  curriculoUrl String?         @map("curriculo_url")
-  observacao   String?
+  discResultado    Json?           @map("disc_resultado")
+  curriculoUrl     String?         @map("curriculo_url")
+  observacao       String?
   // Tags do banco de talentos (ex.: "forte", "reavaliacao") — req. l.431.
-  tags         String?
+  tags             String?
   // Source of Hire (inspirado no InHire): origem da candidatura
   // (ex.: "Página de Carreiras", "Indicação", "LinkedIn", "Manual") e, quando
   // indicado, o colaborador/e-mail que indicou. Aditivos — opcionais.
-  origem       String?
-  indicadoPor  String?         @map("indicado_por")
+  origem           String?
+  indicadoPor      String?         @map("indicado_por")
   // Triagem com IA (Fit): nível, pontuação (0-100), justificativa e data.
-  fitNivel        FitIA?    @map("fit_nivel")
-  fitPontuacao    Int?      @map("fit_pontuacao")
-  fitJustificativa String?  @map("fit_justificativa")
-  fitAvaliadoEm   DateTime? @map("fit_avaliado_em")
-  criadoEm     DateTime        @default(now()) @map("criado_em")
-  atualizadoEm DateTime        @updatedAt @map("atualizado_em")
+  fitNivel         FitIA?          @map("fit_nivel")
+  fitPontuacao     Int?            @map("fit_pontuacao")
+  fitJustificativa String?         @map("fit_justificativa")
+  fitAvaliadoEm    DateTime?       @map("fit_avaliado_em")
+  criadoEm         DateTime        @default(now()) @map("criado_em")
+  atualizadoEm     DateTime        @updatedAt @map("atualizado_em")
 
   vagaId String @map("vaga_id")
   vaga   Vaga   @relation(fields: [vagaId], references: [id], onDelete: Cascade)
@@ -1209,13 +1209,13 @@ model Candidato {
 /// variáveis na sintaxe {{campo}} ou {{campo;tipo}} que são substituídas por
 /// valores ao gerar a carta de um candidato. Aditivo — módulo próprio de oferta.
 model CartaOfertaTemplate {
-  id           String        @id @default(uuid())
+  id           String   @id @default(uuid())
   nome         String
   assunto      String?
-  conteudo     String        @db.Text
-  ativo        Boolean       @default(true)
-  criadoEm     DateTime      @default(now()) @map("criado_em")
-  atualizadoEm DateTime      @updatedAt @map("atualizado_em")
+  conteudo     String   @db.Text
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   cartas CartaOferta[]
 
@@ -2092,4 +2092,31 @@ model Agendamento {
   @@index([responsavelId])
   @@index([inicio])
   @@map("agendamento")
+}
+
+// ─── Marketing: Personas (avatar do público-alvo) — inspirado no eKyte ───────
+// Módulo aditivo e isolado: sem relação formal com Cliente/Usuario (guardamos
+// apenas os ids como escalares) para não impactar os models existentes.
+model Persona {
+  id             String   @id @default(uuid())
+  nome           String
+  clienteId      String?  @map("cliente_id")
+  // Demografia
+  genero         String? // Feminino | Masculino | Todos
+  idade          String? // faixa etária (texto livre, ex.: "25-34")
+  relacionamento String?
+  classeSocial   String?  @map("classe_social")
+  localizacao    String?
+  formacao       String?
+  ocupacao       String?
+  // Comportamento
+  decisaoCompra  String?  @map("decisao_compra")
+  comentarios    String?
+  ativo          Boolean  @default(true)
+  criadoPorId    String?  @map("criado_por_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  @@index([clienteId])
+  @@map("persona")
 }

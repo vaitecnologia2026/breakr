@@ -202,6 +202,7 @@ const GRUPOS: NavGroup[] = [
       { para: '/trafego',   rotulo: 'Tráfego Pago', icone: <IcoTrendingUp /> },
       { para: '/otimizacoes', rotulo: 'Otimizações', icone: <IcoZap /> },
       { para: '/gestao-publicos', rotulo: 'Gestão de Públicos', icone: <IcoUsers /> },
+      { para: '/personas', rotulo: 'Personas', icone: <IcoUsers /> },
       { para: '/laboratorio-criativos', rotulo: 'Laboratório de Criativos', icone: <IcoImage /> },
     ],
   },

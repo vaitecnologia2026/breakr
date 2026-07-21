@@ -64,6 +64,7 @@ import { TemplatesCampanhaModule } from './templates-campanha/templates-campanha
 import { DashboardMarketingModule } from './dashboard-marketing/dashboard-marketing.module';
 import { MetricasMarketingModule } from './metricas-marketing/metricas-marketing.module';
 import { ReceitaModule } from './receita/receita.module';
+import { PersonasModule } from './personas/personas.module';
 
 @Module({
   imports: [
@@ -167,6 +168,8 @@ import { ReceitaModule } from './receita/receita.module';
     MetricasMarketingModule,
     // Consulta de CNPJ (ReceitaWS) — auto-preenchimento do Cadastro Completo.
     ReceitaModule,
+    // Marketing — Personas (avatar do público-alvo, inspirado no eKyte).
+    PersonasModule,
   ],
 })
 export class AppModule {}
