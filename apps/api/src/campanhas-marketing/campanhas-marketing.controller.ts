@@ -26,6 +26,17 @@ import { DecidirAprovacaoInternaDto } from './dto/decidir-aprovacao-interna.dto'
 const CARGOS_GESTAO = [Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.ESTRATEGISTA, Cargo.CS] as const;
 // Departamentos que dao o aval interdepartamental (Secao 8): Gestao (ADMIN) e Financeiro.
 const CARGOS_APROVACAO_INTERNA = [Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.FINANCEIRO] as const;
+// Quem move/reatribui um material no board — mesmo time de producao ja validado no
+// board de Conteudos (Producao de Conteudo): coordenacao + CS + execucao (copy/design/video).
+const CARGOS_PRODUCAO_MATERIAL = [
+  Cargo.SUPERADMIN,
+  Cargo.ADMIN,
+  Cargo.ESTRATEGISTA,
+  Cargo.CS,
+  Cargo.COPYWRITER,
+  Cargo.DESIGNER,
+  Cargo.EDITOR_VIDEO,
+] as const;
 
 @Controller('campanhas-marketing')
 @UseGuards(JwtAuthGuard)
@@ -41,7 +52,7 @@ export class CampanhasMarketingController {
   // Rotas de material vem ANTES de :id para nao colidir com o param.
   @Patch('materiais/:materialId')
   @UseGuards(CargosGuard)
-  @Cargos(...CARGOS_GESTAO)
+  @Cargos(...CARGOS_PRODUCAO_MATERIAL)
   atualizarMaterial(
     @Param('materialId', ParseUUIDPipe) materialId: string,
     @Body() dto: AtualizarMaterialDto,
