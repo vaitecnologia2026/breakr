@@ -2,7 +2,7 @@
 // Cada campanha reune materiais que percorrem o pipeline de status. Aditivo e
 // isolado do dominio de trafego pago (model Campanha).
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { StatusMaterial } from '@prisma/client';
+import { StatusMaterial, StatusConteudo, TipoConteudo } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodigoUnicoService } from '../common/codigo-unico/codigo-unico.service';
@@ -117,16 +117,55 @@ export class CampanhasMarketingService {
   // Adiciona um material (tarefa) a campanha — status inicial PLANEJADO.
   async adicionarMaterial(campanhaId: string, dto: CriarMaterialDto) {
     await this.garantirCampanha(campanhaId);
-    return this.prisma.materialCampanha.create({
-      data: {
-        campanhaId,
-        titulo: dto.titulo.trim(),
-        tipo: dto.tipo,
-        destino: dto.destino ?? 'TRAFEGO_PAGO',
-        responsavelId: dto.responsavelId,
-        prazo: this.data(dto.prazo),
-      },
+    // Dados de cliente/squad da campanha para semear a peca correspondente no board
+    // de Producao de Conteudo (Conteudo). Vinculo de mao-unica: ao criar o material,
+    // nasce tambem uma peca (status inicial IDEIA) para o mesmo cliente.
+    const campanha = await this.prisma.campanhaMarketing.findUnique({
+      where: { id: campanhaId },
+      select: { clienteId: true, squadId: true },
     });
+    if (!campanha) {
+      throw new NotFoundException('Campanha nao encontrada');
+    }
+    // Squad: usa o da campanha; se nao houver, cai para o squad do cliente (mesma
+    // blindagem do board de Conteudo).
+    let squadId = campanha.squadId ?? undefined;
+    if (!squadId) {
+      const cliente = await this.prisma.cliente.findUnique({
+        where: { id: campanha.clienteId },
+        select: { squadId: true },
+      });
+      squadId = cliente?.squadId ?? undefined;
+    }
+    const destino = dto.destino ?? 'TRAFEGO_PAGO';
+    const titulo = dto.titulo.trim();
+    // Cria o material e a peca de conteudo de forma atomica (ou os dois, ou nenhum).
+    const [material] = await this.prisma.$transaction([
+      this.prisma.materialCampanha.create({
+        data: {
+          campanhaId,
+          titulo,
+          tipo: dto.tipo,
+          destino,
+          responsavelId: dto.responsavelId,
+          prazo: this.data(dto.prazo),
+        },
+      }),
+      this.prisma.conteudo.create({
+        data: {
+          clienteId: campanha.clienteId,
+          titulo,
+          tipo: TipoConteudo.POST,
+          descricao: dto.tipo ?? undefined,
+          squadId,
+          responsavelId: dto.responsavelId,
+          paraTrafego: destino === 'TRAFEGO_PAGO',
+          status: StatusConteudo.IDEIA,
+          codigoUnico: this.codigoUnico.gerar('CNT'),
+        },
+      }),
+    ]);
+    return material;
   }
 
   // Atualiza um material — inclui a transicao de status do pipeline. Quando o
