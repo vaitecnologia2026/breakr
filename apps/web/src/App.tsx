@@ -81,6 +81,7 @@ import { Otimizacoes } from './pages/Otimizacoes';
 import { GestaoPublicos } from './pages/GestaoPublicos';
 import { LaboratorioCriativos } from './pages/LaboratorioCriativos';
 import { Personas } from './pages/Personas';
+import { ModelosMensagem } from './pages/ModelosMensagem';
 import { ProcessosJuridicos } from './pages/ProcessosJuridicos';
 
 export function App() {
@@ -146,6 +147,7 @@ export function App() {
         <Route path="gestao-publicos" element={<GestaoPublicos />} />
         <Route path="laboratorio-criativos" element={<LaboratorioCriativos />} />
         <Route path="personas" element={<Personas />} />
+        <Route path="modelos-mensagem" element={<ModelosMensagem />} />
         <Route path="processos-juridicos" element={<ProcessosJuridicos />} />
         <Route path="qualidade" element={<Qualidade />} />
         <Route path="trafego" element={<Trafego />} />
