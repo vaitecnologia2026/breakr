@@ -8,6 +8,7 @@ import { IaService } from '../ia/ia.service';
 import { CriarVagaDto } from './dto/criar-vaga.dto';
 import { CriarCandidatoDto } from './dto/criar-candidato.dto';
 import { CandidatarPublicoDto } from './dto/candidatar-publico.dto';
+import { PerfilIdealVagaDto } from './dto/perfil-ideal-vaga.dto';
 
 @Injectable()
 export class RhService {
@@ -25,6 +26,24 @@ export class RhService {
         departamento: dto.departamento,
         descricao: dto.descricao,
         codigoUnico: this.codigoUnico.gerar('VAGA'),
+      },
+    });
+  }
+
+  // Define/atualiza o Perfil Ideal DISC da vaga (Job Fit). Aditivo — só grava os
+  // campos reqPerc* informados. Valida que a vaga existe.
+  async definirPerfilIdeal(id: string, dto: PerfilIdealVagaDto): Promise<Vaga> {
+    const vaga = await this.prisma.vaga.findUnique({ where: { id } });
+    if (!vaga) {
+      throw new NotFoundException('Vaga nao encontrada');
+    }
+    return this.prisma.vaga.update({
+      where: { id },
+      data: {
+        reqPercD: dto.reqPercD,
+        reqPercI: dto.reqPercI,
+        reqPercS: dto.reqPercS,
+        reqPercC: dto.reqPercC,
       },
     });
   }

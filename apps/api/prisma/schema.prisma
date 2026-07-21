@@ -1152,6 +1152,12 @@ model Vaga {
   departamento String?
   descricao    String?
   aberta       Boolean  @default(true)
+  // Perfil ideal DISC da vaga (Job Fit) — percentis 0..100 por dimensão.
+  // Aditivos, nullable; usados na correspondência por distância euclidiana.
+  reqPercD     Int?     @map("req_perc_d")
+  reqPercI     Int?     @map("req_perc_i")
+  reqPercS     Int?     @map("req_perc_s")
+  reqPercC     Int?     @map("req_perc_c")
   codigoUnico  String   @unique @map("codigo_unico")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
