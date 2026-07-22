@@ -512,7 +512,9 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                         onDragStart={(e) => { setArrastandoId(m.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', m.id); }}
                         onDragEnd={() => { setArrastandoId(null); setColunaAlvo(null); }}
                         title="Arraste para mover de coluna"
-                        style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6, cursor: 'grab', opacity: arrastandoId === m.id ? 0.5 : 1 }}
+                        // user-select: auto contorna o bug do Chrome (draggable + user-select:none
+                        // não dispara dragstart no mouse real), garantindo o arraste do card.
+                        style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6, cursor: 'grab', opacity: arrastandoId === m.id ? 0.5 : 1, userSelect: 'auto', WebkitUserSelect: 'auto' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--texto)' }}>{m.titulo}</span>
