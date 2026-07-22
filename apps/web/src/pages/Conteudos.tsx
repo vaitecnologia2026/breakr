@@ -1224,7 +1224,7 @@ function DetalheConteudo({
             {midia ? (
               <>
                 {tm === 'imagem' && (
-                  <img src={midia} alt={`Mídia de ${conteudo.titulo}`} style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
+                  <img src={midia} alt={`Mídia de ${conteudo.titulo}`} style={{ maxWidth: '100%', maxHeight: 340, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--borda)' }} />
                 )}
                 {tm === 'video' && (
                   <video src={midia} controls style={{ maxWidth: '100%', borderRadius: 12, border: '1px solid var(--borda)' }} />
