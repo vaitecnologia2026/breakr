@@ -259,6 +259,8 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
   // Drag-and-drop dos cards entre colunas (aditivo — reusa mudarStatus).
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
+  // Drag-and-drop das COLUNAS (reordenar arrastando — reusa a ordem/endpoint das setas ◀▶).
+  const [arrastandoColunaId, setArrastandoColunaId] = useState<string | null>(null);
   // Gestão das colunas do board (config global). Só admin/superadmin vê os controles.
   const { usuario } = useAuth();
   const podeGerir = usuario?.cargo === 'SUPERADMIN' || usuario?.cargo === 'ADMIN';
@@ -342,6 +344,27 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
       carregarColunas();
     } catch (err) { alert(msgErro(err, 'Não foi possível reordenar a coluna.')); }
   }
+  // Reordena arrastando: solta a coluna de origem na posição da coluna de destino
+  // e regrava a ordem sequencial (mesmo endpoint/campo das setas ◀▶). Só colunas
+  // reais (com id) participam; órfãs (id vazio) são ignoradas.
+  async function reordenarColunaDrag(origemId: string, destino: Coluna) {
+    if (!origemId || !destino.id || origemId === destino.id) return;
+    const ord = [...colunas].sort((a, b) => a.ordem - b.ordem);
+    const from = ord.findIndex((x) => x.id === origemId);
+    const to = ord.findIndex((x) => x.id === destino.id);
+    if (from < 0 || to < 0 || from === to) return;
+    const nova = [...ord];
+    const [movida] = nova.splice(from, 1);
+    nova.splice(to, 0, movida);
+    try {
+      await Promise.all(
+        nova
+          .map((c, i) => (c.ordem === i ? null : api.patch(`/colunas-material/${c.id}`, { ordem: i })))
+          .filter(Boolean) as Promise<unknown>[],
+      );
+      carregarColunas();
+    } catch (err) { alert(msgErro(err, 'Não foi possível reordenar a coluna.')); }
+  }
   async function excluirColuna(c: Coluna) {
     if (!window.confirm(`Excluir a coluna "${c.rotulo}"? Os materiais nela serão movidos para outra coluna.`)) return;
     try { await api.delete(`/colunas-material/${c.id}`); carregarColunas(); carregar(); }
@@ -422,6 +445,15 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (colunaAlvo !== col.chave) setColunaAlvo(col.chave); }}
                   onDrop={(e) => {
                     e.preventDefault();
+                    // Arraste de COLUNA tem prioridade (chave própria no dataTransfer);
+                    // se não for coluna, cai na lógica de card já existente.
+                    const colId = e.dataTransfer.getData('application/x-breakr-coluna') || arrastandoColunaId;
+                    if (colId) {
+                      setColunaAlvo(null);
+                      setArrastandoColunaId(null);
+                      reordenarColunaDrag(colId, col);
+                      return;
+                    }
                     const mid = e.dataTransfer.getData('text/plain') || arrastandoId;
                     setColunaAlvo(null);
                     setArrastandoId(null);
@@ -436,7 +468,18 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                     borderRadius: 8, padding: 8, minWidth: 0,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (podeGerir && col.id) ? 6 : 8, gap: 4 }}>
+                  <div
+                    draggable={!!(podeGerir && col.id)}
+                    onDragStart={podeGerir && col.id ? (e) => {
+                      e.stopPropagation();
+                      setArrastandoColunaId(col.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('application/x-breakr-coluna', col.id);
+                    } : undefined}
+                    onDragEnd={() => { setArrastandoColunaId(null); setColunaAlvo(null); }}
+                    title={(podeGerir && col.id) ? 'Arraste para reordenar a coluna' : undefined}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (podeGerir && col.id) ? 6 : 8, gap: 4, cursor: (podeGerir && col.id) ? 'grab' : 'default' }}
+                  >
                     <span title={col.rotulo} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--texto-suave)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.rotulo}</span>
                     <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flexShrink: 0 }}>{itens.length}</span>
                   </div>
