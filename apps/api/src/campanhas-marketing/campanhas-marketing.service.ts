@@ -207,6 +207,8 @@ export class CampanhasMarketingService {
         responsavelId: dto.responsavelId,
         prazo: dto.prazo !== undefined ? this.data(dto.prazo) : undefined,
         reworkCount: voltouParaAjuste ? { increment: 1 } : undefined,
+        // Modelo de Mensagem do card (undefined = nao mexe; null = limpa a selecao).
+        modeloMensagemId: dto.modeloMensagemId,
       },
     });
   }

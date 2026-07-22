@@ -1490,6 +1490,12 @@ model MaterialCampanha {
   responsavelId String?  @map("responsavel_id")
   responsavel   Usuario? @relation("MaterialResponsavel", fields: [responsavelId], references: [id])
 
+  // Modelo de Mensagem (template de texto) escolhido para este card ser usado na
+  // campanha. Id escalar sem relacao formal (mesmo padrao de criadoPorId em
+  // ModeloMensagem) — mantem o modulo isolado; o front resolve titulo/corpo pela
+  // lista de /modelos-mensagem. Nullable/aditivo.
+  modeloMensagemId String? @map("modelo_mensagem_id")
+
   // Peca de Producao de Conteudo originada deste material (vinculo 1:1, semeado na
   // criacao do material). Back-relation de Conteudo.materialCampanha.
   conteudo Conteudo? @relation("ConteudoOrigemMaterial")
