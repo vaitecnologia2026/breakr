@@ -21,6 +21,9 @@ interface Evento {
   convidadosIds?: string[];
   responsavel: { id: string; nome: string; cargo: string; fotoUrl: string | null } | null;
   responsavelId?: string;
+  // Reunião interna do time (tela Reuniões internas): aparece na linha de TODOS os
+  // colaboradores no calendário e é gerida na tela Reuniões internas (não aqui).
+  paraTodos?: boolean;
 }
 
 /* ── Ícones (inline, iguais aos do arquivo) ── */
@@ -126,7 +129,7 @@ export function Agendamento() {
 
   function eventosDe(colId: string, dia: Date) {
     return eventos
-      .filter((e) => (e.responsavel?.id ?? e.responsavelId) === colId && mesmaData(new Date(e.inicio), dia))
+      .filter((e) => (e.paraTodos || (e.responsavel?.id ?? e.responsavelId) === colId) && mesmaData(new Date(e.inicio), dia))
       .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
   }
 
@@ -361,7 +364,7 @@ export function Agendamento() {
             {novo.tipo === 'VIDEO' && (
               <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)', display: 'flex', alignItems: 'center', gap: 6, marginTop: -4 }}>
                 <span style={{ color: 'var(--verde)', display: 'flex' }}><IcoVideo /></span>
-                Um link do Google Meet será gerado automaticamente (se a integração do Google Agenda estiver configurada).
+                Um link de Meet será gerado automaticamente.
               </span>
             )}
             <Switch ativo={novo.comCliente} aoAlternar={(v) => setNovo((n) => ({ ...n, comCliente: v }))} rotulo="Reunião com cliente" />
@@ -377,9 +380,9 @@ export function Agendamento() {
       {/* Modal detalhe */}
       {detalhe && (
         <Modal titulo={detalhe.titulo} onFechar={() => setDetalhe(null)}
-          rodape={<><Btn variante="secondary" onClick={() => setDetalhe(null)}>Fechar</Btn><Btn variante="danger" onClick={() => excluir(detalhe.id)}>Excluir</Btn></>}>
+          rodape={<><Btn variante="secondary" onClick={() => setDetalhe(null)}>Fechar</Btn>{!detalhe.paraTodos && <Btn variante="danger" onClick={() => excluir(detalhe.id)}>Excluir</Btn>}</>}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13.5, color: 'var(--texto-suave)' }}>
-            <div><b style={{ color: 'var(--texto)' }}>Colaborador:</b> {detalhe.responsavel?.nome ?? '—'}</div>
+            <div><b style={{ color: 'var(--texto)' }}>Colaborador:</b> {detalhe.paraTodos ? 'Reunião do time (todos os colaboradores)' : (detalhe.responsavel?.nome ?? '—')}</div>
             {detalhe.convidadosIds && detalhe.convidadosIds.length > 0 && (
               <div><b style={{ color: 'var(--texto)' }}>Convidados:</b> {detalhe.convidadosIds.map((id) => colaboradores.find((c) => c.id === id)?.nome ?? id).join(', ')}</div>
             )}
@@ -390,7 +393,7 @@ export function Agendamento() {
             {detalhe.meetLink && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ color: 'var(--verde)', display: 'flex' }}><IcoVideo /></span>
-                <b style={{ color: 'var(--texto)' }}>Google Meet:</b>
+                <b style={{ color: 'var(--texto)' }}>Meet:</b>
                 <a href={detalhe.meetLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--azul)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detalhe.meetLink}</a>
               </div>
             )}
@@ -441,7 +444,7 @@ function VistaMes({ dias, mesAtual, hoje, eventos, visiveis, cores, onDia, onEve
           const foraDoMes = d.getMonth() !== mesAtual;
           const eHoje = mesmaData(d, hoje);
           const doDia = eventos
-            .filter((e) => visiveis.has(e.responsavel?.id ?? e.responsavelId ?? '') && mesmaData(new Date(e.inicio), d))
+            .filter((e) => (e.paraTodos || visiveis.has(e.responsavel?.id ?? e.responsavelId ?? '')) && mesmaData(new Date(e.inicio), d))
             .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
           return (
             <div key={i} onClick={() => onDia(d)}
