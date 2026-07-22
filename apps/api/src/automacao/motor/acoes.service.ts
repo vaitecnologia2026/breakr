@@ -2,6 +2,7 @@
 // um `tipo` string; uma regra lista as acoes que executa. Extensivel: registrar
 // uma acao nova = adicionar uma entrada no catalogo (sem mexer no dispatcher).
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { dataIsoSaoPaulo } from '../../common/data.util';
@@ -10,7 +11,6 @@ import { SquadsService } from '../../squads/squads.service';
 import {
   ASAAS_PORT, AsaasPort,
   AUTENTIQUE_PORT, AutentiquePort,
-  GOOGLE_MEET_PORT, GoogleMeetPort,
   WHATSAPP_PORT, WhatsappPort,
 } from '../../integracoes';
 import { Acao, ContextoExecucao, ResultadoAcao } from './tipos';
@@ -32,9 +32,25 @@ export class AcoesService {
     @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
     @Inject(ASAAS_PORT) private readonly asaas: AsaasPort,
     @Inject(AUTENTIQUE_PORT) private readonly autentique: AutentiquePort,
-    @Inject(GOOGLE_MEET_PORT) private readonly googleMeet: GoogleMeetPort,
   ) {
     this.registrarPadrao();
+  }
+
+  // Monta a URL da sala no Jitsi (meet-breakr.vaitecnologia.com.br). A sala e
+  // criada ao acessar a URL (VirtualHost anonimo), entao geramos um nome unico e
+  // URL-safe: breakr-<slug do titulo>-<sufixo aleatorio>. Base configuravel por env.
+  private gerarLinkJitsi(titulo: string): string {
+    const base = (process.env.JITSI_BASE_URL ?? 'https://meet-breakr.vaitecnologia.com.br').replace(/\/+$/, '');
+    const slug =
+      (titulo || 'reuniao')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40)
+        .toLowerCase() || 'reuniao';
+    const sufixo = randomUUID().replace(/-/g, '').slice(0, 8);
+    return `${base}/breakr-${slug}-${sufixo}`;
   }
 
   /** Tipos de acao disponiveis — o front usa para montar regras. */
@@ -312,7 +328,7 @@ export class AcoesService {
       return { autentiqueId: doc.id, linkAssinatura: doc.linkAssinatura, status: doc.status };
     });
 
-    // criar_meet_comercial: cria reunião Google Meet para o lead e salva link na observacao.
+    // criar_meet_comercial: cria sala Jitsi (meet-breakr) para o lead e salva link na observacao.
     // Params: titulo (opcional), duracaoMinutos (padrão 60), inicio (ISO datetime, padrão +1 dia 10h).
     // Requer payload.leadId.
     this.catalogo.set('criar_meet_comercial', async (params, ctx) => {
@@ -332,22 +348,17 @@ export class AcoesService {
         String(params.titulo ?? 'Demo Breakr — {{leadNome}}'),
         { ...ctx.payload, leadNome: lead.nome },
       );
-      const convidados = lead.email ? [lead.email] : [];
 
-      const result = await this.googleMeet.criarMeet({
-        titulo,
-        inicio,
-        duracaoMinutos: params.duracaoMinutos ? Number(params.duracaoMinutos) : 60,
-        convidados,
-      });
+      // Sala no Jitsi self-hosted (anônimo): criada ao abrir a URL. Substitui o Google Meet.
+      const meetLink = this.gerarLinkJitsi(titulo);
 
-      const obs = `[Meet] ${result.meetLink} | ${new Date(inicio).toLocaleString('pt-BR')}`;
+      const obs = `[Meet] ${meetLink} | ${new Date(inicio).toLocaleString('pt-BR')}`;
       await this.prisma.lead.update({
         where: { id: leadId },
         data: { observacao: lead.observacao ? `${lead.observacao}\n${obs}` : obs },
       });
 
-      return { meetLink: result.meetLink, eventoId: result.eventoId };
+      return { meetLink, eventoId: null };
     });
 
     // analisar_meta_ads: aciona sugestao de IA sobre metricas de campanha.

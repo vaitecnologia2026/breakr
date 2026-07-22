@@ -1,0 +1,53 @@
+/* ============================================================
+   Branding Breakr — tela inicial do Jitsi (design system Breakr)
+   Paleta: Preto Fumaca (#0F0D05) + gradiente brasa. Fonte: Lexend.
+   Escopo restrito a .welcome / .welcome-page para NAO afetar a reuniao.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap');
+
+/* Fonte institucional Lexend na tela inicial */
+.welcome,
+.welcome-page,
+.welcome .header-text-title,
+.welcome .header-text-subtitle,
+.welcome-page-button,
+.enter-room-input {
+    font-family: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Fundo geral da tela inicial: Preto Fumaca */
+.welcome,
+.welcome-page {
+    background-color: #0F0D05 !important;
+}
+
+/* Cabecalho com o gradiente brasa da marca */
+.welcome .header,
+.welcome-page .header {
+    background: linear-gradient(135deg, #94122C 0%, #CA3F17 55%, #FF9406 100%) !important;
+}
+
+/* Titulo e subtitulo em Cinza Vapor */
+.welcome .header-text-title,
+.welcome .header-text-subtitle {
+    color: #F3F4F7 !important;
+}
+
+/* Botao principal "Iniciar reuniao" com gradiente brasa */
+.welcome-page-button {
+    background: linear-gradient(135deg, #94122C 0%, #CA3F17 55%, #FF9406 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+}
+.welcome-page-button:hover {
+    filter: brightness(1.07);
+}
+
+/* Logo Breakr no topo (watermark) com dimensao adequada */
+.welcome-watermark,
+.welcome-watermark .watermark {
+    max-width: 180px;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: contain !important;
+}
