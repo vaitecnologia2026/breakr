@@ -1000,16 +1000,17 @@ function DetalheConteudo({
         style={{
           width: 'min(560px, 94vw)',
           maxHeight: '88vh',
-          overflowY: 'auto',
           background: 'var(--superficie)',
           borderRadius: 18,
-          padding: 24,
           boxShadow: 'var(--sombra-card)',
+          // A borda em gradiente (::before) fica no container externo SEM scroll, para
+          // acompanhar todo o modal; a rolagem vai para o wrapper interno abaixo.
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          gap: 18,
         }}
       >
+        <div style={{ overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* Cabeçalho: título + tipo + código + fechar */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1258,6 +1259,7 @@ function DetalheConteudo({
               <BotaoPrimario onClick={() => setEditando(true)}>Editar</BotaoPrimario>
             </>
           )}
+        </div>
         </div>
       </div>
     </Overlay>
