@@ -135,7 +135,7 @@ export function Reunioes() {
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--texto-suave)', cursor: 'pointer' }}>
             <input type="checkbox" checked={gerarMeet} onChange={(e) => setGerarMeet(e.target.checked)} />
-            Gerar link do Google Meet
+            Gerar link do meet
           </label>
           <div>
             <BotaoPrimario onClick={adicionar} disabled={salvando || !titulo.trim() || !data}>
