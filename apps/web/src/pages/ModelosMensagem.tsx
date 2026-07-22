@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { api } from '../lib/api';
+import { api, TOKEN_KEY } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import {
   PaginaShell,
@@ -72,6 +72,87 @@ function BtnTB({ titulo, onClick, children }: { titulo: string; onClick: () => v
   );
 }
 
+// Modal "Importar do computador": escolhe imagem, vídeo, áudio ou arquivo, envia para
+// POST /midia/upload e devolve { url, mimetype, nome } para o editor inserir por referência.
+function ModalMidia({ aoFechar, aoInserir }: { aoFechar: () => void; aoInserir: (m: { url: string; mimetype: string; nome: string }) => void }) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const inpRef = useRef<HTMLInputElement>(null);
+
+  function escolher(accept: string) {
+    setErro(null);
+    if (inpRef.current) { inpRef.current.accept = accept; inpRef.current.value = ''; inpRef.current.click(); }
+  }
+  async function aoSelecionar() {
+    const file = inpRef.current?.files?.[0];
+    if (!file) return;
+    setEnviando(true); setErro(null);
+    try {
+      const fd = new FormData();
+      fd.append('arquivo', file);
+      const token = localStorage.getItem(TOKEN_KEY);
+      const base = api.defaults.baseURL ?? '';
+      const resp = await fetch(`${base}/midia/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd,
+      });
+      if (!resp.ok) {
+        const t = (await resp.json().catch(() => ({}))) as { message?: string | string[] };
+        const msg = Array.isArray(t.message) ? t.message.join(' ') : t.message;
+        throw new Error(msg || 'Falha no upload.');
+      }
+      const data = (await resp.json()) as { url: string; mimetype: string; nome: string };
+      aoInserir(data);
+      aoFechar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível enviar o arquivo.');
+    } finally { setEnviando(false); }
+  }
+
+  const OPCOES: { rotulo: string; accept: string; icone: string }[] = [
+    { rotulo: 'Imagem', accept: 'image/*', icone: '🖼️' },
+    { rotulo: 'Vídeo', accept: 'video/*', icone: '🎬' },
+    { rotulo: 'Áudio', accept: 'audio/*', icone: '🎵' },
+    { rotulo: 'Arquivo', accept: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv', icone: '📎' },
+  ];
+
+  return (
+    <div className="brk-overlay" style={{ zIndex: 60 }} onClick={(e) => { if (e.target === e.currentTarget && !enviando) aoFechar(); }}>
+      <div className="brk-modal" style={{ maxWidth: 460 }}>
+        <div className="brk-modal-header">
+          <h2 className="brk-modal-titulo">Importar do computador</h2>
+          <button className="brk-modal-fechar" onClick={aoFechar} disabled={enviando}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+        <div className="brk-modal-body">
+          <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', margin: '0 0 12px' }}>
+            Escolha o que enviar do seu computador (imagem, vídeo, áudio ou arquivo). Máximo 20 MB.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {OPCOES.map((o) => (
+              <button
+                key={o.rotulo}
+                type="button"
+                disabled={enviando}
+                onClick={() => escolher(o.accept)}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '18px 10px', borderRadius: 10, border: '1px solid var(--borda)', background: 'var(--superficie-2)', color: 'var(--texto)', cursor: enviando ? 'default' : 'pointer', fontSize: 13, fontWeight: 600 }}
+              >
+                <span style={{ fontSize: 26 }} aria-hidden="true">{o.icone}</span>
+                {o.rotulo}
+              </button>
+            ))}
+          </div>
+          {enviando && <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 12 }}>Enviando…</p>}
+          {erro && <p style={{ fontSize: 12.5, color: '#e2738a', marginTop: 12 }}>{erro}</p>}
+          <input ref={inpRef} type="file" style={{ display: 'none' }} onChange={aoSelecionar} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Editor de texto rico (contenteditable + execCommand) com a barra de ferramentas do wireframe.
 // Aditivo e isolado: produz HTML, sem dependência externa. `valorInicial` só na montagem
 // (evita resetar o cursor); `aoMudar` devolve o HTML atual.
@@ -80,6 +161,8 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
   const corRef = useRef<HTMLInputElement>(null);
   const marcaRef = useRef<HTMLInputElement>(null);
   const [emojiAberto, setEmojiAberto] = useState(false);
+  const [midiaAberto, setMidiaAberto] = useState(false);
+  const selRef = useRef<Range | null>(null);
 
   useEffect(() => {
     if (ref.current) ref.current.innerHTML = valorInicial || '';
@@ -97,6 +180,32 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
     document.execCommand('insertText', false, texto);
     sincronizar();
   }
+  // Guarda a posição do cursor antes de abrir o modal de mídia (o foco vai para o modal).
+  function salvarSelecao() {
+    const sel = window.getSelection();
+    selRef.current =
+      sel && sel.rangeCount > 0 && ref.current && ref.current.contains(sel.anchorNode)
+        ? sel.getRangeAt(0).cloneRange()
+        : null;
+  }
+  function escaparHtml(s: string) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  // Insere a mídia enviada (por URL) na posição salva do cursor, conforme o tipo.
+  function inserirMidia(m: { url: string; mimetype: string; nome: string }) {
+    ref.current?.focus();
+    const sel = window.getSelection();
+    if (selRef.current && sel) { sel.removeAllRanges(); sel.addRange(selRef.current); }
+    const url = m.url;
+    const nome = escaparHtml(m.nome || 'arquivo');
+    let html: string;
+    if (m.mimetype.startsWith('image/')) html = `<img src="${url}" alt="${nome}" />`;
+    else if (m.mimetype.startsWith('video/')) html = `<video src="${url}" controls></video>`;
+    else if (m.mimetype.startsWith('audio/')) html = `<audio src="${url}" controls></audio>`;
+    else html = `<a href="${url}" target="_blank" rel="noreferrer">${nome}</a>`;
+    document.execCommand('insertHTML', false, `${html}<p><br></p>`);
+    sincronizar();
+  }
 
   const EMOJIS = ['😀', '😉', '😍', '😊', '👍', '🙏', '🎉', '🔥', '✅', '⚠️', '❤️', '📌', '📎', '✉️', '🕐', '💡'];
   const SEP = <span style={{ width: 1, height: 20, background: 'var(--borda)', margin: '0 3px', flexShrink: 0 }} />;
@@ -109,7 +218,8 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
         .brk-editor-rico blockquote{border-left:3px solid var(--borda);margin:6px 0;padding:2px 10px;color:var(--texto-suave);}
         .brk-editor-rico ul,.brk-editor-rico ol{padding-left:22px;margin:6px 0;}
         .brk-editor-rico a{color:var(--acento,#2b7fff);}
-        .brk-editor-rico img{max-width:100%;height:auto;}`}</style>
+        .brk-editor-rico img{max-width:100%;height:auto;}
+        .brk-editor-rico video,.brk-editor-rico audio{max-width:100%;margin:4px 0;}`}</style>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', padding: 6, borderBottom: '1px solid var(--borda)', background: 'var(--superficie-2)' }}>
         <select
@@ -153,7 +263,7 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
         {SEP}
         <BtnTB titulo="Inserir link" onClick={() => { const url = window.prompt('URL do link:'); if (url) cmd('createLink', url); }}>🔗</BtnTB>
         <BtnTB titulo="Emoji" onClick={() => setEmojiAberto((v) => !v)}>☺</BtnTB>
-        <BtnTB titulo="Inserir imagem" onClick={() => { const url = window.prompt('URL da imagem:'); if (url) cmd('insertImage', url); }}>🖼️</BtnTB>
+        <BtnTB titulo="Inserir mídia ou arquivo (do computador)" onClick={() => { salvarSelecao(); setMidiaAberto(true); }}>🖼️</BtnTB>
         <BtnTB titulo="Limpar formatação" onClick={() => cmd('removeFormat')}>✧</BtnTB>
 
         {emojiAberto && (
@@ -182,6 +292,8 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
       {/* seletores de cor ocultos (acionados pelos botões da barra) */}
       <input ref={corRef} type="color" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={(e) => cmd('foreColor', e.target.value)} />
       <input ref={marcaRef} type="color" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={(e) => cmd('hiliteColor', e.target.value)} />
+
+      {midiaAberto && <ModalMidia aoFechar={() => setMidiaAberto(false)} aoInserir={inserirMidia} />}
     </div>
   );
 }
