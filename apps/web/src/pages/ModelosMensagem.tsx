@@ -176,6 +176,7 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
   const marcaRef = useRef<HTMLInputElement>(null);
   const [emojiAberto, setEmojiAberto] = useState(false);
   const [midiaAberto, setMidiaAberto] = useState(false);
+  const [telaCheia, setTelaCheia] = useState(false);
   const selRef = useRef<Range | null>(null);
 
   useEffect(() => {
@@ -220,12 +221,56 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
     document.execCommand('insertHTML', false, `${html}<p><br></p>`);
     sincronizar();
   }
+  // Espaçamento entre linhas: execCommand não tem line-height, então aplicamos o estilo
+  // inline nos blocos abrangidos pela seleção (persiste no HTML do corpo). Se o conteúdo
+  // estiver solto na raiz (sem bloco), aplica na raiz do editor como fallback.
+  function aplicarEspacamento(valor: string) {
+    const root = ref.current;
+    if (!root) return;
+    root.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { root.style.lineHeight = valor; sincronizar(); return; }
+    const range = sel.getRangeAt(0);
+    const seletor = 'p,div,h1,h2,h3,h4,li,blockquote,pre';
+    const blocos: HTMLElement[] = [];
+    root.querySelectorAll(seletor).forEach((el) => { if (range.intersectsNode(el)) blocos.push(el as HTMLElement); });
+    // garante o bloco onde o cursor está, mesmo sem seleção expandida
+    let n: Node | null = range.startContainer;
+    while (n && n !== root) {
+      if (n.nodeType === 1 && (n as HTMLElement).matches(seletor)) { if (!blocos.includes(n as HTMLElement)) blocos.push(n as HTMLElement); break; }
+      n = n.parentNode;
+    }
+    if (blocos.length === 0) root.style.lineHeight = valor;
+    else blocos.forEach((b) => { b.style.lineHeight = valor; });
+    sincronizar();
+  }
+  // Insere uma tabela simples (linhas × colunas) na posição do cursor.
+  function inserirTabela() {
+    const linhas = Math.min(20, Math.max(1, parseInt(window.prompt('Número de linhas:', '2') || '2', 10) || 2));
+    const colunas = Math.min(10, Math.max(1, parseInt(window.prompt('Número de colunas:', '2') || '2', 10) || 2));
+    let html = '<table><tbody>';
+    for (let r = 0; r < linhas; r++) {
+      html += '<tr>';
+      for (let c = 0; c < colunas; c++) html += '<td><br></td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+    ref.current?.focus();
+    document.execCommand('insertHTML', false, html);
+    sincronizar();
+  }
 
   const EMOJIS = ['😀', '😉', '😍', '😊', '👍', '🙏', '🎉', '🔥', '✅', '⚠️', '❤️', '📌', '📎', '✉️', '🕐', '💡'];
   const SEP = <span style={{ width: 1, height: 20, background: 'var(--borda)', margin: '0 3px', flexShrink: 0 }} />;
 
   return (
-    <div style={{ border: '1px solid var(--borda)', borderRadius: 8, overflow: 'hidden', background: 'var(--superficie)', position: 'relative' }}>
+    <div
+      style={
+        telaCheia
+          ? { position: 'fixed', inset: 0, zIndex: 80, border: 'none', borderRadius: 0, overflow: 'hidden', background: 'var(--superficie)', display: 'flex', flexDirection: 'column' }
+          : { border: '1px solid var(--borda)', borderRadius: 8, overflow: 'hidden', background: 'var(--superficie)', position: 'relative' }
+      }
+    >
       {/* placeholder do editor via CSS (mostra quando vazio) */}
       <style>{`.brk-editor-rico:empty:before{content:attr(data-ph);color:var(--texto-fraco);}
         .brk-editor-rico:focus{outline:none;}
@@ -233,7 +278,9 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
         .brk-editor-rico ul,.brk-editor-rico ol{padding-left:22px;margin:6px 0;}
         .brk-editor-rico a{color:var(--acento,#2b7fff);}
         .brk-editor-rico img{max-width:100%;height:auto;}
-        .brk-editor-rico video,.brk-editor-rico audio{max-width:100%;margin:4px 0;}`}</style>
+        .brk-editor-rico video,.brk-editor-rico audio{max-width:100%;margin:4px 0;}
+        .brk-editor-rico table{border-collapse:collapse;margin:6px 0;}
+        .brk-editor-rico td,.brk-editor-rico th{border:1px solid var(--borda);padding:4px 8px;min-width:44px;vertical-align:top;}`}</style>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', padding: 6, borderBottom: '1px solid var(--borda)', background: 'var(--superficie-2)' }}>
         <select
@@ -260,6 +307,20 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
           <option value="5">Grande</option>
           <option value="6">Enorme</option>
         </select>
+        <select
+          title="Espaçamento entre linhas"
+          value=""
+          onMouseDown={(e) => e.stopPropagation()}
+          onChange={(e) => { if (e.target.value) aplicarEspacamento(e.target.value); }}
+          style={{ height: 30, borderRadius: 6, border: '1px solid var(--borda)', background: 'var(--superficie)', color: 'var(--texto)', fontSize: 13, padding: '0 6px', cursor: 'pointer' }}
+        >
+          <option value="">Espaçamento</option>
+          <option value="1">1</option>
+          <option value="1.15">1.15</option>
+          <option value="1.5">1.5</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
         {SEP}
         <BtnTB titulo="Negrito" onClick={() => cmd('bold')}><b>B</b></BtnTB>
         <BtnTB titulo="Itálico" onClick={() => cmd('italic')}><i>I</i></BtnTB>
@@ -272,13 +333,37 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
         <BtnTB titulo="Diminuir recuo" onClick={() => cmd('outdent')}>⇤</BtnTB>
         <BtnTB titulo="Aumentar recuo" onClick={() => cmd('indent')}>⇥</BtnTB>
         {SEP}
+        <BtnTB titulo="Alinhar à esquerda" onClick={() => cmd('justifyLeft')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="17" y1="10" x2="3" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="17" y1="18" x2="3" y2="18" /></svg>
+        </BtnTB>
+        <BtnTB titulo="Centralizar" onClick={() => cmd('justifyCenter')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="10" x2="6" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="18" y1="18" x2="6" y2="18" /></svg>
+        </BtnTB>
+        <BtnTB titulo="Alinhar à direita" onClick={() => cmd('justifyRight')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="7" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="21" y1="18" x2="7" y2="18" /></svg>
+        </BtnTB>
+        <BtnTB titulo="Justificar" onClick={() => cmd('justifyFull')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="3" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="21" y1="18" x2="3" y2="18" /></svg>
+        </BtnTB>
+        {SEP}
         <BtnTB titulo="Cor do texto" onClick={() => corRef.current?.click()}><span style={{ borderBottom: '3px solid #e2495a' }}>A</span></BtnTB>
         <BtnTB titulo="Realce" onClick={() => marcaRef.current?.click()}><span style={{ background: '#ffd54d', color: '#222', padding: '0 3px', borderRadius: 2 }}>A</span></BtnTB>
         {SEP}
         <BtnTB titulo="Inserir link" onClick={() => { const url = window.prompt('URL do link:'); if (url) cmd('createLink', url); }}>🔗</BtnTB>
         <BtnTB titulo="Emoji" onClick={() => setEmojiAberto((v) => !v)}>☺</BtnTB>
         <BtnTB titulo="Inserir mídia ou arquivo (do computador)" onClick={() => { salvarSelecao(); setMidiaAberto(true); }}>🖼️</BtnTB>
+        <BtnTB titulo="Inserir tabela" onClick={inserirTabela}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="1" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
+        </BtnTB>
         <BtnTB titulo="Limpar formatação" onClick={() => cmd('removeFormat')}>✧</BtnTB>
+        {SEP}
+        <BtnTB titulo={telaCheia ? 'Sair da tela cheia' : 'Tela cheia'} onClick={() => setTelaCheia((v) => !v)}>
+          {telaCheia ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+          )}
+        </BtnTB>
 
         {emojiAberto && (
           <div
@@ -300,7 +385,11 @@ function EditorRico({ valorInicial, aoMudar }: { valorInicial: string; aoMudar: 
         onInput={sincronizar}
         onBlur={sincronizar}
         data-ph="Texto do modelo. Você pode usar marcadores como {{nome}} para preencher depois."
-        style={{ minHeight: 220, padding: '10px 12px', fontSize: 14, lineHeight: 1.6, color: 'var(--texto)', overflowY: 'auto', maxHeight: 380 }}
+        style={
+          telaCheia
+            ? { flex: 1, minHeight: 0, padding: '14px 16px', fontSize: 14, lineHeight: 1.6, color: 'var(--texto)', overflowY: 'auto' }
+            : { minHeight: 220, padding: '10px 12px', fontSize: 14, lineHeight: 1.6, color: 'var(--texto)', overflowY: 'auto', maxHeight: 380 }
+        }
       />
 
       {/* seletores de cor ocultos (acionados pelos botões da barra) */}
