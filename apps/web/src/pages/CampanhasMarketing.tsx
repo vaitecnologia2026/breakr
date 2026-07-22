@@ -342,23 +342,28 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
       carregarColunas();
     } catch (err) { alert(msgErro(err, 'Não foi possível reordenar a coluna.')); }
   }
-  async function ocultarColuna(c: Coluna) {
-    try { await api.patch(`/colunas-material/${c.id}`, { oculta: !c.oculta }); carregarColunas(); }
-    catch (err) { alert(msgErro(err, 'Não foi possível ocultar a coluna.')); }
-  }
   async function excluirColuna(c: Coluna) {
-    if (!window.confirm(`Excluir a coluna "${c.rotulo}"? Os materiais nela voltam para "Planejado".`)) return;
+    if (!window.confirm(`Excluir a coluna "${c.rotulo}"? Os materiais nela serão movidos para outra coluna.`)) return;
     try { await api.delete(`/colunas-material/${c.id}`); carregarColunas(); carregar(); }
     catch (err) { alert(msgErro(err, 'Não foi possível excluir a coluna.')); }
   }
 
   const pilares = campanha?.cliente?.pilares ?? [];
-  // Colunas a exibir: visíveis + as ocultas que ainda tenham material (nada desaparece).
-  const usados = new Set((campanha?.materiais ?? []).map((m) => m.status));
-  const colsRender = colunas.filter((c) => !c.oculta || usados.has(c.chave)).sort((a, b) => a.ordem - b.ordem);
-  // Opções do seletor de status de um card: visíveis + a coluna atual do card.
-  const colunasSelect = (statusAtual: string) =>
-    colunas.filter((c) => !c.oculta || c.chave === statusAtual).sort((a, b) => a.ordem - b.ordem);
+  // Colunas a exibir: todas as do backend + colunas "sintéticas" para status órfãos
+  // (material cujo status não tem mais coluna — ex.: coluna excluída) para nada sumir.
+  const chavesCol = new Set(colunas.map((c) => c.chave));
+  const orfaos: Coluna[] = [...new Set((campanha?.materiais ?? []).map((m) => m.status))]
+    .filter((s) => !chavesCol.has(s))
+    .map((s, i) => ({ id: '', chave: s, rotulo: s, ordem: 10000 + i, nucleo: false, oculta: false }));
+  const colsRender = [...colunas, ...orfaos].sort((a, b) => a.ordem - b.ordem);
+  // Opções do seletor de status de um card: as colunas reais + a coluna atual do card
+  // (caso o status atual seja órfão, para o seletor conseguir exibir o valor corrente).
+  const colunasSelect = (statusAtual: string) => {
+    const reais = [...colunas].sort((a, b) => a.ordem - b.ordem);
+    return reais.some((c) => c.chave === statusAtual)
+      ? reais
+      : [...reais, { id: '', chave: statusAtual, rotulo: statusAtual, ordem: 99999, nucleo: false, oculta: false } as Coluna];
+  };
   const temGestao = pilares.includes('GESTAO');
   const temFinanceiro = pilares.includes('FINANCEIRO');
   const emAprovacao =
@@ -428,22 +433,19 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                   style={{
                     background: colunaAlvo === col.chave ? 'var(--borda)' : 'var(--superficie-2)',
                     border: `1px solid ${colunaAlvo === col.chave ? 'var(--texto-suave)' : 'var(--borda)'}`,
-                    borderRadius: 8, padding: 8, minWidth: 0, opacity: col.oculta ? 0.6 : 1,
+                    borderRadius: 8, padding: 8, minWidth: 0,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: podeGerir ? 6 : 8, gap: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (podeGerir && col.id) ? 6 : 8, gap: 4 }}>
                     <span title={col.rotulo} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--texto-suave)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.rotulo}</span>
                     <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flexShrink: 0 }}>{itens.length}</span>
                   </div>
-                  {podeGerir && (
+                  {podeGerir && col.id && (
                     <div style={{ display: 'flex', gap: 2, marginBottom: 8, flexWrap: 'wrap' }}>
                       <button type="button" onClick={() => moverColuna(col, -1)} title="Mover para a esquerda" style={ESTILO_BTN_COLUNA}>◀</button>
                       <button type="button" onClick={() => moverColuna(col, 1)} title="Mover para a direita" style={ESTILO_BTN_COLUNA}>▶</button>
                       <button type="button" onClick={() => renomearColuna(col)} title="Renomear coluna" style={ESTILO_BTN_COLUNA}>✎</button>
-                      <button type="button" onClick={() => ocultarColuna(col)} title={col.oculta ? 'Mostrar coluna' : 'Ocultar coluna'} style={ESTILO_BTN_COLUNA}>{col.oculta ? '🙈' : '👁'}</button>
-                      {!col.nucleo && (
-                        <button type="button" onClick={() => excluirColuna(col)} title="Excluir coluna" style={{ ...ESTILO_BTN_COLUNA, color: 'var(--vermelho)' }}>🗑</button>
-                      )}
+                      <button type="button" onClick={() => excluirColuna(col)} title="Excluir coluna" style={{ ...ESTILO_BTN_COLUNA, color: 'var(--vermelho)' }}>🗑</button>
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

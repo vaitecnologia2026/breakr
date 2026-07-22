@@ -3,7 +3,7 @@
 // enum StatusMaterial original) — podem ser renomeadas/reordenadas/ocultadas, mas
 // NAO excluidas (retrabalho/metricas/portal dependem dessas chaves). Colunas novas
 // (nucleo=false) tem CRUD livre. `chave` e o valor gravado em MaterialCampanha.status.
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CriarColunaDto } from './dto/criar-coluna.dto';
@@ -73,20 +73,26 @@ export class ColunasMaterialService {
     });
   }
 
-  // Exclui uma coluna. So NAO-nucleo. Os materiais nela sao movidos para PLANEJADO
-  // (nao ficam orfaos) antes de remover — tudo numa transacao.
+  // Exclui uma coluna (qualquer uma, inclusive as do nucleo). Os materiais que estao
+  // nela sao movidos para outra coluna existente (PLANEJADO se houver; senao a primeira
+  // por ordem) para nao ficarem orfaos — tudo numa transacao.
   async remover(id: string) {
     const col = await this.obter(id);
-    if (col.nucleo) {
-      throw new BadRequestException(
-        'Coluna do núcleo não pode ser excluída (só renomeada, reordenada ou ocultada).',
-      );
-    }
+    const outras = await this.prisma.colunaMaterial.findMany({
+      where: { id: { not: id } },
+      orderBy: { ordem: 'asc' },
+      select: { chave: true },
+    });
+    const destino = outras.find((c) => c.chave === 'PLANEJADO')?.chave ?? outras[0]?.chave;
     await this.prisma.$transaction([
-      this.prisma.materialCampanha.updateMany({
-        where: { status: col.chave },
-        data: { status: 'PLANEJADO' },
-      }),
+      ...(destino
+        ? [
+            this.prisma.materialCampanha.updateMany({
+              where: { status: col.chave },
+              data: { status: destino },
+            }),
+          ]
+        : []),
       this.prisma.colunaMaterial.delete({ where: { id } }),
     ]);
     return { ok: true };
