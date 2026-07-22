@@ -435,7 +435,19 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
       ) : erro || !campanha ? (
         <ErroEstado mensagem={erro ?? 'Campanha não encontrada.'} onTentar={carregar} />
       ) : (
-        <div style={{ overflowX: 'auto', width: '100%', maxWidth: '100%' }} className="brk-kanban-scroll">
+        <div
+          className="brk-kanban-scroll"
+          onDragOver={(e) => {
+            // Auto-rolagem horizontal durante o arraste: leva o card (ou coluna) até
+            // colunas fora da área visível — o drag-and-drop nativo não rola sozinho.
+            const el = e.currentTarget;
+            const r = el.getBoundingClientRect();
+            const margem = 90;
+            if (e.clientX - r.left < margem) el.scrollLeft -= 28;
+            else if (r.right - e.clientX < margem) el.scrollLeft += 28;
+          }}
+          style={{ overflowX: 'auto', width: '100%', maxWidth: '100%' }}
+        >
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colsRender.length}, minmax(180px, 1fr))`, gap: 10, alignItems: 'start' }}>
             {colsRender.map((col) => {
               const itens = campanha.materiais.filter((m) => m.status === col.chave);
