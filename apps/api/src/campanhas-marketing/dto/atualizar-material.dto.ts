@@ -34,4 +34,10 @@ export class AtualizarMaterialDto {
   @IsOptional()
   @IsISO8601()
   prazo?: string;
+
+  // Modelo de Mensagem escolhido para este material ser usado na campanha. uuid do
+  // modelo, ou null para limpar a selecao. @IsOptional deixa passar null (limpar).
+  @IsOptional()
+  @IsUUID()
+  modeloMensagemId?: string | null;
 }

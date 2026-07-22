@@ -49,7 +49,12 @@ interface Material {
   id: string; titulo: string; tipo: string | null; destino: string; status: string;
   prazo: string | null; reworkCount: number;
   responsavel: { id: string; nome: string } | null;
+  // Modelo de Mensagem escolhido para este card ser usado na campanha (id escalar;
+  // título/corpo resolvidos pela lista de /modelos-mensagem). Null quando não definido.
+  modeloMensagemId?: string | null;
 }
+// Modelo de Mensagem (template de texto) — usado no seletor do card do board.
+interface ModeloMensagemOpt { id: string; titulo: string; corpo: string }
 interface CampanhaDetalhe {
   id: string; nome: string; objetivo: string | null; situacao: string; prazo: string | null;
   cliente: { nomeFantasia: string; pilares: string[] } | null; squad: { nome: string } | null;
@@ -250,12 +255,29 @@ function ModalNovaCampanha({ onFechar, onCriada }: { onFechar: () => void; onCri
   );
 }
 
+// Converte o corpo (HTML) do modelo em texto puro para o preview no card.
+function textoDoCorpo(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
   const [campanha, setCampanha] = useState<CampanhaDetalhe | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [usuarios, setUsuarios] = useState<Opcao[]>([]);
   const [modalMaterial, setModalMaterial] = useState(false);
+  // Modelos de Mensagem (para o seletor de cada card) + seleção ainda não salva por
+  // material (modeloSel[materialId]) e o id do material sendo salvo (trava o botão).
+  const [modelos, setModelos] = useState<ModeloMensagemOpt[]>([]);
+  const [modeloSel, setModeloSel] = useState<Record<string, string>>({});
+  const [salvandoModelo, setSalvandoModelo] = useState<string | null>(null);
   // Drag-and-drop dos cards entre colunas (aditivo — reusa mudarStatus).
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
@@ -282,6 +304,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
     carregar();
     carregarColunas();
     api.get<{ id: string; nome: string }[]>('/usuarios').then(({ data }) => setUsuarios(data.map((u) => ({ id: u.id, nome: u.nome })))).catch(() => setUsuarios([]));
+    api.get<ModeloMensagemOpt[]>('/modelos-mensagem').then(({ data }) => setModelos(data.map((m) => ({ id: m.id, titulo: m.titulo, corpo: m.corpo })))).catch(() => setModelos([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -293,6 +316,21 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
     if (!responsavelId) return;
     await api.patch(`/campanhas-marketing/materiais/${materialId}`, { responsavelId });
     carregar();
+  }
+  // Salva o Modelo de Mensagem escolhido para o material (vazio = limpa/null).
+  // Reusa o mesmo PATCH dos demais campos do material.
+  async function salvarModeloMaterial(materialId: string, valor: string) {
+    if (salvandoModelo) return;
+    setSalvandoModelo(materialId);
+    try {
+      await api.patch(`/campanhas-marketing/materiais/${materialId}`, { modeloMensagemId: valor || null });
+      setModeloSel((prev) => { const n = { ...prev }; delete n[materialId]; return n; });
+      carregar();
+    } catch (err) {
+      alert(msgErro(err, 'Não foi possível salvar o modelo de mensagem.'));
+    } finally {
+      setSalvandoModelo(null);
+    }
   }
   async function removerMaterial(materialId: string) {
     await api.delete(`/campanhas-marketing/materiais/${materialId}`);
@@ -542,6 +580,43 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                         >
                           {colunasSelect(m.status).map((s) => <option key={s.chave} value={s.chave}>{s.rotulo}</option>)}
                         </select>
+                        {/* Modelo de Mensagem usado na campanha: seleciona, mostra a mensagem e salva. */}
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--texto-fraco)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Modelo de mensagem</span>
+                          <select
+                            value={modeloSel[m.id] ?? (m.modeloMensagemId ?? '')}
+                            onChange={(e) => setModeloSel((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                            className="brk-input"
+                            style={{ fontSize: 11.5, padding: '3px 6px' }}
+                          >
+                            <option value="">Sem mensagem</option>
+                            {modelos.map((mm) => <option key={mm.id} value={mm.id}>{mm.titulo}</option>)}
+                          </select>
+                        </label>
+                        {(() => {
+                          const sel = modeloSel[m.id] ?? (m.modeloMensagemId ?? '');
+                          const mod = modelos.find((x) => x.id === sel);
+                          const alterado = sel !== (m.modeloMensagemId ?? '');
+                          return (
+                            <>
+                              {mod && (
+                                <div style={{ fontSize: 11, lineHeight: 1.35, color: 'var(--texto-suave)', background: 'var(--superficie-2)', border: '1px solid var(--borda)', borderRadius: 6, padding: '5px 7px', maxHeight: 66, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                                  {textoDoCorpo(mod.corpo)}
+                                </div>
+                              )}
+                              {alterado && (
+                                <button
+                                  type="button"
+                                  onClick={() => salvarModeloMaterial(m.id, sel)}
+                                  disabled={salvandoModelo === m.id}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--borda-forte)', background: 'var(--superficie-3)', color: 'var(--cinza-vapor)', cursor: salvandoModelo === m.id ? 'default' : 'pointer' }}
+                                >
+                                  {salvandoModelo === m.id ? 'Salvando…' : 'Salvar mensagem'}
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                         {m.prazo && <span style={{ fontSize: 10.5, color: 'var(--texto-fraco)' }}>prazo {new Date(m.prazo).toLocaleDateString('pt-BR')}</span>}
                       </div>
                     ))}
