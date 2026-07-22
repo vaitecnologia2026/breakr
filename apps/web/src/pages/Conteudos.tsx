@@ -91,6 +91,9 @@ interface Conteudo {
     materialStatus: string;
     totalMateriais: number;
     materiaisConcluidos: number;
+    // Modelo de Mensagem escolhido para este material no board da campanha (só leitura
+    // aqui). Null quando não definido.
+    modeloMensagem?: { id: string; titulo: string; corpo: string } | null;
   } | null;
 }
 
@@ -868,6 +871,18 @@ function tipoMidia(url: string): 'imagem' | 'video' | 'outro' {
   return 'outro';
 }
 
+// Converte o corpo (HTML) do Modelo de Mensagem em texto puro para exibição.
+function textoDoCorpo(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Linha "rótulo → valor" do painel de detalhes.
 function LinhaInfo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
   return (
@@ -1124,6 +1139,16 @@ function DetalheConteudo({
                 </span>
               </div>
             </div>
+            {/* Mensagem escolhida para este material no board da campanha (só leitura). */}
+            {campanha.modeloMensagem && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Mensagem da campanha</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{campanha.modeloMensagem.titulo}</span>
+                <div style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--texto-suave)', background: 'var(--superficie-2)', border: '1px solid var(--borda)', borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap' }}>
+                  {textoDoCorpo(campanha.modeloMensagem.corpo)}
+                </div>
+              </div>
+            )}
             <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
               Campanha Nº {campanha.codigoUnico}
             </span>

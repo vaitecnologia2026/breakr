@@ -99,6 +99,7 @@ export class ConteudosService {
         materialCampanha: {
           select: {
             status: true,
+            modeloMensagemId: true,
             campanha: {
               select: {
                 id: true,
@@ -116,6 +117,15 @@ export class ConteudosService {
       throw new NotFoundException('Conteudo nao encontrado');
     }
     const { materialCampanha, ...rest } = conteudo;
+    // Modelo de Mensagem escolhido para este material no board da campanha — resolve
+    // titulo/corpo pelo id escalar (sem relacao formal) para a Producao de Conteudo
+    // exibir qual mensagem usar. Null quando nao definido.
+    const modeloMensagem = materialCampanha?.modeloMensagemId
+      ? await this.prisma.modeloMensagem.findUnique({
+          where: { id: materialCampanha.modeloMensagemId },
+          select: { id: true, titulo: true, corpo: true },
+        })
+      : null;
     const campanhaVinculada = materialCampanha?.campanha
       ? {
           campanhaId: materialCampanha.campanha.id,
@@ -127,6 +137,7 @@ export class ConteudosService {
           materiaisConcluidos: materialCampanha.campanha.materiais.filter(
             (m) => m.status === StatusMaterial.CONCLUIDO,
           ).length,
+          modeloMensagem,
         }
       : null;
     return { ...rest, campanhaVinculada } as unknown as Conteudo;
