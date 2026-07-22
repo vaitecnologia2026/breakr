@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { podeVerMenu } from '../lib/permissoes';
 import { useFavoritos } from '../lib/favoritos';
@@ -80,6 +80,10 @@ interface NavItem {
   icone: React.ReactNode;
   fim?: boolean;
   subItens?: NavItem[];
+  // Quando true, o item pai (que tem subItens) também NAVEGA para `para` ao ser
+  // clicado — além de abrir o submenu. Sem a flag, o pai só expande/recolhe
+  // (comportamento padrão, inalterado para os demais menus).
+  paiNavega?: boolean;
 }
 
 interface NavGroup {
@@ -107,7 +111,7 @@ const GRUPOS: NavGroup[] = [
       { para: '/chat',      rotulo: 'Chat interno', icone: <IcoChat /> },
       { para: '/comunicados', rotulo: 'Comunicados', icone: <IcoBullhorn /> },
       { para: '/comunicados-cliente', rotulo: 'Comunicar clientes', icone: <IcoBullhorn /> },
-      { para: '/agendamento', rotulo: 'Agenda', icone: <IcoCalendar />, subItens: [
+      { para: '/agendamento', rotulo: 'Agenda', icone: <IcoCalendar />, paiNavega: true, subItens: [
         { para: '/reunioes', rotulo: 'Reuniões', icone: <IcoVideo /> },
         { para: '/agenda',   rotulo: 'Agenda',   icone: <IcoCalendar /> },
       ] },
@@ -610,10 +614,14 @@ function SidebarLinkComSub({
   onToggleFav: (item: NavItem) => void;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const filhos = item.subItens ?? [];
   const temFilhoAtivo = filhos.some(
     (f) => location.pathname === f.para || location.pathname.startsWith(f.para + '/'),
   );
+  // Quando o pai navega (paiNavega), ele também fica "ativo" na própria rota.
+  const paiAtivo = item.paiNavega && (location.pathname === item.para || location.pathname.startsWith(item.para + '/'));
+  const ativo = temFilhoAtivo || !!paiAtivo;
   // Inicia expandido para o subitem (ex.: Pessoas) já aparecer sob o pai.
   const [aberto, setAberto] = useState<boolean>(true);
 
@@ -625,8 +633,13 @@ function SidebarLinkComSub({
     <div className="brk-sidebar-item-wrap" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <button
         type="button"
-        className={`brk-sidebar-item sub${temFilhoAtivo ? ' active' : ''}`}
-        onClick={() => setAberto((v) => !v)}
+        className={`brk-sidebar-item sub${ativo ? ' active' : ''}`}
+        onClick={() => {
+          // Pai navegável (ex.: Agenda -> /agendamento): navega e mantém o submenu aberto.
+          // Demais pais: apenas expande/recolhe, como antes.
+          if (item.paiNavega) { navigate(item.para); setAberto(true); }
+          else setAberto((v) => !v);
+        }}
         aria-expanded={aberto}
         title={item.rotulo}
         style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left' }}
