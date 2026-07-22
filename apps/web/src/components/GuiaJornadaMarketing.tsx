@@ -50,7 +50,7 @@ const ETAPAS: EtapaJornada[] = [
     quem: 'Copywriter, Designer, Revisão',
     resumo: 'Cada material/peça percorre o funil de produção até ficar pronto para o cliente.',
     onde: 'Campanhas (materiais) e Conteúdo (funil das peças).',
-    como: 'Arraste o card entre as colunas ou use “Mover”. Use “Encaminhar p/ design”, clique no card para ver/editar os detalhes e anexar a mídia.',
+    como: 'Arraste o card entre as colunas ou use “Mover”. Use “Encaminhar p/ design”, clique no card para ver/editar os detalhes e anexar a mídia. Admin/Superadmin podem personalizar as colunas do board da campanha — renomear (✎), reordenar (◀ ▶), adicionar em “+ Coluna” e excluir (🗑) pelos controles no topo de cada coluna (ao excluir, os materiais vão para outra coluna). Ao abrir uma peça em Conteúdo, você também vê a campanha de origem e em que etapa ela está.',
   },
   {
     id: 'aprovacao-cliente',
