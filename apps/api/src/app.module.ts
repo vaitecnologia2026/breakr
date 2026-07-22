@@ -68,6 +68,7 @@ import { ReceitaModule } from './receita/receita.module';
 import { PersonasModule } from './personas/personas.module';
 import { PublicosModule } from './publicos/publicos.module';
 import { ModelosMensagemModule } from './modelos-mensagem/modelos-mensagem.module';
+import { MidiaModule } from './midia/midia.module';
 
 @Module({
   imports: [
@@ -178,6 +179,7 @@ import { ModelosMensagemModule } from './modelos-mensagem/modelos-mensagem.modul
     PublicosModule,
     // Marketing — Modelos de Mensagem (templates de texto, inspirado no eKyte).
     ModelosMensagemModule,
+    MidiaModule,
   ],
 })
 export class AppModule {}
