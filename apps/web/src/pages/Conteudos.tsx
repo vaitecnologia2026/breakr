@@ -937,6 +937,9 @@ function DetalheConteudo({
   const [fMidia, setFMidia] = useState(conteudo.midiaUrl ?? '');
   const [fData, setFData] = useState(isoParaInputLocal(conteudo.dataAgendada));
   const [fTrafego, setFTrafego] = useState(conteudo.paraTrafego);
+  // Mensagem da campanha: recolhida por padrão; expande para ver toda a mensagem
+  // quando for muito grande.
+  const [mensagemExpandida, setMensagemExpandida] = useState(false);
 
   // Campanha vinculada: o modal recebe a peça da lista (que não traz o vínculo), então
   // busca o detalhe (GET /conteudos/:id) ao abrir para saber de qual campanha a peça
@@ -1139,16 +1142,39 @@ function DetalheConteudo({
                 </span>
               </div>
             </div>
-            {/* Mensagem escolhida para este material no board da campanha (só leitura). */}
-            {campanha.modeloMensagem && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Mensagem da campanha</span>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{campanha.modeloMensagem.titulo}</span>
-                <div style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--texto-suave)', background: 'var(--superficie-2)', border: '1px solid var(--borda)', borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap' }}>
-                  {textoDoCorpo(campanha.modeloMensagem.corpo)}
+            {/* Mensagem escolhida para este material no board da campanha (só leitura).
+                Recolhida por padrão quando muito grande, com opção de expandir. */}
+            {campanha.modeloMensagem && (() => {
+              const texto = textoDoCorpo(campanha.modeloMensagem.corpo);
+              const longa = texto.length > 220;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Mensagem da campanha</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{campanha.modeloMensagem.titulo}</span>
+                  <div
+                    style={{
+                      fontSize: 12.5, lineHeight: 1.4, color: 'var(--texto-suave)',
+                      background: 'var(--superficie-2)', border: '1px solid var(--borda)',
+                      borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap',
+                      ...(longa && !mensagemExpandida
+                        ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
+                        : {}),
+                    }}
+                  >
+                    {texto}
+                  </div>
+                  {longa && (
+                    <button
+                      type="button"
+                      onClick={() => setMensagemExpandida((v) => !v)}
+                      style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--amarelo-fagulha)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}
+                    >
+                      {mensagemExpandida ? 'Ver menos' : 'Ver mais'}
+                    </button>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
               Campanha Nº {campanha.codigoUnico}
             </span>
