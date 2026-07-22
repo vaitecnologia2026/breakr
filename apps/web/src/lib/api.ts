@@ -33,13 +33,21 @@ export const EVENTO_SESSAO_EXPIRADA = 'breakr:sessao-expirada';
  * Interceptor de resposta: em 401 numa chamada autenticada (exceto o proprio
  * login), limpa o token e avisa a app para encerrar a sessao — evitando que o
  * usuario fique preso numa sessao morta vendo "erro ao carregar" em tudo.
+ *
+ * Exceção: os endpoints do portal do cliente (`/portal/...`) têm autenticação
+ * própria (header X-Portal-Token em sessionStorage) e tratam seus próprios 401
+ * localmente. Um 401 do portal (senha errada no login do portal, ou sessão do
+ * portal expirada) NÃO pode encerrar a sessão interna (staff/admin): como o
+ * localStorage é compartilhado entre abas, isso apagaria o `breakr.token` e
+ * deslogaria o admin — quebrando telas como "Usuários" (GET /clientes vinha
+ * sem token → 401 "Token ausente"). Por isso `/portal/` também é ignorado aqui.
  */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
     const url: string = error?.config?.url ?? '';
-    if (status === 401 && !url.includes('/auth/login')) {
+    if (status === 401 && !url.includes('/auth/login') && !url.includes('/portal/')) {
       const tinhaToken = !!localStorage.getItem(TOKEN_KEY);
       localStorage.removeItem(TOKEN_KEY);
       if (tinhaToken) {
