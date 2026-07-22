@@ -448,7 +448,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
           }}
           style={{ overflowX: 'auto', width: '100%', maxWidth: '100%' }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colsRender.length}, minmax(180px, 1fr))`, gap: 10, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colsRender.length}, minmax(180px, 1fr))`, gap: 10, alignItems: 'stretch' }}>
             {colsRender.map((col) => {
               const itens = campanha.materiais.filter((m) => m.status === col.chave);
               return (
@@ -477,7 +477,7 @@ function CampanhaBoard({ id, onVoltar }: { id: string; onVoltar: () => void }) {
                   style={{
                     background: colunaAlvo === col.chave ? 'var(--borda)' : 'var(--superficie-2)',
                     border: `1px solid ${colunaAlvo === col.chave ? 'var(--texto-suave)' : 'var(--borda)'}`,
-                    borderRadius: 8, padding: 8, minWidth: 0,
+                    borderRadius: 8, padding: 8, minWidth: 0, minHeight: 140,
                   }}
                 >
                   <div
