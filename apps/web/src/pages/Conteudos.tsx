@@ -1084,18 +1084,19 @@ function DetalheConteudo({
     return () => { ativo = false; };
   }, [materialId]);
 
-  // Membros do squad do cliente — candidatos a responsável da peça (mesmo padrão do
-  // "+ Nova peça"). Carregados ao abrir; usados no select de Responsável na edição.
-  const [membrosSquad, setMembrosSquad] = useState<SquadDoCliente['membros']>([]);
+  // Candidatos a responsável da peça — TODOS os usuários (mesmo padrão do board de
+  // Campanhas, que usa /usuarios). O squad tem poucos membros (regra "1 função por
+  // squad"), então listar só o squad mostrava apenas 2; aqui aparecem todos os que
+  // podem ser selecionados. O responsável atual entra como fallback (nunca some).
+  const [usuariosResponsavel, setUsuariosResponsavel] = useState<{ id: string; nome: string }[]>([]);
   useEffect(() => {
-    if (!conteudo.clienteId) return;
     let ativo = true;
     api
-      .get<SquadDoCliente>(`/squads/do-cliente/${conteudo.clienteId}`)
-      .then(({ data }) => { if (ativo) setMembrosSquad(data.membros ?? []); })
+      .get<{ id: string; nome: string }[]>('/usuarios')
+      .then(({ data }) => { if (ativo && Array.isArray(data)) setUsuariosResponsavel(data); })
       .catch(() => { /* vazio → fallback mostra o responsável atual */ });
     return () => { ativo = false; };
-  }, [conteudo.clienteId]);
+  }, []);
 
   // Muda o estágio (coluna) do material — mesmo PATCH do board de Campanhas.
   async function mudarEstagioMaterial(status: string) {
@@ -1254,12 +1255,12 @@ function DetalheConteudo({
                 style={estiloInput}
               >
                 <option value="">Sem responsável</option>
-                {conteudo.responsavelId && !membrosSquad.some((m) => m.usuario.id === conteudo.responsavelId) && (
+                {conteudo.responsavelId && !usuariosResponsavel.some((u) => u.id === conteudo.responsavelId) && (
                   <option value={conteudo.responsavelId}>{conteudo.responsavel?.nome ?? 'Responsável atual'}</option>
                 )}
-                {membrosSquad.map((m) => (
-                  <option key={m.usuario.id} value={m.usuario.id}>
-                    {m.usuario.nome} — {FUNCAO_ROTULO[m.funcao] ?? m.funcao}
+                {usuariosResponsavel.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nome}
                   </option>
                 ))}
               </select>
