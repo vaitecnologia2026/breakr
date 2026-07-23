@@ -21,6 +21,7 @@ import {
   PainelVazio,
 } from '../components/primitivos';
 import { GuiaJornadaMarketing } from '../components/GuiaJornadaMarketing';
+import { PainelTiposTarefa } from '../components/PainelTiposTarefa';
 
 /**
  * Tela de Conteúdo (M16 — funil de produção das peças).
@@ -183,6 +184,9 @@ export function Conteudos() {
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [filtroCliente, setFiltroCliente] = useState('');
+  // Aba ativa: 'funil' (kanban de produção, padrão) ou 'tipos' (configuração
+  // de Tipos de Tarefa × Etapas — inspirado no eKyte).
+  const [aba, setAba] = useState<'funil' | 'tipos'>('funil');
 
   async function carregar() {
     setCarregando(true);
@@ -228,6 +232,34 @@ export function Conteudos() {
     >
       <GuiaJornadaMarketing etapaAtual="producao" />
 
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--borda)', marginBottom: 4 }}>
+        {([['funil', 'Funil de produção'], ['tipos', 'Tipos de Tarefa']] as const).map(([chave, rot]) => (
+          <button
+            key={chave}
+            type="button"
+            onClick={() => setAba(chave)}
+            style={{
+              padding: '10px 16px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: aba === chave ? '2px solid var(--amarelo)' : '2px solid transparent',
+              color: aba === chave ? 'var(--cinza-vapor)' : 'var(--texto-fraco)',
+              fontWeight: aba === chave ? 700 : 600,
+              fontSize: 13.5,
+              cursor: 'pointer',
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+            }}
+          >
+            {rot}
+          </button>
+        ))}
+      </div>
+
+      {aba === 'tipos' && <PainelTiposTarefa />}
+
+      {aba === 'funil' && (
+        <>
       <div className="brk-filtros">
         <div className="brk-search">
           <span className="brk-search-icon" aria-hidden="true">
@@ -300,6 +332,8 @@ export function Conteudos() {
             carregar();
           }}
         />
+      )}
+        </>
       )}
     </PaginaShell>
   );
