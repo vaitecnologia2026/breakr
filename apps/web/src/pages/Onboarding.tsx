@@ -43,6 +43,8 @@ interface OnboardingCliente {
   progresso: number;
   concluido: boolean;
   etapas: Etapa[];
+  // Informacoes da empresa que esta sendo onboardada (texto livre).
+  infoEmpresa: string | null;
 }
 
 interface Evento {
@@ -255,6 +257,11 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
       <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
         Etapas do checklist ({onb.progresso}%)
       </h3>
+      <InfoEmpresaOnboarding
+        clienteId={clienteId}
+        valorInicial={onb.infoEmpresa ?? ''}
+        aoSalvar={carregar}
+      />
       <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
         {[...onb.etapas]
           .sort((a, b) => a.ordem - b.ordem)
@@ -265,6 +272,78 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
       <AdicionarItemChecklist clienteId={clienteId} aoAdicionar={carregar} />
       <AplicarModeloChecklist clienteId={clienteId} aoAplicar={carregar} />
     </Card>
+  );
+}
+
+// Campo para salvar as informacoes da empresa que esta sendo onboardada (texto
+// livre), alem de marcar as etapas do checklist. Persiste no onboarding do
+// cliente via PATCH /onboarding/cliente/:id/info-empresa.
+function InfoEmpresaOnboarding({
+  clienteId,
+  valorInicial,
+  aoSalvar,
+}: {
+  clienteId: string;
+  valorInicial: string;
+  aoSalvar: () => void;
+}) {
+  const [info, setInfo] = useState(valorInicial);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvo, setSalvo] = useState(false);
+
+  useEffect(() => {
+    setInfo(valorInicial);
+  }, [clienteId, valorInicial]);
+
+  async function salvar() {
+    if (salvando) return;
+    setSalvando(true);
+    setErro(null);
+    setSalvo(false);
+    try {
+      await api.patch(`/onboarding/cliente/${clienteId}/info-empresa`, {
+        infoEmpresa: info,
+      });
+      setSalvo(true);
+      aoSalvar();
+    } catch {
+      setErro('Não foi possível salvar as informações da empresa.');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 10,
+        background: 'var(--superficie-2)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      <label style={rotuloInput}>Informações da empresa (onboarding)</label>
+      <Textarea
+        value={info}
+        onChange={(e) => {
+          setInfo(e.target.value);
+          setSalvo(false);
+        }}
+        placeholder="Dados da empresa que está sendo onboardada: nicho, responsáveis, acessos, particularidades…"
+        style={{ minHeight: 90 }}
+      />
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <BotaoSecundario onClick={salvar} disabled={salvando}>
+          {salvando ? 'Salvando…' : 'Salvar informações'}
+        </BotaoSecundario>
+        {salvo && <span style={{ fontSize: 12, color: '#67e0a3' }}>Salvo ✓</span>}
+        {erro && <span style={{ fontSize: 12, color: 'var(--vermelho, #e5484d)' }}>{erro}</span>}
+      </div>
+    </div>
   );
 }
 

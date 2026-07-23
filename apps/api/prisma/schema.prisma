@@ -658,6 +658,9 @@ model Onboarding {
   id           String   @id @default(uuid())
   progresso    Int      @default(0) // 0..100
   concluido    Boolean  @default(false)
+  // Informacoes da empresa que esta sendo onboardada (texto livre salvo pela CS,
+  // alem de marcar as etapas do checklist). Aditivo, opcional.
+  infoEmpresa  String?  @map("info_empresa")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
