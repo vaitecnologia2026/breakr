@@ -265,6 +265,32 @@ export class OnboardingService {
     });
   }
 
+  // Edita um modelo: atualiza o nome e substitui a lista de itens (o usuario pode
+  // colocar mais coisas e retirar). Aditivo — nao afeta checklists ja aplicados
+  // nos clientes (aqueles viraram etapas independentes do onboarding).
+  async atualizarChecklistModelo(modeloId: string, dto: CriarChecklistModeloDto) {
+    const modelo = await this.prisma.checklistModelo.findUnique({
+      where: { id: modeloId },
+    });
+    if (!modelo) throw new NotFoundException('Modelo de checklist nao encontrado');
+    return this.prisma.$transaction(async (tx) => {
+      await tx.checklistModeloItem.deleteMany({ where: { modeloId } });
+      return tx.checklistModelo.update({
+        where: { id: modeloId },
+        data: {
+          nome: dto.nome.trim(),
+          itens: {
+            create: dto.itens.map((titulo, i) => ({
+              titulo: titulo.trim(),
+              ordem: i,
+            })),
+          },
+        },
+        include: { itens: { orderBy: { ordem: 'asc' } } },
+      });
+    });
+  }
+
   async removerChecklistModelo(modeloId: string) {
     const modelo = await this.prisma.checklistModelo.findUnique({
       where: { id: modeloId },
