@@ -232,7 +232,6 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
             <EtapaLinha key={etapa.id} etapa={etapa} aoSalvar={carregar} />
           ))}
       </ul>
-      <AdicionarItemChecklist clienteId={clienteId} aoAdicionar={carregar} />
       <AplicarModeloChecklist clienteId={clienteId} aoAplicar={carregar} />
     </Card>
   );
