@@ -82,6 +82,9 @@ interface Conteudo {
   cliente?: { nomeFantasia: string };
   squad?: { nome: string } | null;
   responsavel?: { nome: string } | null;
+  // Vínculo peça↔material da campanha (id do material de origem). Já retornado pelo
+  // backend (escalar do Conteudo); usado para editar o material direto no funil.
+  materialCampanhaId?: string | null;
   // Resumo da campanha de marketing que originou a peça (peça criada via "+ Material").
   // Preenchido pelo backend em GET /conteudos/:id; null quando a peça não veio de campanha.
   campanhaVinculada?: {
@@ -1041,6 +1044,75 @@ function DetalheConteudo({
     return () => { ativo = false; };
   }, [conteudo.id]);
 
+  // Edição do material da campanha (Estágio/Mensagem) direto no funil — usa os
+  // MESMOS endpoints do board de Campanhas (PATCH /campanhas-marketing/materiais/:id,
+  // GET /colunas-material, GET /modelos-mensagem). materialId = vínculo peça↔material
+  // (materialCampanhaId, já retornado pelo backend). Sem material, os campos ficam
+  // só leitura (fallback) — nada muda para peças avulsas.
+  const materialId = conteudo.materialCampanhaId ?? null;
+  const [colunasMaterial, setColunasMaterial] = useState<{ chave: string; rotulo: string; ordem: number; oculta?: boolean }[]>([]);
+  const [modelosMaterial, setModelosMaterial] = useState<{ id: string; titulo: string; corpo: string }[]>([]);
+  const [salvandoMaterial, setSalvandoMaterial] = useState(false);
+  const [erroMaterial, setErroMaterial] = useState<string | null>(null);
+
+  // Recarrega o resumo da campanha (após salvar um campo do material).
+  function recarregarCampanha() {
+    api
+      .get<Conteudo>(`/conteudos/${conteudo.id}`)
+      .then(({ data }) => setCampanha(data?.campanhaVinculada ?? null))
+      .catch(() => { /* silencioso */ });
+  }
+
+  // Carrega as colunas (estágios) e os modelos só quando a peça veio de campanha.
+  useEffect(() => {
+    if (!materialId) return;
+    let ativo = true;
+    api
+      .get<{ chave: string; rotulo: string; ordem: number; oculta?: boolean }[]>('/colunas-material')
+      .then(({ data }) => {
+        if (ativo && Array.isArray(data)) {
+          setColunasMaterial(data.filter((c) => !c.oculta).sort((a, b) => a.ordem - b.ordem));
+        }
+      })
+      .catch(() => { /* vazio → fallback mostra o estágio atual */ });
+    api
+      .get<{ id: string; titulo: string; corpo: string }[]>('/modelos-mensagem')
+      .then(({ data }) => { if (ativo && Array.isArray(data)) setModelosMaterial(data); })
+      .catch(() => { /* vazio → mantém a mensagem atual */ });
+    return () => { ativo = false; };
+  }, [materialId]);
+
+  // Muda o estágio (coluna) do material — mesmo PATCH do board de Campanhas.
+  async function mudarEstagioMaterial(status: string) {
+    if (!materialId || salvandoMaterial) return;
+    setSalvandoMaterial(true);
+    setErroMaterial(null);
+    try {
+      await api.patch(`/campanhas-marketing/materiais/${materialId}`, { status });
+      recarregarCampanha();
+      aoAtualizar();
+    } catch {
+      setErroMaterial('Não foi possível mudar o estágio do material.');
+    } finally {
+      setSalvandoMaterial(false);
+    }
+  }
+
+  // Muda o Modelo de Mensagem do material (vazio = limpa) — mesmo PATCH do board.
+  async function mudarMensagemMaterial(valor: string) {
+    if (!materialId || salvandoMaterial) return;
+    setSalvandoMaterial(true);
+    setErroMaterial(null);
+    try {
+      await api.patch(`/campanhas-marketing/materiais/${materialId}`, { modeloMensagemId: valor || null });
+      recarregarCampanha();
+    } catch {
+      setErroMaterial('Não foi possível salvar a mensagem da campanha.');
+    } finally {
+      setSalvandoMaterial(false);
+    }
+  }
+
   // Desfaz as edições, voltando aos valores atuais da peça.
   function resetForm() {
     setFTitulo(conteudo.titulo);
@@ -1218,9 +1290,28 @@ function DetalheConteudo({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Estágio desta peça</span>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>
-                  {MATERIAL_STATUS_ROTULO[campanha.materialStatus] ?? campanha.materialStatus}
-                </span>
+                {materialId ? (
+                  <select
+                    className="brk-input"
+                    value={campanha.materialStatus}
+                    onChange={(e) => mudarEstagioMaterial(e.target.value)}
+                    disabled={salvandoMaterial}
+                    style={{ width: '100%', fontSize: 13.5 }}
+                  >
+                    {colunasMaterial.length === 0 && (
+                      <option value={campanha.materialStatus}>
+                        {MATERIAL_STATUS_ROTULO[campanha.materialStatus] ?? campanha.materialStatus}
+                      </option>
+                    )}
+                    {colunasMaterial.map((c) => (
+                      <option key={c.chave} value={c.chave}>{c.rotulo}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>
+                    {MATERIAL_STATUS_ROTULO[campanha.materialStatus] ?? campanha.materialStatus}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Progresso da campanha</span>
@@ -1229,39 +1320,93 @@ function DetalheConteudo({
                 </span>
               </div>
             </div>
-            {/* Mensagem escolhida para este material no board da campanha (só leitura).
-                Recolhida por padrão quando muito grande, com opção de expandir. */}
-            {campanha.modeloMensagem && (() => {
-              const texto = textoDoCorpo(campanha.modeloMensagem.corpo);
-              const longa = texto.length > 220;
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Mensagem da campanha</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{campanha.modeloMensagem.titulo}</span>
-                  <div
-                    style={{
-                      fontSize: 12.5, lineHeight: 1.4, color: 'var(--texto-suave)',
-                      background: 'var(--superficie-2)', border: '1px solid var(--borda)',
-                      borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap',
-                      ...(longa && !mensagemExpandida
-                        ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
-                        : {}),
-                    }}
-                  >
-                    {texto}
-                  </div>
-                  {longa && (
-                    <button
-                      type="button"
-                      onClick={() => setMensagemExpandida((v) => !v)}
-                      style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--amarelo-fagulha)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}
-                    >
-                      {mensagemExpandida ? 'Ver menos' : 'Ver mais'}
-                    </button>
+            {/* Mensagem (Modelo) do material. Com material vinculado, é EDITÁVEL direto
+                no funil (mesmo PATCH do board de Campanhas); o corpo do modelo continua
+                recolhido por padrão com opção de expandir. Sem material, fica só leitura. */}
+            {materialId ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Mensagem da campanha</span>
+                <select
+                  className="brk-input"
+                  value={campanha.modeloMensagem?.id ?? ''}
+                  onChange={(e) => mudarMensagemMaterial(e.target.value)}
+                  disabled={salvandoMaterial}
+                  style={{ width: '100%', fontSize: 13.5 }}
+                >
+                  <option value="">Sem mensagem</option>
+                  {modelosMaterial.length === 0 && campanha.modeloMensagem && (
+                    <option value={campanha.modeloMensagem.id}>{campanha.modeloMensagem.titulo}</option>
                   )}
-                </div>
-              );
-            })()}
+                  {modelosMaterial.map((m) => (
+                    <option key={m.id} value={m.id}>{m.titulo}</option>
+                  ))}
+                </select>
+                {campanha.modeloMensagem && (() => {
+                  const texto = textoDoCorpo(campanha.modeloMensagem.corpo);
+                  const longa = texto.length > 220;
+                  return (
+                    <>
+                      <div
+                        style={{
+                          fontSize: 12.5, lineHeight: 1.4, color: 'var(--texto-suave)',
+                          background: 'var(--superficie-2)', border: '1px solid var(--borda)',
+                          borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap',
+                          ...(longa && !mensagemExpandida
+                            ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
+                            : {}),
+                        }}
+                      >
+                        {texto}
+                      </div>
+                      {longa && (
+                        <button
+                          type="button"
+                          onClick={() => setMensagemExpandida((v) => !v)}
+                          style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--amarelo-fagulha)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}
+                        >
+                          {mensagemExpandida ? 'Ver menos' : 'Ver mais'}
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              campanha.modeloMensagem && (() => {
+                const texto = textoDoCorpo(campanha.modeloMensagem.corpo);
+                const longa = texto.length > 220;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: 'var(--texto-fraco)' }}>Mensagem da campanha</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--texto)' }}>{campanha.modeloMensagem.titulo}</span>
+                    <div
+                      style={{
+                        fontSize: 12.5, lineHeight: 1.4, color: 'var(--texto-suave)',
+                        background: 'var(--superficie-2)', border: '1px solid var(--borda)',
+                        borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap',
+                        ...(longa && !mensagemExpandida
+                          ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
+                          : {}),
+                      }}
+                    >
+                      {texto}
+                    </div>
+                    {longa && (
+                      <button
+                        type="button"
+                        onClick={() => setMensagemExpandida((v) => !v)}
+                        style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--amarelo-fagulha)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}
+                      >
+                        {mensagemExpandida ? 'Ver menos' : 'Ver mais'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()
+            )}
+            {erroMaterial && (
+              <span style={{ fontSize: 12, color: 'var(--vermelho, #e5484d)' }}>{erroMaterial}</span>
+            )}
             <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)' }}>
               Campanha Nº {campanha.codigoUnico}
             </span>
