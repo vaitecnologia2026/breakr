@@ -1,7 +1,7 @@
 // Servico de onboarding gamificado (M14). Liberado apos o pagamento da 1a
 // fatura: cria o checklist do cliente e move o cliente para ONBOARD; quando
 // todas as etapas sao concluidas, o cliente vira ATIVO.
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Onboarding } from '@prisma/client';
 import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -193,19 +193,14 @@ export class OnboardingService {
     });
   }
 
-  // Remove um item do checklist — APENAS itens personalizados (as 6 etapas padrao
-  // nao podem ser removidas). Recalcula o progresso. Nao altera o status do cliente.
+  // Remove um item do checklist (qualquer item — o usuario controla o checklist).
+  // Recalcula o progresso. Nao altera o status do cliente.
   async removerEtapa(stepId: string): Promise<Onboarding> {
     const etapa = await this.prisma.onboardingStep.findUnique({
       where: { id: stepId },
     });
     if (!etapa) {
       throw new NotFoundException('Etapa de onboarding nao encontrada');
-    }
-    if (!etapa.personalizado) {
-      throw new BadRequestException(
-        'Apenas itens personalizados do checklist podem ser removidos.',
-      );
     }
     const onboardingId = etapa.onboardingId;
     return this.prisma.$transaction(async (tx) => {
