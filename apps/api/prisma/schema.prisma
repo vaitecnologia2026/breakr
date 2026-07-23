@@ -741,6 +741,30 @@ model AulaConclusao {
   @@map("aula_conclusao")
 }
 
+/// Modelo (template) de checklist de onboarding — catalogo global reutilizavel.
+/// A CS cria varios modelos e os aplica ao onboarding de cada cliente (os itens
+/// do modelo entram como etapas personalizadas no checklist do cliente).
+model ChecklistModelo {
+  id       String                @id @default(uuid())
+  nome     String
+  criadoEm DateTime              @default(now()) @map("criado_em")
+  itens    ChecklistModeloItem[]
+
+  @@map("checklist_modelo")
+}
+
+/// Item de um modelo de checklist (titulo + ordem).
+model ChecklistModeloItem {
+  id       String          @id @default(uuid())
+  titulo   String
+  ordem    Int             @default(0)
+  modeloId String          @map("modelo_id")
+  modelo   ChecklistModelo @relation(fields: [modeloId], references: [id], onDelete: Cascade)
+
+  @@index([modeloId])
+  @@map("checklist_modelo_item")
+}
+
 // ============================================================
 // FASE 3 — COMERCIAL / CRM (M11)
 // ============================================================
