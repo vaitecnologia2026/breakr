@@ -301,7 +301,7 @@ export function Portal() {
         padding: '40px 20px 56px',
       }}
     >
-      <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ maxWidth: dados && !carregando && !naoEncontrado && !precisaLogin ? 1140 : 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {carregando ? (
           <EstadoCarregando />
         ) : naoEncontrado ? (
@@ -315,77 +315,331 @@ export function Portal() {
         ) : !dados ? (
           <PortalNaoEncontrado />
         ) : (
-          <>
-            <Cabecalho dados={dados} />
-            {dados.comunicado && (
-              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--amarelo)', fontSize: 14, fontWeight: 600 }}>
-                📢 {dados.comunicado.mensagem}
-              </div>
-            )}
-            <CardNovaDemanda codigo={codigo ?? ''} />
-            {dados.estrategiaParaAprovar && (
-              <CardEstrategia
-                estrategia={dados.estrategiaParaAprovar}
-                codigo={codigo ?? ''}
-                aoMudar={() => setVersao((v) => v + 1)}
-              />
-            )}
-            {dados.pesquisasPendentes.length > 0 && (
-              <CardPesquisas
-                pesquisas={dados.pesquisasPendentes}
-                codigo={codigo ?? ''}
-                aoMudar={() => setVersao((v) => v + 1)}
-              />
-            )}
-            {dados.conteudosParaAprovar.length > 0 && (
-              <CardAprovacoes
-                pecas={dados.conteudosParaAprovar}
-                codigo={codigo ?? ''}
-                aoMudar={() => setVersao((v) => v + 1)}
-              />
-            )}
-            {dados.materiaisParaAprovar.length > 0 && (
-              <CardAprovacoesMateriais
-                materiais={dados.materiaisParaAprovar}
-                codigo={codigo ?? ''}
-                aoMudar={() => setVersao((v) => v + 1)}
-              />
-            )}
-            {dados.relatorioResultados.totalCampanhas > 0 && (
-              <CardRelatorioResultados relatorio={dados.relatorioResultados} codigo={codigo ?? ''} />
-            )}
-            {dados.anunciosAtivos.length > 0 && (
-              <CardAnunciosAtivos anuncios={dados.anunciosAtivos} />
-            )}
-            {dados.medalhas.length > 0 && (
-              <Card>
-                <TituloCard>Suas conquistas</TituloCard>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
-                  {dados.medalhas.map((m, i) => (
-                    <div key={i} title={m.descricao ?? ''} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 86 }}>
-                      <span style={{ fontSize: 30 }}>{m.icone ?? '🏅'}</span>
-                      <span style={{ fontSize: 11.5, textAlign: 'center', color: 'var(--texto-suave)' }}>{m.titulo}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-            {dados.onboarding && <CardOnboarding onboarding={dados.onboarding} />}
-            {dados.eventos.length > 0 && <CardAgenda eventos={dados.eventos} />}
-            {dados.aulas.length > 0 && (
-              <CardAulas
-                aulas={dados.aulas}
-                codigo={codigo ?? ''}
-                aoMudar={() => setVersao((v) => v + 1)}
-              />
-            )}
-            {dados.contrato && <CardContrato contrato={dados.contrato} />}
-            <CardFaturas faturas={dados.faturas} />
-            <Rodape />
-          </>
+          <PortalEkyte
+            dados={dados}
+            codigo={codigo ?? ''}
+            aoMudar={() => setVersao((v) => v + 1)}
+          />
         )}
       </div>
     </main>
+  );
+}
+
+/* --------------------------- Painel estilo eKyte ---------------------- */
+// Layout inspirado no painel de aprovação do eKyte: barra do painel + etapas
+// no topo, lista lateral de "Revisões" e "Acompanhamento", e um painel central
+// que exibe o item selecionado. Reaproveita TODOS os cards/fluxos já existentes
+// (aprovar, pedir ajuste, notas, agenda, aulas, faturas, etc.) — nada foi
+// removido; agora são navegados pela lista lateral.
+
+type SecaoPortal = {
+  chave: string;
+  grupo: 'revisao' | 'acompanhamento';
+  rotulo: string;
+  subtitulo: string;
+  distintivo?: number;
+  render: () => React.ReactNode;
+};
+
+function PortalEkyte({
+  dados,
+  codigo,
+  aoMudar,
+}: {
+  dados: PortalData;
+  codigo: string;
+  aoMudar: () => void;
+}) {
+  const secoes: SecaoPortal[] = [];
+
+  // --- Grupo "Revisões" (itens aguardando o aval do cliente) ---
+  if (dados.conteudosParaAprovar.length > 0) {
+    secoes.push({
+      chave: 'pecas',
+      grupo: 'revisao',
+      rotulo: 'Para aprovar',
+      subtitulo: `${dados.conteudosParaAprovar.length} peça(s) aguardando seu aval`,
+      distintivo: dados.conteudosParaAprovar.length,
+      render: () => (
+        <CardAprovacoes
+          pecas={dados.conteudosParaAprovar}
+          codigo={codigo}
+          aoMudar={aoMudar}
+          marca={dados.cliente.nomeFantasia}
+        />
+      ),
+    });
+  }
+  if (dados.materiaisParaAprovar.length > 0) {
+    secoes.push({
+      chave: 'materiais',
+      grupo: 'revisao',
+      rotulo: 'Materiais para aprovar',
+      subtitulo: `${dados.materiaisParaAprovar.length} material(is) de campanha`,
+      distintivo: dados.materiaisParaAprovar.length,
+      render: () => (
+        <CardAprovacoesMateriais materiais={dados.materiaisParaAprovar} codigo={codigo} aoMudar={aoMudar} />
+      ),
+    });
+  }
+  if (dados.estrategiaParaAprovar) {
+    const est = dados.estrategiaParaAprovar;
+    secoes.push({
+      chave: 'estrategia',
+      grupo: 'revisao',
+      rotulo: 'Estratégia para aprovar',
+      subtitulo: est.titulo,
+      distintivo: 1,
+      render: () => <CardEstrategia estrategia={est} codigo={codigo} aoMudar={aoMudar} />,
+    });
+  }
+  if (dados.pesquisasPendentes.length > 0) {
+    secoes.push({
+      chave: 'pesquisas',
+      grupo: 'revisao',
+      rotulo: 'Pesquisas',
+      subtitulo: `${dados.pesquisasPendentes.length} pesquisa(s) para responder`,
+      distintivo: dados.pesquisasPendentes.length,
+      render: () => <CardPesquisas pesquisas={dados.pesquisasPendentes} codigo={codigo} aoMudar={aoMudar} />,
+    });
+  }
+
+  // --- Grupo "Acompanhamento" (demais fluxos e informações) ---
+  secoes.push({
+    chave: 'solicitar',
+    grupo: 'acompanhamento',
+    rotulo: 'Solicitar conteúdo',
+    subtitulo: 'Peça um novo post, reels ou story',
+    render: () => <CardNovaDemanda codigo={codigo} />,
+  });
+  if (dados.onboarding) {
+    const ob = dados.onboarding;
+    secoes.push({
+      chave: 'onboarding',
+      grupo: 'acompanhamento',
+      rotulo: 'Seu onboarding',
+      subtitulo: `${Math.max(0, Math.min(100, ob.progresso))}% concluído`,
+      render: () => <CardOnboarding onboarding={ob} />,
+    });
+  }
+  if (dados.eventos.length > 0) {
+    secoes.push({
+      chave: 'agenda',
+      grupo: 'acompanhamento',
+      rotulo: 'Sua agenda',
+      subtitulo: `${dados.eventos.length} compromisso(s)`,
+      render: () => <CardAgenda eventos={dados.eventos} />,
+    });
+  }
+  if (dados.aulas.length > 0) {
+    secoes.push({
+      chave: 'aulas',
+      grupo: 'acompanhamento',
+      rotulo: 'Aulas de onboarding',
+      subtitulo: `${dados.aulas.filter((a) => a.concluida).length}/${dados.aulas.length} assistidas`,
+      render: () => <CardAulas aulas={dados.aulas} codigo={codigo} aoMudar={aoMudar} />,
+    });
+  }
+  if (dados.relatorioResultados.totalCampanhas > 0) {
+    secoes.push({
+      chave: 'relatorio',
+      grupo: 'acompanhamento',
+      rotulo: 'Relatório de resultados',
+      subtitulo: `${dados.relatorioResultados.ativos} campanha(s) ativa(s)`,
+      render: () => <CardRelatorioResultados relatorio={dados.relatorioResultados} codigo={codigo} />,
+    });
+  }
+  if (dados.anunciosAtivos.length > 0) {
+    secoes.push({
+      chave: 'anuncios',
+      grupo: 'acompanhamento',
+      rotulo: 'Anúncios ativos',
+      subtitulo: `${dados.anunciosAtivos.length} veiculando`,
+      render: () => <CardAnunciosAtivos anuncios={dados.anunciosAtivos} />,
+    });
+  }
+  if (dados.medalhas.length > 0) {
+    secoes.push({
+      chave: 'conquistas',
+      grupo: 'acompanhamento',
+      rotulo: 'Suas conquistas',
+      subtitulo: `${dados.medalhas.length} medalha(s)`,
+      render: () => (
+        <Card>
+          <TituloCard>Suas conquistas</TituloCard>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+            {dados.medalhas.map((m, i) => (
+              <div key={i} title={m.descricao ?? ''} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 86 }}>
+                <span style={{ fontSize: 30 }}>{m.icone ?? '🏅'}</span>
+                <span style={{ fontSize: 11.5, textAlign: 'center', color: 'var(--texto-suave)' }}>{m.titulo}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ),
+    });
+  }
+  if (dados.contrato) {
+    const ct = dados.contrato;
+    secoes.push({
+      chave: 'contrato',
+      grupo: 'acompanhamento',
+      rotulo: 'Contrato',
+      subtitulo: aparenciaContrato(ct.status).rotulo,
+      render: () => <CardContrato contrato={ct} />,
+    });
+  }
+  secoes.push({
+    chave: 'faturas',
+    grupo: 'acompanhamento',
+    rotulo: 'Cobranças',
+    subtitulo: `${dados.faturas.length} cobrança(s)`,
+    render: () => <CardFaturas faturas={dados.faturas} />,
+  });
+
+  const [selecionado, setSelecionado] = useState<string>(secoes[0]?.chave ?? 'faturas');
+  const atual = secoes.find((s) => s.chave === selecionado) ?? secoes[0];
+
+  const revisoes = secoes.filter((s) => s.grupo === 'revisao');
+  const acompanhamento = secoes.filter((s) => s.grupo === 'acompanhamento');
+  const totalRevisoes = revisoes.reduce((n, s) => n + (s.distintivo ?? 0), 0);
+
+  return (
+    <>
+      <Cabecalho dados={dados} />
+      {dados.comunicado && (
+        <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--amarelo)', fontSize: 14, fontWeight: 600 }}>
+          📢 {dados.comunicado.mensagem}
+        </div>
+      )}
+
+      <section style={{ background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 16, boxShadow: 'var(--sombra-card)', overflow: 'hidden' }}>
+        {/* Barra do painel */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', borderBottom: '1px solid var(--borda)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <IconePainel />
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--cinza-vapor)' }}>Painel de aprovação</span>
+          </div>
+          {totalRevisoes > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--amarelo)', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 999, padding: '4px 12px' }}>
+              {totalRevisoes} aguardando seu aval
+            </span>
+          )}
+        </div>
+
+        {/* Barra de etapas (Planejamento → Criação → Aprovação) */}
+        <StepperEtapas />
+
+        {/* Corpo: lista lateral + painel central */}
+        <div className="brk-portal-corpo" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 300px) 1fr', alignItems: 'stretch' }}>
+          <aside style={{ borderRight: '1px solid var(--borda)', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+            {revisoes.length > 0 && (
+              <GrupoLista titulo="Revisões" contador={totalRevisoes}>
+                {revisoes.map((s) => (
+                  <ItemLista key={s.chave} secao={s} ativo={s.chave === selecionado} aoSelecionar={() => setSelecionado(s.chave)} />
+                ))}
+              </GrupoLista>
+            )}
+            <GrupoLista titulo="Acompanhamento">
+              {acompanhamento.map((s) => (
+                <ItemLista key={s.chave} secao={s} ativo={s.chave === selecionado} aoSelecionar={() => setSelecionado(s.chave)} />
+              ))}
+            </GrupoLista>
+          </aside>
+
+          <div style={{ padding: 18, minWidth: 0 }}>{atual?.render()}</div>
+        </div>
+      </section>
+
+      <Rodape />
+    </>
+  );
+}
+
+// Barra de etapas do painel (fixa): as peças chegam ao cliente já em fase de
+// aprovação, então Planejamento e Criação vêm concluídos e Aprovação é a atual.
+function StepperEtapas() {
+  const etapas: { rotulo: string; atual?: boolean }[] = [
+    { rotulo: 'Planejamento' },
+    { rotulo: 'Criação' },
+    { rotulo: 'Aprovação', atual: true },
+  ];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 18px', borderBottom: '1px solid var(--borda)', overflowX: 'auto' }}>
+      {etapas.map((e, i) => (
+        <div key={e.rotulo} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {e.atual ? (
+              <span style={{ width: 20, height: 20, borderRadius: 999, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 12 }} className="brk-gradient-bg">
+                {i + 1}
+              </span>
+            ) : (
+              <IconeCheck concluido={true} />
+            )}
+            <span style={{ fontSize: 13, fontWeight: e.atual ? 800 : 600, color: e.atual ? 'var(--amarelo)' : 'var(--texto-suave)', whiteSpace: 'nowrap' }}>
+              {e.rotulo}
+            </span>
+          </div>
+          {i < etapas.length - 1 && <span style={{ width: 28, height: 2, background: 'var(--borda-forte)', borderRadius: 2 }} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GrupoLista({ titulo, contador, children }: { titulo: string; contador?: number; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', marginBottom: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--texto-fraco)' }}>{titulo}</span>
+        {contador !== undefined && contador > 0 && (
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--amarelo)', background: 'rgba(245,158,11,0.14)', borderRadius: 999, padding: '1px 7px' }}>{contador}</span>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ItemLista({ secao, ativo, aoSelecionar }: { secao: SecaoPortal; ativo: boolean; aoSelecionar: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={aoSelecionar}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        textAlign: 'left',
+        padding: '10px',
+        borderRadius: 10,
+        cursor: 'pointer',
+        border: `1px solid ${ativo ? 'var(--borda-forte)' : 'transparent'}`,
+        background: ativo ? 'var(--superficie-2)' : 'transparent',
+      }}
+    >
+      <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: secao.grupo === 'revisao' ? 'var(--amarelo)' : 'var(--borda-forte)' }} />
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--cinza-vapor)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{secao.rotulo}</span>
+        <span style={{ fontSize: 11.5, color: 'var(--texto-fraco)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{secao.subtitulo}</span>
+      </span>
+      {secao.distintivo ? (
+        <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--amarelo)', background: 'rgba(245,158,11,0.14)', borderRadius: 999, padding: '1px 7px', flexShrink: 0 }}>{secao.distintivo}</span>
+      ) : (
+        <span aria-hidden="true" style={{ color: 'var(--texto-fraco)', fontSize: 16, flexShrink: 0 }}>›</span>
+      )}
+    </button>
+  );
+}
+
+function IconePainel() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="var(--amarelo)" strokeWidth="2" />
+      <path d="M7 9h10M7 13h10M7 17h6" stroke="var(--amarelo)" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -1065,10 +1319,12 @@ function CardAprovacoes({
   pecas,
   codigo,
   aoMudar,
+  marca,
 }: {
   pecas: PortalData['conteudosParaAprovar'];
   codigo: string;
   aoMudar: () => void;
+  marca: string;
 }) {
   return (
     <Card>
@@ -1078,7 +1334,7 @@ function CardAprovacoes({
       </p>
       <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16, listStyle: 'none' }}>
         {pecas.map((peca) => (
-          <PecaAprovacao key={peca.id} peca={peca} codigo={codigo} aoMudar={aoMudar} />
+          <PecaAprovacao key={peca.id} peca={peca} codigo={codigo} aoMudar={aoMudar} marca={marca} />
         ))}
       </ul>
     </Card>
@@ -1557,14 +1813,178 @@ function MidiaPeca({ url }: { url: string }) {
   );
 }
 
+// Mapeia o tipo da peça para o rótulo de plataforma/formato exibido no preview.
+function plataformaDaPeca(tipo: string): { rede: string; formato: string } {
+  switch (tipo) {
+    case 'REELS':
+    case 'VIDEO':
+      return { rede: 'Instagram Reels', formato: '1080x1920' };
+    case 'STORY':
+      return { rede: 'Instagram Story', formato: '1080x1920' };
+    case 'CARROSSEL':
+      return { rede: 'Instagram Carrossel', formato: '1080x1350' };
+    default:
+      return { rede: 'Instagram Feed', formato: '1080x1350' };
+  }
+}
+
+// Preview do criativo no estilo de uma publicação de rede social (igual ao
+// painel do eKyte): cabeçalho com marca + "Patrocinado", mídia, ícones de ação
+// e legenda com "Descrição completa". Somente visual — reaproveita MidiaPeca
+// para exibir imagem/vídeo e não altera nenhum dado.
+function PreviewSocial({
+  marca,
+  tipo,
+  midiaUrl,
+  legenda,
+}: {
+  marca: string;
+  tipo: string;
+  midiaUrl: string | null;
+  legenda: string | null;
+}) {
+  const [descExpandida, setDescExpandida] = useState(false);
+  const plat = plataformaDaPeca(tipo);
+  const iniciais =
+    marca
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? '')
+      .join('') || '?';
+  const texto = legenda ?? '';
+  const legendaLonga = texto.length > 120;
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {/* Rótulo de plataforma + baixar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--texto-suave)', background: 'var(--superficie-3)', border: '1px solid var(--borda)', borderRadius: 999, padding: '3px 10px' }}>
+          {plat.rede} · {plat.formato}
+        </span>
+        {midiaUrl && (
+          <a
+            href={midiaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Baixar arquivo"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: 'var(--texto-suave)', textDecoration: 'none' }}
+          >
+            <IconeBaixar /> Baixar
+          </a>
+        )}
+      </div>
+
+      {/* Card estilo publicação (claro — imita a rede social) */}
+      <div style={{ background: '#fff', border: '1px solid #dbdbdb', borderRadius: 12, overflow: 'hidden', color: '#262626', maxWidth: 420 }}>
+        {/* Cabeçalho */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+          <span className="brk-gradient-bg" style={{ width: 34, height: 34, borderRadius: '50%', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+            {iniciais}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#262626', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{marca}</span>
+            <span style={{ fontSize: 11, color: '#8e8e8e' }}>Patrocinado</span>
+          </div>
+          <span aria-hidden="true" style={{ marginLeft: 'auto', color: '#8e8e8e', fontSize: 18, letterSpacing: 1 }}>⋯</span>
+        </div>
+
+        {/* Mídia (reaproveita MidiaPeca) */}
+        {midiaUrl ? (
+          <div style={{ padding: '0 12px' }}>
+            <MidiaPeca url={midiaUrl} />
+          </div>
+        ) : (
+          <div style={{ background: '#000', display: 'grid', placeItems: 'center', height: 220, color: '#8e8e8e', fontSize: 12.5 }}>
+            Prévia indisponível
+          </div>
+        )}
+
+        {/* Ações */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 12px 4px', color: '#262626' }}>
+          <IconeCoracao />
+          <IconeComentario />
+          <IconeCompartilhar />
+          <span style={{ marginLeft: 'auto', display: 'inline-flex' }}><IconeSalvar /></span>
+        </div>
+
+        {/* Legenda com "Descrição completa" */}
+        <div style={{ padding: '4px 12px 14px', fontSize: 13, lineHeight: 1.45, color: '#262626' }}>
+          {texto ? (
+            <>
+              <span style={{ whiteSpace: 'pre-wrap' }}>
+                <strong>{marca}</strong>{' '}
+                {legendaLonga && !descExpandida ? `${texto.slice(0, 120).trimEnd()}… ` : texto}
+              </span>
+              {legendaLonga && (
+                <button
+                  type="button"
+                  onClick={() => setDescExpandida((v) => !v)}
+                  style={{ display: 'inline', background: 'none', border: 'none', padding: 0, marginLeft: 4, color: '#8e8e8e', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  {descExpandida ? 'ocultar' : 'Descrição completa'}
+                </button>
+              )}
+            </>
+          ) : (
+            <strong>{marca}</strong>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IconeBaixar() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconeCoracao() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 20s-7-4.35-9.5-8.5C1 8.5 2.5 5.5 5.5 5.5c1.8 0 3 1 3.5 2 .5-1 1.7-2 3.5-2 3 0 4.5 3 3 6C19 15.65 12 20 12 20Z" stroke="#262626" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconeComentario() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M21 11.5a8.5 8.5 0 0 1-11.9 7.8L3 21l1.7-6.1A8.5 8.5 0 1 1 21 11.5Z" stroke="#262626" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconeCompartilhar() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M22 3 11 14M22 3l-7 18-4-7-7-4 18-7Z" stroke="#262626" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconeSalvar() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" stroke="#262626" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function PecaAprovacao({
   peca,
   codigo,
   aoMudar,
+  marca,
 }: {
   peca: PortalData['conteudosParaAprovar'][number];
   codigo: string;
   aoMudar: () => void;
+  marca: string;
 }) {
   const [estrelas, setEstrelas] = useState(5);
   const [qualidadeGrafica, setQualidadeGrafica] = useState(5);
@@ -1625,10 +2045,8 @@ function PecaAprovacao({
         </span>
         <BadgeTipo tipo={peca.tipo} />
       </div>
-      {peca.descricao && (
-        <p style={{ fontSize: 13, color: 'var(--texto-suave)', marginTop: 6 }}>{peca.descricao}</p>
-      )}
-      {peca.midiaUrl && <MidiaPeca url={peca.midiaUrl} />}
+
+      <PreviewSocial marca={marca} tipo={peca.tipo} midiaUrl={peca.midiaUrl} legenda={peca.descricao} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
         <RatingLinha label="Nota geral" valor={estrelas} aoMudar={setEstrelas} desabilitado={enviando} />

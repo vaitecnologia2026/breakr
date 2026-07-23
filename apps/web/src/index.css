@@ -1604,3 +1604,16 @@ b, strong { font-weight: 600; }
 [style*="font-weight: 800"], [style*="font-weight:800"],
 [style*="font-weight: 900"], [style*="font-weight:900"],
 [style*="font-weight: bold"], [style*="font-weight:bold"] { font-weight: 600 !important; }
+
+/* ============================================================
+   Portal do cliente — painel estilo eKyte (Portal.tsx).
+   Escopo isolado por classe: no mobile, a lista lateral empilha
+   sobre o painel central (sem afetar nenhum outro componente).
+   ============================================================ */
+@media (max-width: 760px) {
+  .brk-portal-corpo { grid-template-columns: 1fr !important; }
+  .brk-portal-corpo > aside {
+    border-right: none !important;
+    border-bottom: 1px solid var(--borda);
+  }
+}
