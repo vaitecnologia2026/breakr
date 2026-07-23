@@ -469,6 +469,11 @@ function AplicarModeloChecklist({
 function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void }) {
   // Ações do item do checklist (concluir/remover) — disponíveis em todos os itens.
   const [acaoOcupada, setAcaoOcupada] = useState(false);
+  // Informações do item (guardadas na descrição da etapa). O checkbox ao lado do
+  // Remover abre o campo para colocar/editar essas informações.
+  const [mostrarInfo, setMostrarInfo] = useState(!!etapa.descricao);
+  const [info, setInfo] = useState(etapa.descricao ?? '');
+  const [salvandoInfo, setSalvandoInfo] = useState(false);
 
   // Marca o item como concluído (mesmo endpoint já existente do checklist).
   async function concluir() {
@@ -491,6 +496,18 @@ function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void })
       aoSalvar();
     } finally {
       setAcaoOcupada(false);
+    }
+  }
+
+  // Salva as informações do item na descrição (endpoint de edição já existente).
+  async function salvarInfo() {
+    if (salvandoInfo) return;
+    setSalvandoInfo(true);
+    try {
+      await api.patch(`/onboarding/etapa/${etapa.id}`, { descricao: info });
+      aoSalvar();
+    } finally {
+      setSalvandoInfo(false);
     }
   }
 
@@ -530,7 +547,38 @@ function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void })
         >
           🗑 Remover
         </button>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12.5,
+            color: 'var(--texto-suave)',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={mostrarInfo}
+            onChange={(e) => setMostrarInfo(e.target.checked)}
+          />
+          Informações
+        </label>
       </div>
+      {mostrarInfo && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          <Textarea
+            value={info}
+            onChange={(e) => setInfo(e.target.value)}
+            placeholder="Informações deste item (ex.: resposta do cliente, observações)…"
+          />
+          <div>
+            <BotaoSecundario onClick={salvarInfo} disabled={salvandoInfo}>
+              {salvandoInfo ? 'Salvando…' : 'Salvar informações'}
+            </BotaoSecundario>
+          </div>
+        </div>
+      )}
     </li>
   );
 }
