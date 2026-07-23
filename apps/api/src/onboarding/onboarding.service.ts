@@ -143,10 +143,21 @@ export class OnboardingService {
     clienteId: string,
     dto: CriarEtapaOnboardingDto,
   ): Promise<Onboarding> {
-    const onboarding = await this.prisma.onboarding.findUnique({
+    let onboarding = await this.prisma.onboarding.findUnique({
       where: { clienteId },
       include: { etapas: true },
     });
+    if (!onboarding) {
+      // Cliente ainda sem onboarding: inicia pelo MESMO caminho validado — criar()
+      // e idempotente e ja usado pelo fluxo de pagamento (cria as 6 etapas padrao
+      // e move o cliente para ONBOARD). Assim, agendar antes do onboarding "abre"
+      // o checklist do cliente em vez de dar 404, sem divergir do fluxo oficial.
+      await this.criar(clienteId);
+      onboarding = await this.prisma.onboarding.findUnique({
+        where: { clienteId },
+        include: { etapas: true },
+      });
+    }
     if (!onboarding) {
       throw new NotFoundException('Onboarding do cliente nao encontrado');
     }

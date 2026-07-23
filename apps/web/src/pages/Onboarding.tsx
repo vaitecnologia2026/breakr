@@ -226,6 +226,11 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
           titulo="Sem onboarding"
           descricao="Este cliente ainda não teve o onboarding liberado (gerado após o 1º pagamento)."
         />
+        <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginTop: 10 }}>
+          Você pode já agendar a reunião e a apresentação da proposta. Ao adicionar o
+          primeiro item, o onboarding do cliente é iniciado.
+        </p>
+        <AdicionarItemChecklist clienteId={clienteId} aoAdicionar={carregar} />
       </Card>
     );
   }
