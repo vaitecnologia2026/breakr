@@ -1,7 +1,7 @@
 // Servico de onboarding gamificado (M14). Liberado apos o pagamento da 1a
 // fatura: cria o checklist do cliente e move o cliente para ONBOARD; quando
 // todas as etapas sao concluidas, o cliente vira ATIVO.
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Onboarding } from '@prisma/client';
 import { ClienteStatus } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +10,7 @@ import { CriarAulaDto } from './dto/criar-aula.dto';
 import { AtualizarAulaDto } from './dto/atualizar-aula.dto';
 import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
+import { CriarEtapaOnboardingDto } from './dto/criar-etapa-onboarding.dto';
 
 // Etapas padrao do onboarding (ordem fixa do checklist gamificado).
 // Alinhadas aos 6 processos do fluxo real de onboarding (workflow n8n
@@ -131,6 +132,83 @@ export class OnboardingService {
     return this.prisma.onboardingStep.update({
       where: { id: stepId },
       data: { titulo: dto.titulo, descricao: dto.descricao, link: dto.link },
+    });
+  }
+
+  // Adiciona um item PERSONALIZADO ao checklist do cliente (ex.: agendamentos
+  // criados pela CS: "Agendar reuniao", "Agendar apresentacao da proposta
+  // comercial"). O item entra ao final da lista, marcado como personalizado
+  // (removivel), e o progresso e recalculado. Nao altera o status do cliente.
+  async criarEtapa(
+    clienteId: string,
+    dto: CriarEtapaOnboardingDto,
+  ): Promise<Onboarding> {
+    const onboarding = await this.prisma.onboarding.findUnique({
+      where: { clienteId },
+      include: { etapas: true },
+    });
+    if (!onboarding) {
+      throw new NotFoundException('Onboarding do cliente nao encontrado');
+    }
+    const proximaOrdem =
+      onboarding.etapas.reduce((max, e) => (e.ordem > max ? e.ordem : max), 0) + 1;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.onboardingStep.create({
+        data: {
+          onboardingId: onboarding.id,
+          titulo: dto.titulo.trim(),
+          descricao: dto.descricao?.trim() || null,
+          ordem: proximaOrdem,
+          concluido: false,
+          personalizado: true,
+        },
+      });
+      // Recalcula o progresso a partir das etapas atuais (mesma regra do concluir).
+      const etapas = await tx.onboardingStep.findMany({
+        where: { onboardingId: onboarding.id },
+      });
+      const total = etapas.length;
+      const concluidas = etapas.filter((e) => e.concluido).length;
+      const progresso = total === 0 ? 0 : Math.round((concluidas / total) * 100);
+      const concluido = total > 0 && concluidas === total;
+      return tx.onboarding.update({
+        where: { id: onboarding.id },
+        data: { progresso, concluido },
+        include: { etapas: { orderBy: { ordem: 'asc' } } },
+      });
+    });
+  }
+
+  // Remove um item do checklist — APENAS itens personalizados (as 6 etapas padrao
+  // nao podem ser removidas). Recalcula o progresso. Nao altera o status do cliente.
+  async removerEtapa(stepId: string): Promise<Onboarding> {
+    const etapa = await this.prisma.onboardingStep.findUnique({
+      where: { id: stepId },
+    });
+    if (!etapa) {
+      throw new NotFoundException('Etapa de onboarding nao encontrada');
+    }
+    if (!etapa.personalizado) {
+      throw new BadRequestException(
+        'Apenas itens personalizados do checklist podem ser removidos.',
+      );
+    }
+    const onboardingId = etapa.onboardingId;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.onboardingStep.delete({ where: { id: stepId } });
+      const etapas = await tx.onboardingStep.findMany({
+        where: { onboardingId },
+      });
+      const total = etapas.length;
+      const concluidas = etapas.filter((e) => e.concluido).length;
+      const progresso = total === 0 ? 0 : Math.round((concluidas / total) * 100);
+      const concluido = total > 0 && concluidas === total;
+      return tx.onboarding.update({
+        where: { id: onboardingId },
+        data: { progresso, concluido },
+        include: { etapas: { orderBy: { ordem: 'asc' } } },
+      });
     });
   }
 

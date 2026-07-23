@@ -678,6 +678,9 @@ model OnboardingStep {
   link      String?
   ordem     Int      @default(0)
   concluido Boolean  @default(false)
+  // Item adicionado manualmente ao checklist (ex.: agendamentos criados pela CS).
+  // As 6 etapas padrao ficam false; so itens personalizados podem ser removidos.
+  personalizado Boolean @default(false)
   criadoEm  DateTime @default(now()) @map("criado_em")
 
   onboardingId String     @map("onboarding_id")

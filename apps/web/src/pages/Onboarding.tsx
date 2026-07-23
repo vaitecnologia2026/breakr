@@ -34,6 +34,8 @@ interface Etapa {
   link: string | null;
   concluido: boolean;
   ordem: number;
+  // Item adicionado manualmente (ex.: agendamentos). Só estes podem ser removidos.
+  personalizado: boolean;
 }
 
 interface OnboardingCliente {
@@ -240,13 +242,92 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
             <EtapaLinha key={etapa.id} etapa={etapa} aoSalvar={carregar} />
           ))}
       </ul>
+      <AdicionarItemChecklist clienteId={clienteId} aoAdicionar={carregar} />
     </Card>
+  );
+}
+
+// Atalhos de agendamento (boas práticas de onboarding: agendar a reunião de kickoff
+// e a apresentação da proposta comercial quando estiver falando com o cliente).
+const ATALHOS_AGENDAMENTO = [
+  'Agendar reunião',
+  'Agendar apresentação da proposta comercial',
+];
+
+function AdicionarItemChecklist({
+  clienteId,
+  aoAdicionar,
+}: {
+  clienteId: string;
+  aoAdicionar: () => void;
+}) {
+  const [titulo, setTitulo] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function adicionar(valor: string) {
+    const t = valor.trim();
+    if (t.length < 1 || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.post(`/onboarding/cliente/${clienteId}/etapa`, { titulo: t });
+      setTitulo('');
+      aoAdicionar();
+    } catch {
+      setErro('Não foi possível adicionar o item ao checklist.');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 16,
+        paddingTop: 14,
+        borderTop: '1px solid var(--borda)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--texto-suave)' }}>
+        Agendamento — adicionar ao checklist
+      </span>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {ATALHOS_AGENDAMENTO.map((a) => (
+          <BotaoSecundario key={a} onClick={() => adicionar(a)} disabled={salvando}>
+            + {a}
+          </BotaoSecundario>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <Input
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          placeholder="Outro item do checklist (ex.: Agendar visita)"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              adicionar(titulo);
+            }
+          }}
+        />
+        <BotaoSecundario onClick={() => adicionar(titulo)} disabled={salvando || titulo.trim().length < 1}>
+          {salvando ? '…' : 'Adicionar'}
+        </BotaoSecundario>
+      </div>
+      {erro && <span style={{ fontSize: 12, color: 'var(--vermelho, #e5484d)' }}>{erro}</span>}
+    </div>
   );
 }
 
 function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void }) {
   const [link, setLink] = useState(etapa.link ?? '');
   const [salvando, setSalvando] = useState(false);
+  // Ações de item personalizado (concluir/remover) — só aparecem nesses itens.
+  const [acaoOcupada, setAcaoOcupada] = useState(false);
 
   async function salvar() {
     setSalvando(true);
@@ -255,6 +336,30 @@ function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void })
       aoSalvar();
     } finally {
       setSalvando(false);
+    }
+  }
+
+  // Marca o item como concluído (mesmo endpoint já existente do checklist).
+  async function concluir() {
+    if (acaoOcupada) return;
+    setAcaoOcupada(true);
+    try {
+      await api.post(`/onboarding/etapa/${etapa.id}/concluir`);
+      aoSalvar();
+    } finally {
+      setAcaoOcupada(false);
+    }
+  }
+
+  // Remove o item (apenas itens personalizados; o backend bloqueia os padrão).
+  async function remover() {
+    if (acaoOcupada) return;
+    setAcaoOcupada(true);
+    try {
+      await api.delete(`/onboarding/etapa/${etapa.id}`);
+      aoSalvar();
+    } finally {
+      setAcaoOcupada(false);
     }
   }
 
@@ -281,6 +386,32 @@ function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void })
           {salvando ? '…' : 'Salvar'}
         </BotaoSecundario>
       </div>
+      {etapa.personalizado && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {!etapa.concluido && (
+            <BotaoSecundario onClick={concluir} disabled={acaoOcupada}>
+              {acaoOcupada ? '…' : 'Concluir'}
+            </BotaoSecundario>
+          )}
+          <button
+            type="button"
+            onClick={remover}
+            disabled={acaoOcupada}
+            title="Remover item do checklist"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--borda)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 13,
+              padding: '6px 10px',
+              color: 'var(--vermelho, #e5484d)',
+            }}
+          >
+            🗑 Remover
+          </button>
+        </div>
+      )}
     </li>
   );
 }

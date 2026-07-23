@@ -19,6 +19,7 @@ import { CriarAulaDto } from './dto/criar-aula.dto';
 import { AtualizarAulaDto } from './dto/atualizar-aula.dto';
 import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
+import { CriarEtapaOnboardingDto } from './dto/criar-etapa-onboarding.dto';
 
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
@@ -46,6 +47,27 @@ export class OnboardingController {
     @Body() dto: AtualizarEtapaDto,
   ) {
     return this.onboardingService.atualizarEtapa(stepId, dto);
+  }
+
+  // POST /onboarding/cliente/:id/etapa — adiciona um item personalizado ao checklist
+  // (ex.: "Agendar reuniao", "Agendar apresentacao da proposta comercial").
+  @Post('cliente/:id/etapa')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  criarEtapa(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CriarEtapaOnboardingDto,
+  ) {
+    return this.onboardingService.criarEtapa(id, dto);
+  }
+
+  // DELETE /onboarding/etapa/:stepId — remove um item personalizado do checklist
+  // (as 6 etapas padrao nao podem ser removidas).
+  @Delete('etapa/:stepId')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  removerEtapa(@Param('stepId', ParseUUIDPipe) stepId: string) {
+    return this.onboardingService.removerEtapa(stepId);
   }
 
   // --- Agenda de eventos do cliente ---
