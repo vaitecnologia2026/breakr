@@ -4,7 +4,7 @@
 // criacao/transicao dispara o motor; ao ir para APROVACAO_CLIENTE o CS e
 // notificado para acompanhar a aprovacao no portal.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Conteudo, Prisma, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
+import { Conteudo, EtapaTipoTarefa, Prisma, StatusConteudo, StatusEstrategia, TipoConteudo } from '@prisma/client';
 import { StatusMaterial } from '../common/status-material';
 import { Cargo, FuncaoSquad } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,6 +14,7 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { CriarConteudoDto } from './dto/criar-conteudo.dto';
 import { AtualizarConteudoDto } from './dto/atualizar-conteudo.dto';
 import { SolicitarCriativoDto } from './dto/solicitar-criativo.dto';
+import { CriarConteudoDeTipoDto } from './dto/criar-conteudo-de-tipo.dto';
 
 // SLA padrao (horas) para a estrategista atender uma solicitacao de criativo.
 const SLA_CRIATIVO_HORAS = 72;
@@ -24,6 +25,20 @@ const INCLUDE_PADRAO = {
   squad: { select: { nome: true } },
   responsavel: { select: { nome: true } },
 };
+
+// Etapas do fluxo de producao (catalogo Tipos de Tarefa x Etapas), na ordem
+// canonica, com o rotulo legivel para compor a descricao da peca herdada.
+const ETAPAS_TIPO_TAREFA: { etapa: EtapaTipoTarefa; rotulo: string }[] = [
+  { etapa: EtapaTipoTarefa.BRIEFING, rotulo: 'Briefing' },
+  { etapa: EtapaTipoTarefa.ANALISE, rotulo: 'Análise' },
+  { etapa: EtapaTipoTarefa.REDACAO, rotulo: 'Redação' },
+  { etapa: EtapaTipoTarefa.DESIGN, rotulo: 'Design' },
+  { etapa: EtapaTipoTarefa.REVISAO_INTERNA, rotulo: 'Revisão interna' },
+  { etapa: EtapaTipoTarefa.APROVACAO_CLIENTE, rotulo: 'Aprovação cliente' },
+  { etapa: EtapaTipoTarefa.PUBLICACAO, rotulo: 'Publicação' },
+  { etapa: EtapaTipoTarefa.DIVULGACAO, rotulo: 'Divulgação' },
+  { etapa: EtapaTipoTarefa.MONITORAMENTO, rotulo: 'Monitoramento' },
+];
 
 @Injectable()
 export class ConteudosService {
@@ -64,6 +79,108 @@ export class ConteudosService {
     });
 
     // Fire-and-forget: o motor nao pode quebrar a regra de negocio.
+    await this.engine.dispatch('conteudo.criado', {
+      conteudoId: conteudo.id,
+      clienteId: conteudo.clienteId,
+    });
+
+    return conteudo;
+  }
+
+  // Cria uma peca (Conteudo) a partir de um Tipo de Tarefa — o "elo" do catalogo
+  // Tipos de Tarefa x Etapas com o funil de producao. Herda das etapas do tipo:
+  //  - o responsavel inicial da peca = responsavel da 1a etapa aplicavel que tenha
+  //    um responsavel definido (assim a peca ja cai no "Meu dia" de alguem);
+  //  - um snapshot das etapas herdadas (etapas aplicaveis + responsavel de cada),
+  //    fiel ao eKyte (a tarefa mantem as etapas da data de criacao mesmo que o
+  //    tipo mude depois);
+  //  - a descricao lista o fluxo herdado (etapa: responsavel), para o time ver o
+  //    caminho da peca sem precisar abrir o catalogo.
+  // A peca nasce em IDEIA e dispara o motor, exatamente como criar().
+  async criarAPartirDeTipo(
+    tipoTarefaId: string,
+    dto: CriarConteudoDeTipoDto,
+  ): Promise<Conteudo> {
+    const tipo = await this.prisma.tipoTarefa.findUnique({
+      where: { id: tipoTarefaId },
+      include: { etapas: true },
+    });
+    if (!tipo) {
+      throw new NotFoundException('Tipo de tarefa nao encontrado.');
+    }
+
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: dto.clienteId },
+      select: { squadId: true },
+    });
+    if (!cliente) {
+      throw new BadRequestException('Cliente nao encontrado.');
+    }
+
+    // Etapas aplicaveis do tipo, na ordem canonica do fluxo. Etapa ausente na
+    // matriz e tratada como aplicavel (mesmo default do catalogo).
+    const aplicaveis = ETAPAS_TIPO_TAREFA.map((def) => {
+      const et = tipo.etapas.find((e) => e.etapa === def.etapa);
+      return {
+        etapa: def.etapa,
+        rotulo: def.rotulo,
+        responsavelId: et?.responsavelId ?? null,
+        aplicavel: et ? et.aplicavel : true,
+      };
+    }).filter((e) => e.aplicavel);
+
+    // Responsavel inicial = 1a etapa aplicavel que tenha responsavel.
+    const responsavelInicial =
+      aplicaveis.find((e) => e.responsavelId)?.responsavelId ?? undefined;
+
+    // Snapshot persistido das etapas herdadas (fiel ao eKyte).
+    const etapasHerdadas = aplicaveis.map((e) => ({
+      etapa: e.etapa,
+      responsavelId: e.responsavelId,
+    }));
+
+    // Resolve os nomes dos responsaveis (uma consulta) para a descricao legivel.
+    const ids = Array.from(
+      new Set(
+        aplicaveis
+          .map((e) => e.responsavelId)
+          .filter((v): v is string => Boolean(v)),
+      ),
+    );
+    const nomes = ids.length
+      ? await this.prisma.usuario.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, nome: true },
+        })
+      : [];
+    const nomePorId = new Map(nomes.map((u) => [u.id, u.nome]));
+    const linhasFluxo = aplicaveis
+      .map(
+        (e) =>
+          `- ${e.rotulo}: ${
+            e.responsavelId
+              ? nomePorId.get(e.responsavelId) ?? 'responsavel'
+              : 'sem responsavel'
+          }`,
+      )
+      .join('\n');
+    const descricao = `Fluxo herdado do tipo de tarefa "${tipo.titulo}":\n${linhasFluxo}`;
+
+    const conteudo = await this.prisma.conteudo.create({
+      data: {
+        clienteId: dto.clienteId,
+        titulo: dto.titulo?.trim() || tipo.titulo,
+        tipo: TipoConteudo.POST,
+        descricao,
+        squadId: cliente.squadId ?? undefined,
+        responsavelId: responsavelInicial,
+        status: StatusConteudo.IDEIA,
+        codigoUnico: this.codigoUnico.gerar('CNT'),
+        tipoTarefaId: tipo.id,
+        etapasHerdadas: etapasHerdadas as unknown as Prisma.InputJsonValue,
+      },
+    });
+
     await this.engine.dispatch('conteudo.criado', {
       conteudoId: conteudo.id,
       clienteId: conteudo.clienteId,

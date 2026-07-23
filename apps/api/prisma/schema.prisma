@@ -1043,6 +1043,14 @@ model Conteudo {
   materialCampanhaId String?           @unique @map("material_campanha_id")
   materialCampanha   MaterialCampanha? @relation("ConteudoOrigemMaterial", fields: [materialCampanhaId], references: [id], onDelete: SetNull)
 
+  // Peca criada a partir de um Tipo de Tarefa (catalogo Tipos de Tarefa x Etapas):
+  // guarda o id do tipo de origem (sem FK, mesmo padrao de criadoPorId em TipoTarefa)
+  // e um snapshot das etapas herdadas na data de criacao (fiel ao eKyte: a tarefa
+  // mantem as etapas de quando foi criada, mesmo que o tipo mude depois). Ambos
+  // nullable: pecas criadas pelo funil normal continuam com esses campos vazios.
+  tipoTarefaId   String? @map("tipo_tarefa_id")
+  etapasHerdadas Json?   @map("etapas_herdadas")
+
   @@index([clienteId])
   @@index([status])
   @@index([squadId])

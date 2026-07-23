@@ -27,6 +27,7 @@ import { Cargos } from '../common/rbac/cargos.decorator';
 import { Cargo } from '@breakr/shared';
 import { ConteudosService } from './conteudos.service';
 import { CriarConteudoDto } from './dto/criar-conteudo.dto';
+import { CriarConteudoDeTipoDto } from './dto/criar-conteudo-de-tipo.dto';
 import { AtualizarConteudoDto } from './dto/atualizar-conteudo.dto';
 import { MoverStatusDto } from './dto/mover-status.dto';
 import { AtribuirResponsavelDto } from './dto/atribuir-responsavel.dto';
@@ -95,6 +96,19 @@ export class ConteudosController {
   )
   criar(@Body() dto: CriarConteudoDto) {
     return this.conteudosService.criar(dto);
+  }
+
+  // POST /conteudos/de-tipo/:tipoId — cria uma peça a partir de um Tipo de Tarefa,
+  // herdando as etapas aplicáveis e o responsável inicial (o "elo" do catálogo
+  // Tipos de Tarefa com o funil). Mesmo time que pode criar peça.
+  @Post('de-tipo/:tipoId')
+  @UseGuards(CargosGuard)
+  @Cargos(...TIME_CONTEUDO)
+  criarDeTipo(
+    @Param('tipoId', ParseUUIDPipe) tipoId: string,
+    @Body() dto: CriarConteudoDeTipoDto,
+  ) {
+    return this.conteudosService.criarAPartirDeTipo(tipoId, dto);
   }
 
   // POST /conteudos/solicitar — gestor de tráfego pede um criativo à estrategista.
