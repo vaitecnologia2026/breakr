@@ -467,20 +467,8 @@ function AplicarModeloChecklist({
 }
 
 function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void }) {
-  const [link, setLink] = useState(etapa.link ?? '');
-  const [salvando, setSalvando] = useState(false);
-  // Ações de item personalizado (concluir/remover) — só aparecem nesses itens.
+  // Ações do item do checklist (concluir/remover) — disponíveis em todos os itens.
   const [acaoOcupada, setAcaoOcupada] = useState(false);
-
-  async function salvar() {
-    setSalvando(true);
-    try {
-      await api.patch(`/onboarding/etapa/${etapa.id}`, { link: link || undefined });
-      aoSalvar();
-    } finally {
-      setSalvando(false);
-    }
-  }
 
   // Marca o item como concluído (mesmo endpoint já existente do checklist).
   async function concluir() {
@@ -494,7 +482,7 @@ function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void })
     }
   }
 
-  // Remove o item (apenas itens personalizados; o backend bloqueia os padrão).
+  // Remove o item do checklist (qualquer item — o usuário controla o checklist).
   async function remover() {
     if (acaoOcupada) return;
     setAcaoOcupada(true);
@@ -520,41 +508,29 @@ function EtapaLinha({ etapa, aoSalvar }: { etapa: Etapa; aoSalvar: () => void })
         {etapa.titulo} {etapa.concluido && <span style={{ color: '#67e0a3' }}>✓</span>}
       </span>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Input
-          value={link}
-          onChange={(e) => setLink(e.target.value)}
-          placeholder="Link/material desta etapa (https://...)"
-        />
-        <BotaoSecundario onClick={salvar} disabled={salvando}>
-          {salvando ? '…' : 'Salvar'}
-        </BotaoSecundario>
+        {!etapa.concluido && (
+          <BotaoSecundario onClick={concluir} disabled={acaoOcupada}>
+            {acaoOcupada ? '…' : 'Concluir'}
+          </BotaoSecundario>
+        )}
+        <button
+          type="button"
+          onClick={remover}
+          disabled={acaoOcupada}
+          title="Remover item do checklist"
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--borda)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            fontSize: 13,
+            padding: '6px 10px',
+            color: 'var(--vermelho, #e5484d)',
+          }}
+        >
+          🗑 Remover
+        </button>
       </div>
-      {etapa.personalizado && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {!etapa.concluido && (
-            <BotaoSecundario onClick={concluir} disabled={acaoOcupada}>
-              {acaoOcupada ? '…' : 'Concluir'}
-            </BotaoSecundario>
-          )}
-          <button
-            type="button"
-            onClick={remover}
-            disabled={acaoOcupada}
-            title="Remover item do checklist"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--borda)',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 13,
-              padding: '6px 10px',
-              color: 'var(--vermelho, #e5484d)',
-            }}
-          >
-            🗑 Remover
-          </button>
-        </div>
-      )}
     </li>
   );
 }
