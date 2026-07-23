@@ -50,6 +50,8 @@ type TipoTarefa = {
 
 type UsuarioOpt = { id: string; nome: string };
 
+type ClienteOpt = { id: string; nomeFantasia: string };
+
 // Ordem/rótulos das 9 etapas (colunas da matriz), igual ao wireframe.
 const ETAPAS: { chave: EtapaChave; rotulo: string }[] = [
   { chave: 'BRIEFING', rotulo: 'Briefing' },
@@ -103,6 +105,8 @@ export function PainelTiposTarefa() {
   const [editando, setEditando] = useState<TipoTarefa | null>(null);
   const [celula, setCelula] = useState<{ tipo: TipoTarefa; etapa: EtapaChave } | null>(null);
   const [excluindo, setExcluindo] = useState<TipoTarefa | null>(null);
+  const [criarPeca, setCriarPeca] = useState<TipoTarefa | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -161,6 +165,33 @@ export function PainelTiposTarefa() {
       </div>
 
       {erroAcao && <MensagemErro texto={erroAcao} />}
+      {sucesso && (
+        <div
+          role="status"
+          style={{
+            fontSize: 13,
+            color: 'var(--verde-escuro, #1a7f4b)',
+            background: 'var(--verde-fraco, #e6f6ec)',
+            border: '1px solid var(--verde, #2fa968)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <span>{sucesso}</span>
+          <button
+            type="button"
+            onClick={() => setSucesso(null)}
+            title="Fechar"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 15 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {tipos.length === 0 ? (
         <PainelVazio
@@ -239,6 +270,7 @@ export function PainelTiposTarefa() {
                   })}
                   {podeEditar && (
                     <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+                      <button type="button" onClick={() => setCriarPeca(t)} title="Criar peça no funil a partir deste tipo" style={btnCriarPeca}>+ Peça</button>
                       <button type="button" onClick={() => setEditando(t)} title="Editar" style={btnIcone}>✎</button>
                       <button type="button" onClick={() => setExcluindo(t)} title="Excluir" style={{ ...btnIcone, color: 'var(--vermelho, #e5484d)' }}>🗑</button>
                     </td>
@@ -287,6 +319,17 @@ export function PainelTiposTarefa() {
             </div>
           </div>
         </Overlay>
+      )}
+      {criarPeca && (
+        <ModalCriarPeca
+          tipo={criarPeca}
+          usuarios={usuarios}
+          onFechar={() => setCriarPeca(null)}
+          onCriada={(titulo) => {
+            setCriarPeca(null);
+            setSucesso(`Peça "${titulo}" criada no funil (aba "Funil de produção", coluna Ideia), herdando as etapas e o responsável inicial do tipo.`);
+          }}
+        />
       )}
     </div>
   );
@@ -452,6 +495,139 @@ function ModalEtapa({
   );
 }
 
+// Modal do "elo": cria uma peça no funil a partir deste Tipo de Tarefa. Mostra as
+// etapas aplicáveis (e o responsável de cada) que serão herdadas, pede o cliente e
+// permite ajustar o título. Ao confirmar, POST /conteudos/de-tipo/:tipoId — a peça
+// nasce em IDEIA no funil, com o responsável da 1ª etapa aplicável.
+function ModalCriarPeca({
+  tipo,
+  usuarios,
+  onFechar,
+  onCriada,
+}: {
+  tipo: TipoTarefa;
+  usuarios: UsuarioOpt[];
+  onFechar: () => void;
+  onCriada: (titulo: string) => void;
+}) {
+  const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [carregandoClientes, setCarregandoClientes] = useState(true);
+  const [clienteId, setClienteId] = useState('');
+  const [titulo, setTitulo] = useState(tipo.titulo);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      setCarregandoClientes(true);
+      try {
+        const { data } = await api.get<ClienteOpt[]>('/clientes');
+        if (ativo) setClientes(data);
+      } catch {
+        if (ativo) setErro('Não foi possível carregar os clientes.');
+      } finally {
+        if (ativo) setCarregandoClientes(false);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  // Etapas que serão herdadas (aplicáveis), na ordem do fluxo, com o responsável.
+  const etapasHerdadas = ETAPAS.map((col) => {
+    const et = tipo.etapas.find((e) => e.etapa === col.chave);
+    const aplicavel = et ? et.aplicavel : true;
+    return { rotulo: col.rotulo, aplicavel, responsavelId: et?.responsavelId ?? null };
+  }).filter((e) => e.aplicavel);
+
+  function nomeUsuario(id: string | null): string {
+    if (!id) return '';
+    return usuarios.find((u) => u.id === id)?.nome ?? '';
+  }
+
+  const valido = clienteId !== '' && titulo.trim().length >= 2;
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!valido || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.post(`/conteudos/de-tipo/${tipo.id}`, {
+        clienteId,
+        titulo: titulo.trim(),
+      });
+      onCriada(titulo.trim());
+    } catch {
+      setErro('Não foi possível criar a peça. Verifique os dados e tente novamente.');
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Overlay onFechar={onFechar}>
+      <form onSubmit={enviar} className="brk-gradient-border" style={{ ...caixaModal, width: 'min(480px, 92vw)' }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Criar peça no funil</h2>
+          <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 2 }}>
+            A partir do tipo <strong>{tipo.titulo}</strong>. A peça nasce em <strong>Ideia</strong>,
+            herdando as etapas aplicáveis e o responsável inicial.
+          </p>
+        </div>
+
+        <label style={rotuloCampo}>
+          Cliente <span style={{ color: 'var(--vermelho, #e5484d)' }}>*</span>
+          <select
+            value={clienteId}
+            onChange={(ev) => setClienteId(ev.target.value)}
+            disabled={carregandoClientes || clientes.length === 0}
+            style={selectEstilo}
+          >
+            <option value="">
+              {carregandoClientes ? 'Carregando clientes…' : clientes.length === 0 ? 'Nenhum cliente' : 'Selecione o cliente'}
+            </option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>{c.nomeFantasia}</option>
+            ))}
+          </select>
+        </label>
+
+        <Campo rotulo="Título da peça" obrigatorio valor={titulo} aoMudar={setTitulo} placeholder="Ex.: Post de lançamento" />
+
+        <div style={{ border: '1px solid var(--borda)', borderRadius: 10, padding: '10px 12px', background: 'var(--superficie-2)' }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--texto-fraco)', marginBottom: 6 }}>
+            Etapas herdadas ({etapasHerdadas.length})
+          </p>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4, margin: 0, padding: 0 }}>
+            {etapasHerdadas.map((e) => {
+              const nome = nomeUsuario(e.responsavelId);
+              return (
+                <li key={e.rotulo} style={{ fontSize: 12.5, color: 'var(--texto-suave)', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <span>{e.rotulo}</span>
+                  <span style={{ color: nome ? 'var(--cinza-vapor)' : 'var(--texto-fraco)' }}>
+                    {nome || 'sem responsável'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {erro && <MensagemErro texto={erro} />}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+          <BotaoSecundario onClick={onFechar} disabled={salvando}>Cancelar</BotaoSecundario>
+          <BotaoPrimario type="submit" disabled={!valido || salvando}>
+            {salvando ? 'Criando…' : 'Criar peça'}
+          </BotaoPrimario>
+        </div>
+      </form>
+    </Overlay>
+  );
+}
+
 const thBase: React.CSSProperties = {
   padding: '10px 8px',
   textAlign: 'center',
@@ -475,6 +651,19 @@ const btnIcone: React.CSSProperties = {
   fontSize: 15,
   padding: '4px 6px',
   color: 'var(--texto-suave)',
+};
+
+const btnCriarPeca: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid var(--borda-forte)',
+  borderRadius: 8,
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 600,
+  padding: '4px 8px',
+  marginRight: 6,
+  color: 'var(--cinza-vapor)',
+  whiteSpace: 'nowrap',
 };
 
 const caixaModal: React.CSSProperties = {
