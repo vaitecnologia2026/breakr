@@ -69,6 +69,7 @@ import { PersonasModule } from './personas/personas.module';
 import { PublicosModule } from './publicos/publicos.module';
 import { ModelosMensagemModule } from './modelos-mensagem/modelos-mensagem.module';
 import { MidiaModule } from './midia/midia.module';
+import { TiposTarefaModule } from './tipos-tarefa/tipos-tarefa.module';
 
 @Module({
   imports: [
@@ -180,6 +181,8 @@ import { MidiaModule } from './midia/midia.module';
     // Marketing — Modelos de Mensagem (templates de texto, inspirado no eKyte).
     ModelosMensagemModule,
     MidiaModule,
+    // Marketing — catálogo de Tipos de Tarefa × Etapas (fluxo), inspirado no eKyte.
+    TiposTarefaModule,
   ],
 })
 export class AppModule {}

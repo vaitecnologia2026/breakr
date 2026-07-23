@@ -2213,3 +2213,58 @@ model ModeloMensagem {
 
   @@map("modelo_mensagem")
 }
+
+// ─── Marketing: Tipos de Tarefa × Etapas (fluxo de produção) — inspirado no eKyte ─
+// Catálogo de tipos de tarefa (templates de produção). Cada tipo tem atributos de
+// planejamento (controle de esforço, dias para concluir, esforço previsto) e uma
+// matriz de ETAPAS: para cada etapa do fluxo, se ela se aplica àquele tipo e qual o
+// responsável padrão. Subsistema de configuração — não altera o funil de Conteudo.
+enum ControleEsforco {
+  AGIL
+  POR_ETAPA
+}
+
+enum EtapaTipoTarefa {
+  BRIEFING
+  ANALISE
+  REDACAO
+  DESIGN
+  REVISAO_INTERNA
+  APROVACAO_CLIENTE
+  PUBLICACAO
+  DIVULGACAO
+  MONITORAMENTO
+}
+
+model TipoTarefa {
+  id                 String            @id @default(uuid())
+  titulo             String
+  controleEsforco    ControleEsforco   @default(AGIL) @map("controle_esforco")
+  // Duração média em dias corridos (inclui esperas/filas), como no eKyte.
+  diasConcluir       Int?              @map("dias_concluir")
+  // Esforço de trabalho efetivo, em minutos (exibido como horas na tela).
+  esforcoPrevistoMin Int?              @map("esforco_previsto_min")
+  // Autor do tipo (ID do usuário, sem FK — padrão das demais telas de marketing).
+  criadoPorId        String?           @map("criado_por_id")
+  criadoEm           DateTime          @default(now()) @map("criado_em")
+  atualizadoEm       DateTime          @updatedAt @map("atualizado_em")
+
+  etapas             TipoTarefaEtapa[]
+
+  @@map("tipo_tarefa")
+}
+
+model TipoTarefaEtapa {
+  id            String          @id @default(uuid())
+  tipoTarefaId  String          @map("tipo_tarefa_id")
+  tipoTarefa    TipoTarefa      @relation(fields: [tipoTarefaId], references: [id], onDelete: Cascade)
+  etapa         EtapaTipoTarefa
+  // Se a etapa faz parte do fluxo daquele tipo ("–" na matriz = aplicavel false).
+  aplicavel     Boolean         @default(true)
+  // Responsável padrão pela etapa (ID do usuário, sem FK — resolvido no front).
+  responsavelId String?         @map("responsavel_id")
+
+  @@unique([tipoTarefaId, etapa])
+  @@index([tipoTarefaId])
+  @@map("tipo_tarefa_etapa")
+}
