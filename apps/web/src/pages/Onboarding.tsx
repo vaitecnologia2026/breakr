@@ -63,6 +63,18 @@ interface Aula {
   ativo: boolean;
 }
 
+interface ChecklistModeloItem {
+  id: string;
+  titulo: string;
+  ordem: number;
+}
+
+interface ChecklistModelo {
+  id: string;
+  nome: string;
+  itens: ChecklistModeloItem[];
+}
+
 const rotuloInput: React.CSSProperties = {
   fontSize: 12.5,
   fontWeight: 600,
@@ -154,6 +166,8 @@ export function Onboarding() {
         />
       )}
 
+      <ModelosChecklist />
+
       <CatalogoAulas />
     </PaginaShell>
   );
@@ -231,6 +245,7 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
           primeiro item, o onboarding do cliente é iniciado.
         </p>
         <AdicionarItemChecklist clienteId={clienteId} aoAdicionar={carregar} />
+        <AplicarModeloChecklist clienteId={clienteId} aoAplicar={carregar} />
       </Card>
     );
   }
@@ -248,6 +263,7 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
           ))}
       </ul>
       <AdicionarItemChecklist clienteId={clienteId} aoAdicionar={carregar} />
+      <AplicarModeloChecklist clienteId={clienteId} aoAplicar={carregar} />
     </Card>
   );
 }
@@ -321,6 +337,88 @@ function AdicionarItemChecklist({
         />
         <BotaoSecundario onClick={() => adicionar(titulo)} disabled={salvando || titulo.trim().length < 1}>
           {salvando ? '…' : 'Adicionar'}
+        </BotaoSecundario>
+      </div>
+      {erro && <span style={{ fontSize: 12, color: 'var(--vermelho, #e5484d)' }}>{erro}</span>}
+    </div>
+  );
+}
+
+// Aplica um modelo (template) de checklist ao onboarding do cliente: escolhe um
+// modelo e adiciona os itens dele ao checklist. Se o cliente ainda nao tem
+// onboarding, o backend o inicia pelo mesmo caminho validado.
+function AplicarModeloChecklist({
+  clienteId,
+  aoAplicar,
+}: {
+  clienteId: string;
+  aoAplicar: () => void;
+}) {
+  const [modelos, setModelos] = useState<ChecklistModelo[]>([]);
+  const [modeloId, setModeloId] = useState('');
+  const [aplicando, setAplicando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregarModelos() {
+    try {
+      const { data } = await api.get<ChecklistModelo[]>('/onboarding/checklist-modelos');
+      setModelos(data);
+    } catch {
+      setModelos([]);
+    }
+  }
+
+  useEffect(() => {
+    carregarModelos();
+  }, []);
+
+  async function aplicar() {
+    if (!modeloId || aplicando) return;
+    setAplicando(true);
+    setErro(null);
+    try {
+      await api.post(`/onboarding/cliente/${clienteId}/aplicar-modelo/${modeloId}`);
+      setModeloId('');
+      aoAplicar();
+    } catch {
+      setErro('Não foi possível aplicar o modelo ao checklist.');
+    } finally {
+      setAplicando(false);
+    }
+  }
+
+  if (modelos.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        paddingTop: 14,
+        borderTop: '1px solid var(--borda)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--texto-suave)' }}>
+        Aplicar modelo de checklist
+      </span>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <select
+          className="brk-input"
+          style={{ width: '100%' }}
+          value={modeloId}
+          onChange={(e) => setModeloId(e.target.value)}
+        >
+          <option value="">Selecione um modelo…</option>
+          {modelos.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.nome} ({m.itens.length} {m.itens.length === 1 ? 'item' : 'itens'})
+            </option>
+          ))}
+        </select>
+        <BotaoSecundario onClick={aplicar} disabled={aplicando || !modeloId}>
+          {aplicando ? '…' : 'Aplicar'}
         </BotaoSecundario>
       </div>
       {erro && <span style={{ fontSize: 12, color: 'var(--vermelho, #e5484d)' }}>{erro}</span>}
@@ -548,6 +646,163 @@ function AgendaCliente({ clienteId }: { clienteId: string }) {
         <div>
           <BotaoPrimario onClick={adicionar} disabled={salvando || !titulo.trim() || !data}>
             {salvando ? 'Adicionando…' : 'Adicionar evento'}
+          </BotaoPrimario>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/* --------------------- Modelos (templates) de checklist --------------- */
+
+// Catalogo global de modelos de checklist reutilizaveis. A CS cria varios
+// modelos (nome + itens) e depois os aplica ao onboarding de cada cliente.
+function ModelosChecklist() {
+  const [modelos, setModelos] = useState<ChecklistModelo[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [nome, setNome] = useState('');
+  const [itens, setItens] = useState<string[]>(['']);
+  const [salvando, setSalvando] = useState(false);
+  const [removendo, setRemovendo] = useState<string | null>(null);
+
+  async function carregar() {
+    setCarregando(true);
+    try {
+      const { data } = await api.get<ChecklistModelo[]>('/onboarding/checklist-modelos');
+      setModelos(data);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregar();
+  }, []);
+
+  function alterarItem(indice: number, valor: string) {
+    setItens((atual) => atual.map((it, i) => (i === indice ? valor : it)));
+  }
+
+  function adicionarLinhaItem() {
+    setItens((atual) => [...atual, '']);
+  }
+
+  function removerLinhaItem(indice: number) {
+    setItens((atual) => (atual.length <= 1 ? atual : atual.filter((_, i) => i !== indice)));
+  }
+
+  async function criar() {
+    const itensLimpos = itens.map((it) => it.trim()).filter((it) => it.length > 0);
+    if (!nome.trim() || itensLimpos.length === 0 || salvando) return;
+    setSalvando(true);
+    try {
+      await api.post('/onboarding/checklist-modelos', { nome: nome.trim(), itens: itensLimpos });
+      setNome('');
+      setItens(['']);
+      carregar();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function remover(id: string) {
+    setRemovendo(id);
+    try {
+      await api.delete(`/onboarding/checklist-modelos/${id}`);
+      carregar();
+    } finally {
+      setRemovendo(null);
+    }
+  }
+
+  return (
+    <Card>
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+        Modelos de checklist (catálogo global)
+      </h3>
+      <p style={{ fontSize: 12.5, color: 'var(--texto-fraco)', marginBottom: 10 }}>
+        Crie modelos de checklist e aplique nos clientes em onboarding (no card
+        “Etapas do checklist” de cada cliente).
+      </p>
+
+      {carregando ? (
+        <EstadoCarregando />
+      ) : modelos.length === 0 ? (
+        <p style={{ fontSize: 13.5, color: 'var(--texto-fraco)' }}>Nenhum modelo cadastrado.</p>
+      ) : (
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          {modelos.map((m) => (
+            <li
+              key={m.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'var(--superficie-2)',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{m.nome}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--texto-fraco)' }}>
+                  {m.itens.map((it) => it.titulo).join(' · ')}
+                </div>
+              </div>
+              <BotaoSecundario onClick={() => remover(m.id)} disabled={removendo === m.id}>
+                {removendo === m.id ? '…' : 'Remover'}
+              </BotaoSecundario>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
+        <div>
+          <label style={rotuloInput}>Nome do modelo</label>
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Onboarding padrão restaurante" />
+        </div>
+        <div>
+          <label style={rotuloInput}>Itens do checklist</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {itens.map((it, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Input
+                  value={it}
+                  onChange={(e) => alterarItem(i, e.target.value)}
+                  placeholder={`Item ${i + 1} (ex.: Agendar reunião)`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removerLinhaItem(i)}
+                  disabled={itens.length <= 1}
+                  title="Remover este item"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--borda)',
+                    borderRadius: 8,
+                    cursor: itens.length <= 1 ? 'default' : 'pointer',
+                    fontSize: 13,
+                    padding: '6px 10px',
+                    color: 'var(--texto-suave)',
+                    opacity: itens.length <= 1 ? 0.5 : 1,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <BotaoSecundario onClick={adicionarLinhaItem}>+ Adicionar item</BotaoSecundario>
+          </div>
+        </div>
+        <div>
+          <BotaoPrimario
+            onClick={criar}
+            disabled={salvando || !nome.trim() || itens.every((it) => it.trim().length === 0)}
+          >
+            {salvando ? 'Salvando…' : 'Salvar modelo'}
           </BotaoPrimario>
         </div>
       </div>

@@ -11,6 +11,7 @@ import { AtualizarAulaDto } from './dto/atualizar-aula.dto';
 import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
 import { CriarEtapaOnboardingDto } from './dto/criar-etapa-onboarding.dto';
+import { CriarChecklistModeloDto } from './dto/criar-checklist-modelo.dto';
 
 // Etapas padrao do onboarding (ordem fixa do checklist gamificado).
 // Alinhadas aos 6 processos do fluxo real de onboarding (workflow n8n
@@ -217,6 +218,98 @@ export class OnboardingService {
       const concluido = total > 0 && concluidas === total;
       return tx.onboarding.update({
         where: { id: onboardingId },
+        data: { progresso, concluido },
+        include: { etapas: { orderBy: { ordem: 'asc' } } },
+      });
+    });
+  }
+
+  // --- Modelos (templates) de checklist reutilizaveis ---
+  // Catalogo global: a CS cria varios modelos e os aplica ao onboarding de cada
+  // cliente. Nao altera o checklist padrao (ETAPAS_PADRAO) nem o fluxo validado.
+  listarChecklistModelos() {
+    return this.prisma.checklistModelo.findMany({
+      include: { itens: { orderBy: { ordem: 'asc' } } },
+      orderBy: { criadoEm: 'asc' },
+    });
+  }
+
+  criarChecklistModelo(dto: CriarChecklistModeloDto) {
+    return this.prisma.checklistModelo.create({
+      data: {
+        nome: dto.nome.trim(),
+        itens: {
+          create: dto.itens.map((titulo, i) => ({
+            titulo: titulo.trim(),
+            ordem: i,
+          })),
+        },
+      },
+      include: { itens: { orderBy: { ordem: 'asc' } } },
+    });
+  }
+
+  async removerChecklistModelo(modeloId: string) {
+    const modelo = await this.prisma.checklistModelo.findUnique({
+      where: { id: modeloId },
+    });
+    if (!modelo) throw new NotFoundException('Modelo de checklist nao encontrado');
+    await this.prisma.checklistModelo.delete({ where: { id: modeloId } });
+    return { ok: true };
+  }
+
+  // Aplica um modelo ao onboarding do cliente: adiciona os itens do modelo como
+  // etapas PERSONALIZADAS (removiveis) ao final do checklist e recalcula o
+  // progresso. Se o cliente ainda nao tem onboarding, inicia pelo mesmo caminho
+  // validado criar() (idempotente, como no fluxo de pagamento). Nao altera o
+  // checklist padrao nem os itens ja existentes.
+  async aplicarChecklistModelo(
+    clienteId: string,
+    modeloId: string,
+  ): Promise<Onboarding> {
+    const modelo = await this.prisma.checklistModelo.findUnique({
+      where: { id: modeloId },
+      include: { itens: { orderBy: { ordem: 'asc' } } },
+    });
+    if (!modelo) throw new NotFoundException('Modelo de checklist nao encontrado');
+
+    let onboarding = await this.prisma.onboarding.findUnique({
+      where: { clienteId },
+      include: { etapas: true },
+    });
+    if (!onboarding) {
+      await this.criar(clienteId);
+      onboarding = await this.prisma.onboarding.findUnique({
+        where: { clienteId },
+        include: { etapas: true },
+      });
+    }
+    if (!onboarding) {
+      throw new NotFoundException('Onboarding do cliente nao encontrado');
+    }
+    const onb = onboarding;
+    const baseOrdem =
+      onb.etapas.reduce((max, e) => (e.ordem > max ? e.ordem : max), 0) + 1;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.onboardingStep.createMany({
+        data: modelo.itens.map((item, i) => ({
+          onboardingId: onb.id,
+          titulo: item.titulo,
+          ordem: baseOrdem + i,
+          concluido: false,
+          personalizado: true,
+        })),
+      });
+      const etapas = await tx.onboardingStep.findMany({
+        where: { onboardingId: onb.id },
+      });
+      const total = etapas.length;
+      const concluidas = etapas.filter((e) => e.concluido).length;
+      const progresso = total === 0 ? 0 : Math.round((concluidas / total) * 100);
+      const concluido = total > 0 && concluidas === total;
+      return tx.onboarding.update({
+        where: { id: onb.id },
         data: { progresso, concluido },
         include: { etapas: { orderBy: { ordem: 'asc' } } },
       });

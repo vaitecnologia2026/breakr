@@ -20,6 +20,7 @@ import { AtualizarAulaDto } from './dto/atualizar-aula.dto';
 import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
 import { CriarEtapaOnboardingDto } from './dto/criar-etapa-onboarding.dto';
+import { CriarChecklistModeloDto } from './dto/criar-checklist-modelo.dto';
 
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
@@ -68,6 +69,43 @@ export class OnboardingController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
   removerEtapa(@Param('stepId', ParseUUIDPipe) stepId: string) {
     return this.onboardingService.removerEtapa(stepId);
+  }
+
+  // --- Modelos (templates) de checklist reutilizaveis ---
+  // GET /onboarding/checklist-modelos — catalogo global de modelos.
+  @Get('checklist-modelos')
+  listarChecklistModelos() {
+    return this.onboardingService.listarChecklistModelos();
+  }
+
+  // POST /onboarding/checklist-modelos — cria um modelo (nome + itens).
+  @Post('checklist-modelos')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  criarChecklistModelo(@Body() dto: CriarChecklistModeloDto) {
+    return this.onboardingService.criarChecklistModelo(dto);
+  }
+
+  // DELETE /onboarding/checklist-modelos/:modeloId — remove um modelo.
+  @Delete('checklist-modelos/:modeloId')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  removerChecklistModelo(
+    @Param('modeloId', ParseUUIDPipe) modeloId: string,
+  ) {
+    return this.onboardingService.removerChecklistModelo(modeloId);
+  }
+
+  // POST /onboarding/cliente/:id/aplicar-modelo/:modeloId — aplica um modelo
+  // ao checklist do cliente (adiciona os itens do modelo como etapas).
+  @Post('cliente/:id/aplicar-modelo/:modeloId')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  aplicarChecklistModelo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('modeloId', ParseUUIDPipe) modeloId: string,
+  ) {
+    return this.onboardingService.aplicarChecklistModelo(id, modeloId);
   }
 
   // --- Agenda de eventos do cliente ---
