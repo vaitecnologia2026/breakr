@@ -1084,20 +1084,25 @@ function DetalheConteudo({
     return () => { ativo = false; };
   }, [materialId]);
 
-  // Candidatos a responsável da peça — os MEMBROS do squad do cliente
-  // (GET /squads/do-cliente/:clienteId retorna todos os membros do squad daquele
-  // cliente). Assim o select mostra somente quem é daquele squad. O responsável
-  // atual entra como fallback (nunca some, mesmo que não esteja mais no squad).
-  const [membrosSquad, setMembrosSquad] = useState<SquadDoCliente['membros']>([]);
+  // Candidatos a responsável da peça — os MEMBROS do squad DA PEÇA (o squad exibido
+  // no card, conteudo.squadId). Busca em GET /squads (lista com membros) e filtra
+  // pelo id do squad da peça. Antes usava /squads/do-cliente, que resolve o squad
+  // pelo CLIENTE — e quando o cliente estava em outro squad, trazia os membros
+  // errados. O responsável atual entra como fallback (nunca some).
+  const [membrosSquad, setMembrosSquad] = useState<{ funcao: string; usuario: { id: string; nome: string } }[]>([]);
   useEffect(() => {
-    if (!conteudo.clienteId) return;
+    if (!conteudo.squadId) return;
     let ativo = true;
     api
-      .get<SquadDoCliente>(`/squads/do-cliente/${conteudo.clienteId}`)
-      .then(({ data }) => { if (ativo) setMembrosSquad(data.membros ?? []); })
+      .get<{ id: string; membros: { funcao: string; usuario: { id: string; nome: string } }[] }[]>('/squads')
+      .then(({ data }) => {
+        if (!ativo) return;
+        const squad = Array.isArray(data) ? data.find((s) => s.id === conteudo.squadId) : undefined;
+        setMembrosSquad(squad?.membros ?? []);
+      })
       .catch(() => { /* vazio → fallback mostra o responsável atual */ });
     return () => { ativo = false; };
-  }, [conteudo.clienteId]);
+  }, [conteudo.squadId]);
 
   // Muda o estágio (coluna) do material — mesmo PATCH do board de Campanhas.
   async function mudarEstagioMaterial(status: string) {
