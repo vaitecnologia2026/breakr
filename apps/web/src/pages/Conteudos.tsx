@@ -228,6 +228,8 @@ export function Conteudos() {
     >
       <GuiaJornadaMarketing etapaAtual="producao" />
 
+      <StepperEtapasEkyte />
+
       <div className="brk-filtros">
         <div className="brk-search">
           <span className="brk-search-icon" aria-hidden="true">
@@ -302,6 +304,55 @@ export function Conteudos() {
         />
       )}
     </PaginaShell>
+  );
+}
+
+/* --------------------------- Etapas (eKyte) --------------------------- */
+
+// Barra do pipeline completo de produção do eKyte (Briefing → Análise → Redação →
+// Design → Revisão interna → Aprovação cliente → Publicação → Divulgação →
+// Monitoramento). Mostra o fluxo inteiro para as etapas não ficarem confusas: as
+// anteriores vêm concluídas (✓), "Aprovação cliente" é a atual (destacada) e as
+// seguintes ficam pendentes.
+function StepperEtapasEkyte() {
+  const etapas: { rotulo: string; estado: 'concluida' | 'atual' | 'pendente' }[] = [
+    { rotulo: 'Briefing', estado: 'concluida' },
+    { rotulo: 'Análise', estado: 'concluida' },
+    { rotulo: 'Redação', estado: 'concluida' },
+    { rotulo: 'Design', estado: 'concluida' },
+    { rotulo: 'Revisão interna', estado: 'concluida' },
+    { rotulo: 'Aprovação cliente', estado: 'atual' },
+    { rotulo: 'Publicação', estado: 'pendente' },
+    { rotulo: 'Divulgação', estado: 'pendente' },
+    { rotulo: 'Monitoramento', estado: 'pendente' },
+  ];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 16px', marginBottom: 16, background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 12, boxShadow: 'var(--sombra-card)', overflowX: 'auto' }}>
+      {etapas.map((e, i) => (
+        <div key={e.rotulo} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {e.estado === 'atual' ? (
+              <span className="brk-gradient-bg" style={{ width: 20, height: 20, borderRadius: 999, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 12 }}>
+                {i + 1}
+              </span>
+            ) : e.estado === 'concluida' ? (
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" fill="rgba(46, 204, 113, 0.16)" />
+                <path d="M8 12.5l2.5 2.5L16 9" stroke="#2ecc71" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <span style={{ width: 20, height: 20, borderRadius: 999, display: 'grid', placeItems: 'center', color: 'var(--texto-fraco)', fontWeight: 800, fontSize: 12, border: '1.5px solid var(--borda-forte)' }}>
+                {i + 1}
+              </span>
+            )}
+            <span style={{ fontSize: 13, fontWeight: e.estado === 'atual' ? 800 : 600, color: e.estado === 'atual' ? 'var(--amarelo)' : e.estado === 'pendente' ? 'var(--texto-fraco)' : 'var(--texto-suave)', whiteSpace: 'nowrap' }}>
+              {e.rotulo}
+            </span>
+          </div>
+          {i < etapas.length - 1 && <span style={{ width: 28, height: 2, background: 'var(--borda-forte)', borderRadius: 2 }} />}
+        </div>
+      ))}
+    </div>
   );
 }
 
