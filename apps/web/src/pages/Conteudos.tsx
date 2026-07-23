@@ -1026,6 +1026,8 @@ function DetalheConteudo({
   const [fMidia, setFMidia] = useState(conteudo.midiaUrl ?? '');
   const [fData, setFData] = useState(isoParaInputLocal(conteudo.dataAgendada));
   const [fTrafego, setFTrafego] = useState(conteudo.paraTrafego);
+  // Responsável da peça editável no modo edição (salvo via endpoint próprio).
+  const [fResponsavelId, setFResponsavelId] = useState(conteudo.responsavelId ?? '');
   // Mensagem da campanha: recolhida por padrão; expande para ver toda a mensagem
   // quando for muito grande.
   const [mensagemExpandida, setMensagemExpandida] = useState(false);
@@ -1082,6 +1084,19 @@ function DetalheConteudo({
     return () => { ativo = false; };
   }, [materialId]);
 
+  // Membros do squad do cliente — candidatos a responsável da peça (mesmo padrão do
+  // "+ Nova peça"). Carregados ao abrir; usados no select de Responsável na edição.
+  const [membrosSquad, setMembrosSquad] = useState<SquadDoCliente['membros']>([]);
+  useEffect(() => {
+    if (!conteudo.clienteId) return;
+    let ativo = true;
+    api
+      .get<SquadDoCliente>(`/squads/do-cliente/${conteudo.clienteId}`)
+      .then(({ data }) => { if (ativo) setMembrosSquad(data.membros ?? []); })
+      .catch(() => { /* vazio → fallback mostra o responsável atual */ });
+    return () => { ativo = false; };
+  }, [conteudo.clienteId]);
+
   // Muda o estágio (coluna) do material — mesmo PATCH do board de Campanhas.
   async function mudarEstagioMaterial(status: string) {
     if (!materialId || salvandoMaterial) return;
@@ -1121,6 +1136,7 @@ function DetalheConteudo({
     setFMidia(conteudo.midiaUrl ?? '');
     setFData(isoParaInputLocal(conteudo.dataAgendada));
     setFTrafego(conteudo.paraTrafego);
+    setFResponsavelId(conteudo.responsavelId ?? '');
     setErroSalvar(null);
   }
 
@@ -1141,6 +1157,10 @@ function DetalheConteudo({
         paraTrafego: fTrafego,
         dataAgendada: fData ? new Date(fData).toISOString() : null,
       });
+      // Responsável usa endpoint próprio; só salva quando escolhido e diferente do atual.
+      if (fResponsavelId && fResponsavelId !== (conteudo.responsavelId ?? '')) {
+        await api.patch(`/conteudos/${conteudo.id}/responsavel`, { responsavelId: fResponsavelId });
+      }
       aoAtualizar();
       onFechar();
     } catch {
@@ -1225,7 +1245,28 @@ function DetalheConteudo({
             <LinhaInfo rotulo="Tipo" valor={TIPO_META[conteudo.tipo]} />
           )}
           <LinhaInfo rotulo="Squad" valor={conteudo.squad?.nome ?? '—'} />
-          <LinhaInfo rotulo="Responsável" valor={conteudo.responsavel?.nome ?? '—'} />
+          {editando ? (
+            <LinhaEdit rotulo="Responsável">
+              <select
+                className="brk-input"
+                value={fResponsavelId}
+                onChange={(e) => setFResponsavelId(e.target.value)}
+                style={estiloInput}
+              >
+                <option value="">Sem responsável</option>
+                {conteudo.responsavelId && !membrosSquad.some((m) => m.usuario.id === conteudo.responsavelId) && (
+                  <option value={conteudo.responsavelId}>{conteudo.responsavel?.nome ?? 'Responsável atual'}</option>
+                )}
+                {membrosSquad.map((m) => (
+                  <option key={m.usuario.id} value={m.usuario.id}>
+                    {m.usuario.nome} — {FUNCAO_ROTULO[m.funcao] ?? m.funcao}
+                  </option>
+                ))}
+              </select>
+            </LinhaEdit>
+          ) : (
+            <LinhaInfo rotulo="Responsável" valor={conteudo.responsavel?.nome ?? '—'} />
+          )}
           {editando ? (
             <LinhaEdit rotulo="Agendada para">
               <input
