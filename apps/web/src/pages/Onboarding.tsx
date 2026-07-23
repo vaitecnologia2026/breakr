@@ -180,13 +180,15 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
   const [onb, setOnb] = useState<OnboardingCliente | null>(null);
   const [carregando, setCarregando] = useState(true);
 
-  async function carregar() {
-    setCarregando(true);
+  // silencioso = recarrega os dados sem exibir o spinner (que desmonta o card e
+  // zeraria o "Salvo ✓"). Usado ao salvar as informações da empresa.
+  async function carregar(silencioso = false) {
+    if (!silencioso) setCarregando(true);
     try {
       const { data } = await api.get<OnboardingCliente | null>(`/onboarding/cliente/${clienteId}`);
       setOnb(data);
     } finally {
-      setCarregando(false);
+      if (!silencioso) setCarregando(false);
     }
   }
 
@@ -221,7 +223,7 @@ function EtapasCliente({ clienteId }: { clienteId: string }) {
       <InfoEmpresaOnboarding
         clienteId={clienteId}
         valorInicial={onb.infoEmpresa ?? ''}
-        aoSalvar={carregar}
+        aoSalvar={() => carregar(true)}
       />
       <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
         {[...onb.etapas]
