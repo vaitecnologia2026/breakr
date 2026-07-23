@@ -1991,10 +1991,16 @@ function PecaAprovacao({
   const [qualidadeTexto, setQualidadeTexto] = useState(5);
   const [facilidadeAprovar, setFacilidadeAprovar] = useState(5);
   const [comentario, setComentario] = useState('');
+  const [referencia, setReferencia] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  async function aprovar() {
+  // Aprovar (com ou sem ressalva). "Com ressalva" exige o comentário descrevendo-a.
+  async function aprovar(comRessalvas: boolean) {
+    if (comRessalvas && comentario.trim().length < 1) {
+      setErro('Descreva a ressalva para a equipe.');
+      return;
+    }
     setEnviando(true);
     setErro(null);
     try {
@@ -2012,9 +2018,15 @@ function PecaAprovacao({
     }
   }
 
-  async function pedirAjuste() {
+  // Reprovar: obrigatório justificar (por quê) e dar uma referência para a
+  // equipe fazer o conteúdo da forma correta. Volta a peça para ajuste (rework).
+  async function reprovar() {
     if (comentario.trim().length < 3) {
-      setErro('Conte para a equipe o que ajustar.');
+      setErro('Justifique por que está reprovando (mín. 3 caracteres).');
+      return;
+    }
+    if (referencia.trim().length < 1) {
+      setErro('Informe uma referência para a equipe fazer da forma correta.');
       return;
     }
     setEnviando(true);
@@ -2022,10 +2034,11 @@ function PecaAprovacao({
     try {
       await api.post(`/portal/${codigo}/conteudo/${peca.id}/ajuste`, {
         comentario: comentario.trim(),
+        referencia: referencia.trim(),
       });
       aoMudar();
     } catch {
-      setErro('Não foi possível enviar o pedido. Tente novamente.');
+      setErro('Não foi possível enviar a reprovação. Tente novamente.');
       setEnviando(false);
     }
   }
@@ -2058,7 +2071,7 @@ function PecaAprovacao({
       <textarea
         value={comentario}
         onChange={(e) => setComentario(e.target.value)}
-        placeholder="Comentário (obrigatório para pedir ajuste)"
+        placeholder="Comentário (obrigatório para ressalva ou reprovação)"
         rows={2}
         disabled={enviando}
         style={{
@@ -2077,12 +2090,33 @@ function PecaAprovacao({
         }}
       />
 
+      <input
+        type="text"
+        value={referencia}
+        onChange={(e) => setReferencia(e.target.value)}
+        placeholder="Referência (link/exemplo) — obrigatória ao reprovar"
+        disabled={enviando}
+        style={{
+          width: '100%',
+          marginTop: 8,
+          background: 'var(--superficie-3)',
+          border: '1px solid var(--borda-forte)',
+          borderRadius: 10,
+          padding: '10px 12px',
+          color: 'var(--texto)',
+          fontSize: 13.5,
+          outline: 'none',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      />
+
       {erro && <p style={{ fontSize: 12.5, color: '#e2738a', marginTop: 8 }}>{erro}</p>}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
         <button
           type="button"
-          onClick={aprovar}
+          onClick={() => aprovar(false)}
           disabled={enviando}
           className="brk-gradient-bg"
           style={{
@@ -2100,7 +2134,7 @@ function PecaAprovacao({
         </button>
         <button
           type="button"
-          onClick={pedirAjuste}
+          onClick={() => aprovar(true)}
           disabled={enviando}
           style={{
             border: '1px solid var(--borda-forte)',
@@ -2114,7 +2148,25 @@ function PecaAprovacao({
             opacity: enviando ? 0.6 : 1,
           }}
         >
-          Pedir ajuste
+          Aprovar com ressalva
+        </button>
+        <button
+          type="button"
+          onClick={reprovar}
+          disabled={enviando}
+          style={{
+            border: '1px solid #e2738a',
+            background: 'transparent',
+            color: '#e2738a',
+            fontWeight: 600,
+            fontSize: 13.5,
+            padding: '9px 16px',
+            borderRadius: 10,
+            cursor: enviando ? 'not-allowed' : 'pointer',
+            opacity: enviando ? 0.6 : 1,
+          }}
+        >
+          Reprovar
         </button>
       </div>
     </li>

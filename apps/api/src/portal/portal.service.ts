@@ -339,16 +339,24 @@ export class PortalService {
   async solicitarAjuste(
     codigo: string,
     conteudoId: string,
-    dados: { comentario: string },
+    dados: { comentario: string; referencia?: string },
   ) {
     await this.conteudoDoCliente(codigo, conteudoId);
+
+    // Quando o cliente reprova, a referencia (link/exemplo) acompanha a
+    // justificativa para a equipe refazer corretamente. Fica junto do comentario
+    // gravado (comentarioCliente + ReworkLog + notificacao), sem coluna nova.
+    const comentarioFinal =
+      dados.referencia && dados.referencia.trim()
+        ? `${dados.comentario}\n\nReferência: ${dados.referencia.trim()}`
+        : dados.comentario;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const u = await tx.conteudo.update({
         where: { id: conteudoId },
         data: {
           status: StatusConteudo.PRODUCAO,
-          comentarioCliente: dados.comentario,
+          comentarioCliente: comentarioFinal,
           reworkCount: { increment: 1 },
         },
         include: { cliente: { select: { nomeFantasia: true } } },
@@ -360,7 +368,7 @@ export class PortalService {
           statusDe: StatusConteudo.APROVACAO_CLIENTE,
           statusPara: StatusConteudo.PRODUCAO,
           origem: 'EXTERNO',
-          comentario: dados.comentario,
+          comentario: comentarioFinal,
         },
       });
 
@@ -370,7 +378,7 @@ export class PortalService {
     // O comentario/ajuste do cliente chega ao CS como notificacao (req. l.184).
     await this.notificacoes.notificarPorCargo(Cargo.CS, {
       titulo: 'Cliente pediu ajuste em criativo',
-      mensagem: `${updated.cliente?.nomeFantasia ?? 'Cliente'} solicitou ajuste em "${updated.titulo}": ${dados.comentario}`,
+      mensagem: `${updated.cliente?.nomeFantasia ?? 'Cliente'} solicitou ajuste em "${updated.titulo}": ${comentarioFinal}`,
       tipo: 'ALERTA',
       link: '/conteudos',
     });

@@ -99,6 +99,17 @@ export class OnboardingController {
     return this.onboardingService.criarChecklistModelo(dto);
   }
 
+  // PATCH /onboarding/checklist-modelos/:modeloId — edita um modelo (nome + itens).
+  @Patch('checklist-modelos/:modeloId')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  atualizarChecklistModelo(
+    @Param('modeloId', ParseUUIDPipe) modeloId: string,
+    @Body() dto: CriarChecklistModeloDto,
+  ) {
+    return this.onboardingService.atualizarChecklistModelo(modeloId, dto);
+  }
+
   // DELETE /onboarding/checklist-modelos/:modeloId — remove um modelo.
   @Delete('checklist-modelos/:modeloId')
   @UseGuards(CargosGuard)

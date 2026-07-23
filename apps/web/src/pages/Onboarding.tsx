@@ -680,6 +680,8 @@ function ModelosChecklist() {
   const [itens, setItens] = useState<string[]>(['']);
   const [salvando, setSalvando] = useState(false);
   const [removendo, setRemovendo] = useState<string | null>(null);
+  // Id do modelo em edição (null = criando um novo).
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -707,14 +709,32 @@ function ModelosChecklist() {
     setItens((atual) => (atual.length <= 1 ? atual : atual.filter((_, i) => i !== indice)));
   }
 
-  async function criar() {
+  function editar(m: ChecklistModelo) {
+    setEditandoId(m.id);
+    setNome(m.nome);
+    setItens(m.itens.length > 0 ? m.itens.map((it) => it.titulo) : ['']);
+  }
+
+  function cancelarEdicao() {
+    setEditandoId(null);
+    setNome('');
+    setItens(['']);
+  }
+
+  async function salvar() {
     const itensLimpos = itens.map((it) => it.trim()).filter((it) => it.length > 0);
     if (!nome.trim() || itensLimpos.length === 0 || salvando) return;
     setSalvando(true);
     try {
-      await api.post('/onboarding/checklist-modelos', { nome: nome.trim(), itens: itensLimpos });
-      setNome('');
-      setItens(['']);
+      if (editandoId) {
+        await api.patch(`/onboarding/checklist-modelos/${editandoId}`, {
+          nome: nome.trim(),
+          itens: itensLimpos,
+        });
+      } else {
+        await api.post('/onboarding/checklist-modelos', { nome: nome.trim(), itens: itensLimpos });
+      }
+      cancelarEdicao();
       carregar();
     } finally {
       setSalvando(false);
@@ -765,9 +785,12 @@ function ModelosChecklist() {
                   {m.itens.map((it) => it.titulo).join(' · ')}
                 </div>
               </div>
-              <BotaoSecundario onClick={() => remover(m.id)} disabled={removendo === m.id}>
-                {removendo === m.id ? '…' : 'Remover'}
-              </BotaoSecundario>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <BotaoSecundario onClick={() => editar(m)}>Editar</BotaoSecundario>
+                <BotaoSecundario onClick={() => remover(m.id)} disabled={removendo === m.id}>
+                  {removendo === m.id ? '…' : 'Remover'}
+                </BotaoSecundario>
+              </div>
             </li>
           ))}
         </ul>
@@ -775,7 +798,7 @@ function ModelosChecklist() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--borda)', paddingTop: 14 }}>
         <div>
-          <label style={rotuloInput}>Nome do modelo</label>
+          <label style={rotuloInput}>{editandoId ? 'Editar modelo — nome' : 'Nome do modelo'}</label>
           <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Onboarding padrão restaurante" />
         </div>
         <div>
@@ -813,13 +836,18 @@ function ModelosChecklist() {
             <BotaoSecundario onClick={adicionarLinhaItem}>+ Adicionar item</BotaoSecundario>
           </div>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <BotaoPrimario
-            onClick={criar}
+            onClick={salvar}
             disabled={salvando || !nome.trim() || itens.every((it) => it.trim().length === 0)}
           >
-            {salvando ? 'Salvando…' : 'Salvar modelo'}
+            {salvando ? 'Salvando…' : editandoId ? 'Salvar alterações' : 'Salvar modelo'}
           </BotaoPrimario>
+          {editandoId && (
+            <BotaoSecundario onClick={cancelarEdicao} disabled={salvando}>
+              Cancelar
+            </BotaoSecundario>
+          )}
         </div>
       </div>
     </Card>
