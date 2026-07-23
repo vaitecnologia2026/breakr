@@ -157,7 +157,6 @@ export function Onboarding() {
 
       {clienteSel ? (
         <>
-          <AreaMembros cliente={clienteSel} aoSalvar={carregarClientes} />
           <EtapasCliente clienteId={clienteSel.id} />
           <AgendaCliente clienteId={clienteSel.id} />
         </>
@@ -172,44 +171,6 @@ export function Onboarding() {
 
       <CatalogoAulas />
     </PaginaShell>
-  );
-}
-
-/* --------------------------- Área de membros -------------------------- */
-
-function AreaMembros({ cliente, aoSalvar }: { cliente: ClienteItem; aoSalvar: () => void }) {
-  const [link, setLink] = useState(cliente.linkAreaMembros ?? '');
-  const [salvando, setSalvando] = useState(false);
-
-  useEffect(() => {
-    setLink(cliente.linkAreaMembros ?? '');
-  }, [cliente.id, cliente.linkAreaMembros]);
-
-  async function salvar() {
-    setSalvando(true);
-    try {
-      await api.patch(`/clientes/${cliente.id}`, { linkAreaMembros: link || undefined });
-      aoSalvar();
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <Card>
-      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Área de membros</h3>
-      <label style={rotuloInput}>Link da área de membros</label>
-      <Input
-        value={link}
-        onChange={(e) => setLink(e.target.value)}
-        placeholder="https://..."
-      />
-      <div style={{ marginTop: 10 }}>
-        <BotaoPrimario onClick={salvar} disabled={salvando}>
-          {salvando ? 'Salvando…' : 'Salvar link'}
-        </BotaoPrimario>
-      </div>
-    </Card>
   );
 }
 
