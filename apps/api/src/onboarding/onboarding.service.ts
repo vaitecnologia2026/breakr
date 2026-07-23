@@ -12,6 +12,7 @@ import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
 import { CriarEtapaOnboardingDto } from './dto/criar-etapa-onboarding.dto';
 import { CriarChecklistModeloDto } from './dto/criar-checklist-modelo.dto';
+import { AtualizarInfoEmpresaDto } from './dto/atualizar-info-empresa.dto';
 
 // Etapas padrao do onboarding (ordem fixa do checklist gamificado).
 // Alinhadas aos 6 processos do fluxo real de onboarding (workflow n8n
@@ -221,6 +222,26 @@ export class OnboardingService {
         data: { progresso, concluido },
         include: { etapas: { orderBy: { ordem: 'asc' } } },
       });
+    });
+  }
+
+  // Salva as informacoes da empresa que esta sendo onboardada (texto livre no
+  // checklist do cliente, alem de marcar as etapas). Nao altera etapas nem
+  // status do cliente; apenas grava o campo. Requer onboarding existente.
+  async salvarInfoEmpresa(
+    clienteId: string,
+    dto: AtualizarInfoEmpresaDto,
+  ): Promise<Onboarding> {
+    const onboarding = await this.prisma.onboarding.findUnique({
+      where: { clienteId },
+    });
+    if (!onboarding) {
+      throw new NotFoundException('Onboarding do cliente nao encontrado');
+    }
+    return this.prisma.onboarding.update({
+      where: { clienteId },
+      data: { infoEmpresa: dto.infoEmpresa?.trim() || null },
+      include: { etapas: { orderBy: { ordem: 'asc' } } },
     });
   }
 

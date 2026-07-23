@@ -21,6 +21,7 @@ import { CriarEventoDto } from './dto/criar-evento.dto';
 import { AtualizarEtapaDto } from './dto/atualizar-etapa.dto';
 import { CriarEtapaOnboardingDto } from './dto/criar-etapa-onboarding.dto';
 import { CriarChecklistModeloDto } from './dto/criar-checklist-modelo.dto';
+import { AtualizarInfoEmpresaDto } from './dto/atualizar-info-empresa.dto';
 
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
@@ -69,6 +70,18 @@ export class OnboardingController {
   @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
   removerEtapa(@Param('stepId', ParseUUIDPipe) stepId: string) {
     return this.onboardingService.removerEtapa(stepId);
+  }
+
+  // PATCH /onboarding/cliente/:id/info-empresa — salva as informacoes da
+  // empresa que esta sendo onboardada (texto livre, alem do checklist).
+  @Patch('cliente/:id/info-empresa')
+  @UseGuards(CargosGuard)
+  @Cargos(Cargo.SUPERADMIN, Cargo.ADMIN, Cargo.CS)
+  salvarInfoEmpresa(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AtualizarInfoEmpresaDto,
+  ) {
+    return this.onboardingService.salvarInfoEmpresa(id, dto);
   }
 
   // --- Modelos (templates) de checklist reutilizaveis ---
