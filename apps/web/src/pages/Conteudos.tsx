@@ -187,6 +187,12 @@ export function Conteudos() {
   // Aba ativa: 'funil' (kanban de produção, padrão) ou 'tipos' (configuração
   // de Tipos de Tarefa × Etapas — inspirado no eKyte).
   const [aba, setAba] = useState<'funil' | 'tipos'>('funil');
+  // Centralização: criar campanha aqui mesmo, na Produção de Conteúdo (o mesmo
+  // contrato da tela Campanhas). Só para quem já pode criar campanha (gestão).
+  const { usuario } = useAuth();
+  const podeCriarCampanha = ['SUPERADMIN', 'ADMIN', 'ESTRATEGISTA', 'CS'].includes(usuario?.cargo ?? '');
+  const [modalCampanha, setModalCampanha] = useState(false);
+  const [sucessoCampanha, setSucessoCampanha] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -228,7 +234,14 @@ export function Conteudos() {
     <PaginaShell
       titulo="Conteúdo"
       subtitulo="Funil de produção das peças"
-      acao={<BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova peça</BotaoPrimario>}
+      acao={
+        <div style={{ display: 'flex', gap: 8 }}>
+          {podeCriarCampanha && (
+            <BotaoSecundario onClick={() => setModalCampanha(true)}>+ Campanha</BotaoSecundario>
+          )}
+          <BotaoPrimario onClick={() => setModalAberto(true)}>+ Nova peça</BotaoPrimario>
+        </div>
+      }
     >
       <GuiaJornadaMarketing etapaAtual="producao" />
 
@@ -255,6 +268,35 @@ export function Conteudos() {
           </button>
         ))}
       </div>
+
+      {sucessoCampanha && (
+        <div
+          role="status"
+          style={{
+            fontSize: 13,
+            color: 'var(--verde-escuro, #1a7f4b)',
+            background: 'var(--verde-fraco, #e6f6ec)',
+            border: '1px solid var(--verde, #2fa968)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            margin: '10px 0 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <span>{sucessoCampanha}</span>
+          <button
+            type="button"
+            onClick={() => setSucessoCampanha(null)}
+            title="Fechar"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 15 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {aba === 'tipos' && <PainelTiposTarefa />}
 
@@ -334,6 +376,16 @@ export function Conteudos() {
         />
       )}
         </>
+      )}
+
+      {modalCampanha && (
+        <ModalNovaCampanhaFunil
+          onFechar={() => setModalCampanha(false)}
+          onCriada={(nome) => {
+            setModalCampanha(false);
+            setSucessoCampanha(`Campanha "${nome}" criada. Ela aparece na tela Campanhas; conforme você adicionar materiais a ela, as peças entram neste funil.`);
+          }}
+        />
       )}
     </PaginaShell>
   );
@@ -1371,6 +1423,191 @@ function IconeResponsavel(): ReactNode {
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
+  );
+}
+
+/* ----------------------- Modal nova campanha ----------------------- */
+
+/**
+ * Criar campanha direto do funil de produção (centralização para o time leigo:
+ * um lugar só). Usa o MESMO contrato POST /campanhas-marketing da tela Campanhas
+ * — não altera nada lá; só adiciona este ponto de entrada aqui. Depois de criada,
+ * a campanha aparece na tela Campanhas e os materiais dela viram peças no funil.
+ */
+function ModalNovaCampanhaFunil({
+  onFechar,
+  onCriada,
+}: {
+  onFechar: () => void;
+  onCriada: (nome: string) => void;
+}) {
+  const [nome, setNome] = useState('');
+  const [objetivo, setObjetivo] = useState('');
+  const [clienteId, setClienteId] = useState('');
+  const [squadId, setSquadId] = useState('');
+  const [prazo, setPrazo] = useState('');
+  const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [squads, setSquads] = useState<{ id: string; nome: string }[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      setCarregando(true);
+      try {
+        const [cli, sq] = await Promise.all([
+          api.get<ClienteOpt[]>('/clientes'),
+          api
+            .get<{ id: string; nome: string }[]>('/squads')
+            .catch(() => ({ data: [] as { id: string; nome: string }[] })),
+        ]);
+        if (!ativo) return;
+        setClientes(cli.data);
+        setSquads(sq.data);
+      } catch {
+        if (ativo) setErro('Não foi possível carregar clientes/squads.');
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const valido = nome.trim().length >= 2 && clienteId !== '';
+
+  async function enviar(e: FormEvent) {
+    e.preventDefault();
+    if (!valido || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.post('/campanhas-marketing', {
+        nome: nome.trim(),
+        objetivo: objetivo.trim() || undefined,
+        clienteId,
+        squadId: squadId || undefined,
+        prazo: prazo ? new Date(prazo).toISOString() : undefined,
+      });
+      onCriada(nome.trim());
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data
+        ?.message;
+      setErro((Array.isArray(msg) ? msg.join(' ') : msg) || 'Não foi possível criar a campanha.');
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Overlay onFechar={onFechar}>
+      <form
+        onSubmit={enviar}
+        className="brk-gradient-border"
+        style={{
+          width: 'min(460px, 92vw)',
+          background: 'var(--superficie)',
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: 'var(--sombra-card)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Nova campanha</h2>
+          <p style={{ fontSize: 13, color: 'var(--texto-fraco)', marginTop: 2 }}>
+            Crie a campanha aqui mesmo, na Produção de Conteúdo. As peças da campanha aparecem neste funil.
+          </p>
+        </div>
+
+        <Campo
+          rotulo="Nome da campanha"
+          obrigatorio
+          valor={nome}
+          aoMudar={setNome}
+          placeholder="Ex.: Dia dos Namorados"
+          autoFocus
+        />
+
+        <Campo
+          rotulo="Objetivo"
+          valor={objetivo}
+          aoMudar={setObjetivo}
+          placeholder="Ex.: Vendas do cardápio especial (opcional)"
+        />
+
+        <CampoSelect
+          rotulo="Cliente"
+          obrigatorio
+          valor={clienteId}
+          aoMudar={setClienteId}
+          desabilitado={carregando || clientes.length === 0}
+        >
+          <option value="" disabled>
+            {carregando
+              ? 'Carregando clientes…'
+              : clientes.length === 0
+                ? 'Nenhum cliente disponível'
+                : 'Selecione um cliente'}
+          </option>
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nomeFantasia}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <CampoSelect rotulo="Squad" valor={squadId} aoMudar={setSquadId} desabilitado={carregando}>
+          <option value="">Sem squad (definir depois)</option>
+          {squads.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.nome}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <label
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--texto-suave)',
+          }}
+        >
+          Prazo
+          <input
+            type="date"
+            value={prazo}
+            onChange={(e) => setPrazo(e.target.value)}
+            style={{
+              padding: '9px 10px',
+              borderRadius: 10,
+              border: '1px solid var(--borda-forte)',
+              background: 'var(--superficie-2)',
+              color: 'var(--cinza-vapor)',
+              fontSize: 13.5,
+            }}
+          />
+        </label>
+
+        {erro && <MensagemErro texto={erro} />}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+          <BotaoSecundario onClick={onFechar} disabled={salvando}>
+            Cancelar
+          </BotaoSecundario>
+          <BotaoPrimario type="submit" disabled={!valido || salvando}>
+            {salvando ? 'Criando…' : 'Criar campanha'}
+          </BotaoPrimario>
+        </div>
+      </form>
+    </Overlay>
   );
 }
 
