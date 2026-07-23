@@ -528,7 +528,7 @@ function PortalEkyte({
           )}
         </div>
 
-        {/* Barra de etapas (Planejamento → Criação → Aprovação) */}
+        {/* Barra de etapas (pipeline eKyte: Briefing → ... → Aprovação cliente → ... → Monitoramento) */}
         <StepperEtapas />
 
         {/* Corpo: lista lateral + painel central */}
@@ -557,27 +557,40 @@ function PortalEkyte({
   );
 }
 
-// Barra de etapas do painel (fixa): as peças chegam ao cliente já em fase de
-// aprovação, então Planejamento e Criação vêm concluídos e Aprovação é a atual.
+// Barra de etapas do painel: pipeline completo de produção do eKyte (Briefing →
+// Análise → Redação → Design → Revisão interna → Aprovação cliente → Publicação →
+// Divulgação → Monitoramento). As peças chegam ao cliente na fase de "Aprovação
+// cliente", então as etapas anteriores vêm concluídas, ela é a atual e as
+// seguintes ficam pendentes.
 function StepperEtapas() {
-  const etapas: { rotulo: string; atual?: boolean }[] = [
-    { rotulo: 'Planejamento' },
-    { rotulo: 'Criação' },
-    { rotulo: 'Aprovação', atual: true },
+  const etapas: { rotulo: string; estado: 'concluida' | 'atual' | 'pendente' }[] = [
+    { rotulo: 'Briefing', estado: 'concluida' },
+    { rotulo: 'Análise', estado: 'concluida' },
+    { rotulo: 'Redação', estado: 'concluida' },
+    { rotulo: 'Design', estado: 'concluida' },
+    { rotulo: 'Revisão interna', estado: 'concluida' },
+    { rotulo: 'Aprovação cliente', estado: 'atual' },
+    { rotulo: 'Publicação', estado: 'pendente' },
+    { rotulo: 'Divulgação', estado: 'pendente' },
+    { rotulo: 'Monitoramento', estado: 'pendente' },
   ];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 18px', borderBottom: '1px solid var(--borda)', overflowX: 'auto' }}>
       {etapas.map((e, i) => (
         <div key={e.rotulo} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {e.atual ? (
+            {e.estado === 'atual' ? (
               <span style={{ width: 20, height: 20, borderRadius: 999, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 12 }} className="brk-gradient-bg">
                 {i + 1}
               </span>
-            ) : (
+            ) : e.estado === 'concluida' ? (
               <IconeCheck concluido={true} />
+            ) : (
+              <span style={{ width: 20, height: 20, borderRadius: 999, display: 'grid', placeItems: 'center', color: 'var(--texto-fraco)', fontWeight: 800, fontSize: 12, border: '1.5px solid var(--borda-forte)' }}>
+                {i + 1}
+              </span>
             )}
-            <span style={{ fontSize: 13, fontWeight: e.atual ? 800 : 600, color: e.atual ? 'var(--amarelo)' : 'var(--texto-suave)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 13, fontWeight: e.estado === 'atual' ? 800 : 600, color: e.estado === 'atual' ? 'var(--amarelo)' : e.estado === 'pendente' ? 'var(--texto-fraco)' : 'var(--texto-suave)', whiteSpace: 'nowrap' }}>
               {e.rotulo}
             </span>
           </div>
