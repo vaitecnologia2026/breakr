@@ -13,7 +13,7 @@ interface ConfigIa {
   provedores: { openai: ProvedorInfo; anthropic: ProvedorInfo; gemini: ProvedorInfo };
 }
 interface ConfigIntegracoes {
-  asaas: { temChave: boolean; preview: string | null; sandbox: boolean; webhook: string | null };
+  asaas: { temChave: boolean; preview: string | null; sandbox: boolean; webhook: string | null; webhookAtivo: boolean; emitirNotaTeste: boolean };
   speed: { temChave: boolean; preview: string | null };
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
@@ -174,7 +174,7 @@ function AbaIntegracoes() {
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [form, setForm] = useState({
-    asaasApiKey: '', asaasSandbox: false, asaasWebhook: '',
+    asaasApiKey: '', asaasSandbox: false, asaasWebhook: '', asaasWebhookAtivo: true, asaasEmitirNotaTeste: false,
     speedApiKey: '', autentiqueToken: '',
     whatsappToken: '', whatsappInstancia: '',
     vaicrmToken: '', vaicrmEmail: '', vaicrmSenha: '',
@@ -191,7 +191,7 @@ function AbaIntegracoes() {
     try {
       const { data } = await api.get<ConfigIntegracoes>('/config/integracoes');
       setConfig(data);
-      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsMetaAppId: data.adsMeta.appId ?? '', adsMetaAppSecret: '', adsMetaPageId: data.adsMeta.pageId ?? '', adsMetaPixelId: data.adsMeta.pixelId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '', receitaToken: '' });
+      setForm({ asaasApiKey: '', asaasSandbox: data.asaas.sandbox, asaasWebhook: data.asaas.webhook ?? '', asaasWebhookAtivo: data.asaas.webhookAtivo, asaasEmitirNotaTeste: data.asaas.emitirNotaTeste, speedApiKey: '', autentiqueToken: '', whatsappToken: '', whatsappInstancia: data.whatsapp.instancia ?? '', vaicrmToken: '', vaicrmEmail: data.vaicrm.email ?? '', vaicrmSenha: '', googleServiceAccount: '', googleCalendarId: data.google.calendarId ?? '', googleImpersonateEmail: data.google.email ?? '', adsMetaToken: '', adsMetaContaId: data.adsMeta.contaId ?? '', adsMetaAppId: data.adsMeta.appId ?? '', adsMetaAppSecret: '', adsMetaPageId: data.adsMeta.pageId ?? '', adsMetaPixelId: data.adsMeta.pixelId ?? '', adsGoogleToken: '', adsGoogleContaId: data.adsGoogle.contaId ?? '', receitaToken: '' });
     } catch { setErroCarga('Erro ao carregar integrações.'); }
     finally { setCarregando(false); }
   }
@@ -204,6 +204,8 @@ function AbaIntegracoes() {
         ...(form.asaasApiKey && { asaasApiKey: form.asaasApiKey }),
         asaasSandbox: form.asaasSandbox,
         asaasWebhook: form.asaasWebhook,
+        asaasWebhookAtivo: form.asaasWebhookAtivo,
+        asaasEmitirNotaTeste: form.asaasEmitirNotaTeste,
         ...(form.speedApiKey && { speedApiKey: form.speedApiKey }),
         ...(form.autentiqueToken && { autentiqueToken: form.autentiqueToken }),
         ...(form.whatsappToken && { whatsappToken: form.whatsappToken }),
@@ -271,12 +273,24 @@ function AbaIntegracoes() {
             aoAlternar={(v) => setForm((f) => ({ ...f, asaasSandbox: v }))}
             rotulo="Modo Sandbox (testes)"
           />
+          {form.asaasSandbox && (
+            <Switch
+              ativo={form.asaasEmitirNotaTeste}
+              aoAlternar={(v) => setForm((f) => ({ ...f, asaasEmitirNotaTeste: v }))}
+              rotulo="Enviar nota fiscal nos testes (Sandbox) — ligue para emitir a NF ao testar"
+            />
+          )}
           <Campo
             rotulo="Webhook Asaas (n8n)"
             autoComplete="off"
             placeholder="https://webhook.breakr.com.br/webhook/…/criacao-e-registro-de-contratos"
             value={form.asaasWebhook}
             onChange={(e) => setForm((f) => ({ ...f, asaasWebhook: e.target.value }))}
+          />
+          <Switch
+            ativo={form.asaasWebhookAtivo}
+            aoAlternar={(v) => setForm((f) => ({ ...f, asaasWebhookAtivo: v }))}
+            rotulo="Webhook n8n ativo (desligue para não disparar a cobrança ao criar contrato — a URL fica salva)"
           />
         </>
       ),

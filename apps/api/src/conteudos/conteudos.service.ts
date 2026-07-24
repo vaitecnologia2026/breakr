@@ -40,6 +40,18 @@ const ETAPAS_TIPO_TAREFA: { etapa: EtapaTipoTarefa; rotulo: string }[] = [
   { etapa: EtapaTipoTarefa.MONITORAMENTO, rotulo: 'Monitoramento' },
 ];
 
+// Mapa do status do funil (coluna do board) para a etapa herdada correspondente.
+// Usado para, ao mover a peça para a nova etapa, avisar o responsável definido
+// daquela etapa (em etapasHerdadas). Só os status com etapa clara entram aqui; os
+// demais caem no fallback (responsável atual da peça).
+const STATUS_PARA_ETAPA: Partial<Record<StatusConteudo, EtapaTipoTarefa>> = {
+  [StatusConteudo.ROTEIRO]: EtapaTipoTarefa.REDACAO,
+  [StatusConteudo.PRODUCAO]: EtapaTipoTarefa.DESIGN,
+  [StatusConteudo.REVISAO]: EtapaTipoTarefa.REVISAO_INTERNA,
+  [StatusConteudo.APROVACAO_CLIENTE]: EtapaTipoTarefa.APROVACAO_CLIENTE,
+  [StatusConteudo.PUBLICADO]: EtapaTipoTarefa.PUBLICACAO,
+};
+
 @Injectable()
 export class ConteudosService {
   constructor(
@@ -204,6 +216,45 @@ export class ConteudosService {
     });
   }
 
+  // Contabiliza, de forma real, o esforço previsto e os dias para concluir das
+  // peças a partir do TIPO DE TAREFA de cada uma (Conteudo.tipoTarefaId -> TipoTarefa).
+  // Somente leitura; não altera nada. Filtro opcional por cliente (igual à lista).
+  async resumoEsforco(filtro?: { clienteId?: string }) {
+    const conteudos = await this.prisma.conteudo.findMany({
+      where: { clienteId: filtro?.clienteId },
+      select: { tipoTarefaId: true },
+    });
+    const ids = [
+      ...new Set(conteudos.map((c) => c.tipoTarefaId).filter((x): x is string => !!x)),
+    ];
+    const tipos = ids.length
+      ? await this.prisma.tipoTarefa.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, diasConcluir: true, esforcoPrevistoMin: true },
+        })
+      : [];
+    const mapa = new Map(tipos.map((t) => [t.id, t]));
+    let pecasComTipo = 0;
+    let esforcoPrevistoMin = 0;
+    let diasConcluirTotal = 0;
+    for (const c of conteudos) {
+      const t = c.tipoTarefaId ? mapa.get(c.tipoTarefaId) : undefined;
+      if (!t) continue;
+      pecasComTipo += 1;
+      esforcoPrevistoMin += t.esforcoPrevistoMin ?? 0;
+      diasConcluirTotal += t.diasConcluir ?? 0;
+    }
+    return {
+      totalPecas: conteudos.length,
+      pecasComTipo,
+      esforcoPrevistoMin,
+      esforcoPrevistoHoras: Math.round((esforcoPrevistoMin / 60) * 10) / 10,
+      diasConcluirTotal,
+      diasConcluirMedia:
+        pecasComTipo > 0 ? Math.round((diasConcluirTotal / pecasComTipo) * 10) / 10 : null,
+    };
+  }
+
   // Busca uma peca pelo id (com as relacoes amigaveis). Quando a peca nasceu de um
   // material de campanha, anexa um resumo da campanha vinculada (nome, situacao, o
   // estagio deste material no pipeline e o progresso) para a Producao de Conteudo
@@ -317,7 +368,53 @@ export class ConteudosService {
       });
     }
 
+    // Ao passar para a nova etapa, avisa o responsável DAQUELA etapa que tem uma
+    // tarefa a executar (Produção de Conteúdo). Isolado em try/catch para nunca
+    // quebrar a movimentação caso a notificação falhe.
+    try {
+      await this.notificarResponsavelDaEtapa(
+        {
+          titulo: conteudo.titulo,
+          responsavelId: conteudo.responsavelId,
+          etapasHerdadas: conteudo.etapasHerdadas,
+        },
+        novoStatus,
+      );
+    } catch {
+      /* silencioso: o aviso é acessório; a peça já foi movida acima. */
+    }
+
     return this.obter(id);
+  }
+
+  // Resolve e avisa o responsável da nova etapa/tarefa (Produção de Conteúdo). Mapeia
+  // o status de destino para a etapa herdada correspondente e usa o responsável
+  // definido daquela etapa (em etapasHerdadas); se não houver, cai para o responsável
+  // atual da peça. Sem ninguém para avisar, não faz nada.
+  private async notificarResponsavelDaEtapa(
+    conteudo: { titulo: string; responsavelId: string | null; etapasHerdadas: Prisma.JsonValue | null },
+    novoStatus: StatusConteudo,
+  ): Promise<void> {
+    const etapaAlvo = STATUS_PARA_ETAPA[novoStatus];
+    let responsavelId: string | null = null;
+    let rotuloEtapa = '';
+    if (etapaAlvo) {
+      const herdadas = Array.isArray(conteudo.etapasHerdadas)
+        ? (conteudo.etapasHerdadas as Array<{ etapa?: string; responsavelId?: string | null }>)
+        : [];
+      const item = herdadas.find((e) => e && e.etapa === etapaAlvo);
+      responsavelId = item?.responsavelId ?? null;
+      rotuloEtapa = ETAPAS_TIPO_TAREFA.find((x) => x.etapa === etapaAlvo)?.rotulo ?? '';
+    }
+    // Fallback: sem responsável definido para a etapa → responsável atual da peça.
+    if (!responsavelId) responsavelId = conteudo.responsavelId;
+    if (!responsavelId) return; // ninguém para avisar
+    await this.notificacoes.criar(responsavelId, {
+      titulo: 'Você tem uma tarefa para executar',
+      mensagem: `"${conteudo.titulo}"${rotuloEtapa ? ` está na etapa ${rotuloEtapa}` : ''} e precisa da sua ação.`,
+      tipo: 'ALERTA',
+      link: '/conteudos',
+    });
   }
 
   // Atribui (ou troca) o responsavel pela peca.

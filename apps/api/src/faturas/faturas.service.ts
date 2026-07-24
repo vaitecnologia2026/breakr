@@ -2,7 +2,7 @@
 // Orquestra o trecho do pipeline de entrada que vai da 1a cobranca ate a
 // liberacao do cliente: gera a cobranca (ASAAS) -> ao ser paga emite a NF
 // (Speed), libera o onboarding e cria os projetos do plano, e dispara o motor.
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Fatura, Prisma, StatusFatura } from '@prisma/client';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,6 +23,8 @@ import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Injectable()
 export class FaturasService {
+  private readonly logger = new Logger(FaturasService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly codigoUnico: CodigoUnicoService,
@@ -39,6 +41,25 @@ export class FaturasService {
   // Sao Paulo para nao adiantar o vencimento em 1 dia (ver data.util).
   private dataIso(d: Date): string {
     return dataIsoSaoPaulo(d);
+  }
+
+  // Flags do Asaas (Configuracoes -> Integracoes) que decidem a emissao da NF em
+  // testes. Le direto do Config singleton (mesmo id da IntegracoesConfigService).
+  // sandbox = modo testes; emitirNotaTeste = botao "enviar nota fiscal nos testes".
+  private async lerFlagsAsaasNota(): Promise<{ sandbox: boolean; emitirNotaTeste: boolean }> {
+    try {
+      const cfg = await this.prisma.config.findUnique({
+        where: { id: '00000000-0000-0000-0000-000000000001' },
+      });
+      const params = (cfg?.parametros as Record<string, unknown>) ?? {};
+      const integ = (params.integracoes as { asaas?: { sandbox?: boolean; emitirNotaTeste?: boolean } }) ?? {};
+      return {
+        sandbox: integ.asaas?.sandbox ?? false,
+        emitirNotaTeste: integ.asaas?.emitirNotaTeste ?? false,
+      };
+    } catch {
+      return { sandbox: false, emitirNotaTeste: false };
+    }
   }
 
   // Gera a 1a cobranca (PIX) de um contrato no ASAAS e persiste a Fatura.
@@ -124,16 +145,27 @@ export class FaturasService {
 
     try {
       // 1) Emite a NF (Speed) — idempotente: so emite se ainda nao houver nota.
+      //    Em modo Sandbox (testes) a NF so e emitida se o botao "enviar nota
+      //    fiscal nos testes" estiver ligado; fora do sandbox emite sempre.
       if (!fatura.notaFiscalId) {
-        const nota = await this.speed.emitirNota({
-          clienteId: fatura.cliente.id,
-          valor: Number(fatura.valor),
-          descricaoServico: `Serviços de marketing — ${fatura.cliente.plano?.nome ?? 'plano'}`,
-        });
-        await this.prisma.fatura.update({
-          where: { id },
-          data: { notaFiscalId: nota.id, notaFiscalUrl: nota.linkPdf },
-        });
+        const flags = await this.lerFlagsAsaasNota();
+        const podeEmitir = !flags.sandbox || flags.emitirNotaTeste;
+        if (podeEmitir) {
+          const nota = await this.speed.emitirNota({
+            clienteId: fatura.cliente.id,
+            valor: Number(fatura.valor),
+            descricaoServico: `Serviços de marketing — ${fatura.cliente.plano?.nome ?? 'plano'}`,
+          });
+          await this.prisma.fatura.update({
+            where: { id },
+            data: { notaFiscalId: nota.id, notaFiscalUrl: nota.linkPdf },
+          });
+        } else {
+          this.logger.log(
+            `Sandbox: emissao de NF pulada para a fatura ${fatura.codigoUnico} ` +
+            `(ligue "enviar nota fiscal nos testes" para emitir em testes).`,
+          );
+        }
       }
 
       // 2) Libera o onboarding gamificado e cria os projetos do plano

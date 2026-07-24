@@ -42,6 +42,16 @@ interface Lead {
 type StatusAtividade = 'PENDENTE' | 'CONCLUIDA';
 interface Atividade { id: string; titulo: string; status: StatusAtividade; vencimento: string | null; lead?: { id: string } | null }
 
+// Visão de gestão do pipeline (portada da antiga tela Comercial): faixa de KPIs + ranking.
+interface PerformanceComercial {
+  total: number;
+  abertos: number;
+  ganhos: number;
+  perdidos: number;
+  taxaConversao: number;
+  ranking: { responsavel: string; ganhos: number; abertos: number }[];
+}
+
 const STATUS_LABEL: Record<StatusLead, string> = {
   NOVO: 'Entrada de Leads', CONTATADO: 'Tentando contato', QUALIFICADO: 'Qualificado',
   PROPOSTA: 'Proposta', GANHO: 'Ganho', PERDIDO: 'Perdido',
@@ -130,12 +140,45 @@ const IcoConfig = () => <Ico size={14}><circle cx="12" cy="12" r="3" /><path d="
 // Editor de etapa (modal add/edit).
 interface EditorEtapa { modo: 'add' | 'edit'; id?: string; nome: string; status: StatusLead }
 
+// Campo de texto com autocomplete visível (dropdown próprio), puxando as sugestões
+// do menu Contatos. Mantém texto livre: aceita digitar algo que não esteja na lista.
+function CampoAutocomplete({ rotulo, value, onChange, placeholder, sugestoes }: {
+  rotulo: string; value: string; onChange: (v: string) => void; placeholder?: string; sugestoes: string[];
+}) {
+  const [aberto, setAberto] = useState(false);
+  const q = value.trim().toLowerCase();
+  const filtradas = (q ? sugestoes.filter((s) => s.toLowerCase().includes(q)) : sugestoes).slice(0, 8);
+  return (
+    <div style={{ position: 'relative' }}>
+      <Campo rotulo={rotulo} value={value} placeholder={placeholder} autoComplete="off"
+        onChange={(e) => { onChange(e.target.value); setAberto(true); }}
+        onFocus={() => setAberto(true)}
+        onBlur={() => setTimeout(() => setAberto(false), 120)} />
+      {aberto && filtradas.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: 2, background: 'var(--superficie)', border: '1px solid var(--borda)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', maxHeight: 200, overflowY: 'auto' }}>
+          {filtradas.map((s) => (
+            <div key={s} onMouseDown={(e) => { e.preventDefault(); onChange(s); setAberto(false); }}
+              style={{ padding: '8px 10px', fontSize: 13, color: 'var(--texto)', cursor: 'pointer' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--superficie-3)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Negocios() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineSel, setPipelineSel] = useState<string | null>(null);
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [atividades, setAtividades] = useState<Atividade[]>([]);
+  const [perf, setPerf] = useState<PerformanceComercial | null>(null);
+  // Empresas do menu Contatos (Contatos → Empresas = /clientes) para o autocomplete do modal.
+  const [empresasContatos, setEmpresasContatos] = useState<string[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
@@ -185,6 +228,14 @@ export function Negocios() {
   async function carregarEtiquetas() {
     try { const { data } = await api.get<Etiqueta[]>('/comercial/etiquetas'); setEtiquetas(data); } catch { setEtiquetas([]); }
   }
+  // Puxa as Empresas do menu Contatos (mesma fonte da tela Contatos → Empresas: /clientes).
+  async function carregarEmpresasContatos() {
+    try {
+      const { data } = await api.get<{ nomeFantasia?: string | null }[]>('/clientes');
+      const nomes = Array.from(new Set((data ?? []).map((c) => (c.nomeFantasia ?? '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+      setEmpresasContatos(nomes);
+    } catch { setEmpresasContatos([]); }
+  }
   async function carregarLeads() {
     try {
       const { data } = await api.get<Lead[]>('/comercial/leads');
@@ -194,10 +245,15 @@ export function Negocios() {
       const { data } = await api.get<Atividade[]>('/comercial/atividades');
       setAtividades(comDemo(data, MOCK_ATIVIDADES));
     } catch { setAtividades(mockSeDemo(MOCK_ATIVIDADES)); }
+    // Performance é só para gestão/comercial; ignora silenciosamente se 403/erro.
+    try {
+      const { data } = await api.get<PerformanceComercial>('/comercial/leads/performance');
+      setPerf(data ?? null);
+    } catch { setPerf(null); }
   }
   async function carregar() {
     setCarregando(true); setErro(null);
-    try { await Promise.all([carregarPipelines(), carregarEtiquetas(), carregarLeads()]); }
+    try { await Promise.all([carregarPipelines(), carregarEtiquetas(), carregarLeads(), carregarEmpresasContatos()]); }
     catch { setErro('Não foi possível carregar os negócios.'); }
     finally { setCarregando(false); }
   }
@@ -226,6 +282,13 @@ export function Negocios() {
     setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, status: etapa.status, etapa: { id: etapa.id, nome: etapa.nome, status: etapa.status } } : l)));
     try { await api.patch(`/comercial/leads/${id}/etapa`, { etapaId: etapa.id }); await carregarLeads(); }
     catch { setErroAcao('Não foi possível mover o negócio. Tente novamente.'); await carregarLeads(); }
+  }
+
+  // Converte um negócio GANHO em cliente (portado da antiga tela Comercial).
+  async function converterLead(id: string) {
+    setErroAcao(null);
+    try { await api.post(`/comercial/leads/${id}/converter`); await carregarLeads(); }
+    catch (e: any) { setErroAcao(e?.response?.data?.message ?? 'Não foi possível converter o lead em cliente. Tente novamente.'); }
   }
 
   // ── Pipelines ────────────────────────────────────────────────────────────
@@ -343,6 +406,9 @@ export function Negocios() {
 
   const total = visao === 'kanban' ? leadsVisiveis.length : leadsLista.length;
 
+  // Pessoas do menu Contatos (Contatos → Pessoas = nomes dos leads) para o autocomplete do modal.
+  const pessoasContatos = Array.from(new Set(leads.map((l) => l.nome.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
   const toggleBtn = (ativo: boolean): React.CSSProperties => ({
     width: 30, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
     border: '1px solid var(--borda)', borderRadius: 7, cursor: 'pointer',
@@ -417,6 +483,34 @@ export function Negocios() {
             </div>
           </div>
 
+          {/* Faixa de performance (KPIs + ranking) — portada da antiga tela Comercial. */}
+          {perf && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              {[
+                { r: 'Em aberto', v: String(perf.abertos) },
+                { r: 'Ganhos', v: String(perf.ganhos) },
+                { r: 'Perdidos', v: String(perf.perdidos) },
+                { r: 'Conversão', v: `${perf.taxaConversao}%` },
+              ].map((k) => (
+                <div key={k.r} className="brk-card" style={{ flex: '1 1 120px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800 }}>{k.v}</div>
+                  <div style={{ fontSize: 12, color: 'var(--texto-fraco)' }}>{k.r}</div>
+                </div>
+              ))}
+              {perf.ranking.length > 0 && (
+                <div className="brk-card" style={{ flex: '2 1 240px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--texto-fraco)', marginBottom: 6 }}>Ranking (ganhos)</div>
+                  {perf.ranking.slice(0, 4).map((r) => (
+                    <div key={r.responsavel} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--texto-suave)' }}>
+                      <span>{r.responsavel}</span>
+                      <span><strong style={{ color: 'var(--cinza-vapor)' }}>{r.ganhos}</strong> · {r.abertos} abertos</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {visao === 'kanban' ? (
             <div className="brk-kanban-scroll brk-kanban-barra-x" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
               {etapas.length === 0 ? (
@@ -484,6 +578,17 @@ export function Negocios() {
                                 <span style={{ fontSize: 11, color: 'var(--texto-fraco)', flex: '0 0 auto' }}>{dias}d</span>
                               </div>
                             </div>
+                            {l.status === 'GANHO' && !l.cliente && (
+                              <button type="button" onClick={(e) => { e.stopPropagation(); converterLead(l.id); }}
+                                style={{ marginTop: 2, border: '1px solid var(--borda)', background: 'var(--superficie-2)', color: 'var(--texto)', borderRadius: 8, padding: '6px 8px', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                                Converter em cliente
+                              </button>
+                            )}
+                            {l.status === 'GANHO' && l.cliente && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#67e0a3', marginTop: 2 }}>
+                                <span aria-hidden="true">✓</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Virou cliente: {l.cliente.nomeFantasia}</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -583,8 +688,8 @@ export function Negocios() {
               <Campo rotulo="Valor (R$)" type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))} placeholder="0" />
               <Campo rotulo="Previsão de Fechamento" type="date" value={form.previsao} onChange={(e) => setForm((f) => ({ ...f, previsao: e.target.value }))} />
             </div>
-            <Campo rotulo="Contato (Pessoa)" value={form.contato} onChange={(e) => setForm((f) => ({ ...f, contato: e.target.value }))} placeholder="Nome do contato" />
-            <Campo rotulo="Empresa" value={form.empresa} onChange={(e) => setForm((f) => ({ ...f, empresa: e.target.value }))} placeholder="Nome da empresa" />
+            <CampoAutocomplete rotulo="Contato (Pessoa)" value={form.contato} onChange={(v) => setForm((f) => ({ ...f, contato: v }))} placeholder="Nome do contato" sugestoes={pessoasContatos} />
+            <CampoAutocomplete rotulo="Empresa" value={form.empresa} onChange={(v) => setForm((f) => ({ ...f, empresa: v }))} placeholder="Nome da empresa" sugestoes={empresasContatos} />
             <div>
               <span className="brk-campo-label" style={{ display: 'block', marginBottom: 6 }}>Etiquetas</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>

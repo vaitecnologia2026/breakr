@@ -281,6 +281,12 @@ model Cliente {
   cnpj            String?
   email           String?
   telefone        String?
+  website         String?
+  segmento        String?
+  porte           String?
+  cidade          String?
+  estado          String?
+  empresaMae      String?       @map("empresa_mae")
   status          ClienteStatus @default(NOVO)
   codigoUnico     String        @unique @map("codigo_unico")
   ticketMedio     Decimal?      @map("ticket_medio") @db.Decimal(12, 2)
@@ -790,6 +796,7 @@ model Lead {
   email         String?
   telefone      String?
   origem        String? // Indicacao | Inbound | Scraping | Evento...
+  cargo         String?
   status        StatusLead @default(NOVO)
   valorEstimado Decimal?   @map("valor_estimado") @db.Decimal(12, 2)
   observacao    String?

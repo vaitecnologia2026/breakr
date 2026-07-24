@@ -76,6 +76,13 @@ export class ConteudosController {
     return this.conteudosService.listar({ clienteId, status });
   }
 
+  // GET /conteudos/resumo-esforco — contabiliza esforço/dias previstos das peças
+  // a partir do tipo de tarefa de cada uma (antes de :id para não colidir).
+  @Get('resumo-esforco')
+  resumoEsforco(@Query('clienteId') clienteId?: string) {
+    return this.conteudosService.resumoEsforco({ clienteId });
+  }
+
   // GET /conteudos/:id — detalhe (qualquer autenticado).
   @Get(':id')
   obter(@Param('id', ParseUUIDPipe) id: string) {

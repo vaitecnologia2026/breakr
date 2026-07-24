@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { EstadoCarregando, EstadoErro, PainelVazio, Overlay, BotaoPrimario, BotaoSecundario, MensagemErro } from '../components/primitivos';
-import { Card, Th, Td } from '../components/ui';
+import { Card, Th, Td, Btn, Campo, Modal, Alerta } from '../components/ui';
 
 interface Lead {
   id: string;
@@ -16,6 +16,7 @@ interface Lead {
   empresa: string | null;
   email: string | null;
   telefone: string | null;
+  cargo?: string | null;
   responsavel?: { nome: string } | null;
 }
 
@@ -27,6 +28,7 @@ interface Pessoa {
   empresa: string;
   negocios: number;
   proprietario: string;
+  ids: string[];
 }
 
 const MOCK_LEADS: Lead[] = [
@@ -45,18 +47,21 @@ function agregarPessoas(leads: Lead[]): Pessoa[] {
     const atual = mapa.get(chave);
     if (atual) {
       atual.negocios += 1;
+      atual.ids.push(l.id);
       if (atual.email === '—' && l.email) atual.email = l.email;
       if (atual.telefone === '—' && l.telefone) atual.telefone = l.telefone;
+      if (atual.cargo === '—' && l.cargo) atual.cargo = l.cargo;
       if (atual.empresa === '—' && l.empresa) atual.empresa = l.empresa;
     } else {
       mapa.set(chave, {
         nome: l.nome,
         email: l.email || '—',
         telefone: l.telefone || '—',
-        cargo: '—',
+        cargo: l.cargo || '—',
         empresa: l.empresa || '—',
         negocios: 1,
         proprietario: l.responsavel?.nome || '—',
+        ids: [l.id],
       });
     }
   }
@@ -86,6 +91,12 @@ export function Pessoas() {
   const [empresaFoco, setEmpresaFoco] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
+
+  // Edição de um contato existente (aplica nos leads subjacentes).
+  const [editando, setEditando] = useState<Pessoa | null>(null);
+  const [formEd, setFormEd] = useState<{ nome: string; email: string; telefone: string; cargo: string; empresa: string }>({ nome: '', email: '', telefone: '', cargo: '', empresa: '' });
+  const [salvandoEd, setSalvandoEd] = useState(false);
+  const [erroEd, setErroEd] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -182,6 +193,7 @@ export function Pessoas() {
         nome: nome.trim(),
         email: emails[0]?.valor.trim() || undefined,
         telefone: telefones[0]?.valor.trim() || undefined,
+        cargo: cargo.trim() || undefined,
         empresa: empresa.trim() || undefined,
       });
       setModalNovo(false);
@@ -192,6 +204,50 @@ export function Pessoas() {
       setErroForm(Array.isArray(msg) ? msg.join(' ') : msg ?? 'Não foi possível criar o contato.');
     } finally {
       setSalvando(false);
+    }
+  }
+
+  // Abre o modal de edição com os valores atuais (— vira vazio).
+  function abrirEdicao(p: Pessoa) {
+    setErroEd(null);
+    setFormEd({
+      nome: p.nome === '—' ? '' : p.nome,
+      email: p.email === '—' ? '' : p.email,
+      telefone: p.telefone === '—' ? '' : p.telefone,
+      cargo: p.cargo === '—' ? '' : p.cargo,
+      empresa: p.empresa === '—' ? '' : p.empresa,
+    });
+    setEditando(p);
+  }
+
+  // Salva o contato: aplica os campos em cada lead subjacente (PATCH) e recarrega.
+  async function salvarEdicao() {
+    if (!editando) return;
+    const nome = formEd.nome.trim();
+    if (!nome) {
+      setErroEd('Informe o nome do contato.');
+      return;
+    }
+    // Só envia e-mail quando preenchido (o backend valida como e-mail; vazio
+    // significa "não alterar" para não invalidar o cadastro existente).
+    const email = formEd.email.trim();
+    const payload: { nome: string; telefone: string; cargo: string; empresa: string; email?: string } = {
+      nome,
+      telefone: formEd.telefone.trim(),
+      cargo: formEd.cargo.trim(),
+      empresa: formEd.empresa.trim(),
+    };
+    if (email) payload.email = email;
+    setSalvandoEd(true);
+    setErroEd(null);
+    try {
+      await Promise.all(editando.ids.map((id) => api.patch(`/comercial/leads/${id}`, payload)));
+      setEditando(null);
+      await carregar();
+    } catch {
+      setErroEd('Não foi possível salvar o contato. Tente novamente.');
+    } finally {
+      setSalvandoEd(false);
     }
   }
 
@@ -253,13 +309,13 @@ export function Pessoas() {
             <table className="brk-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <Th>Nome</Th><Th>Email</Th><Th>Telefone</Th><Th>Cargo</Th><Th>Empresa</Th><Th>Negócios</Th><Th>Proprietário</Th>
+                  <Th>Nome</Th><Th>Email</Th><Th>Telefone</Th><Th>Cargo</Th><Th>Empresa</Th><Th>Negócios</Th><Th>Proprietário</Th><Th>Ações</Th>
                 </tr>
               </thead>
               <tbody>
                 {visiveis.length === 0 ? (
                   <tr>
-                    <Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td>
+                    <Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td>
                   </tr>
                 ) : (
                   visiveis.map((p, i) => (
@@ -276,6 +332,9 @@ export function Pessoas() {
                       <Td>{p.empresa}</Td>
                       <Td>{p.negocios}</Td>
                       <Td>{p.proprietario}</Td>
+                      <Td>
+                        <Btn variante="secondary" tamanho="sm" onClick={() => abrirEdicao(p)}>Editar</Btn>
+                      </Td>
                     </tr>
                   ))
                 )}
@@ -461,6 +520,33 @@ export function Pessoas() {
             </button>
           </form>
         </Overlay>
+      )}
+
+      {editando && (
+        <Modal
+          titulo="Editar contato"
+          onFechar={() => { if (!salvandoEd) setEditando(null); }}
+          rodape={
+            <>
+              <Btn variante="ghost" onClick={() => setEditando(null)} disabled={salvandoEd}>Cancelar</Btn>
+              <Btn variante="primary" onClick={salvarEdicao} disabled={salvandoEd}>{salvandoEd ? 'Salvando…' : 'Salvar'}</Btn>
+            </>
+          }
+        >
+          {erroEd && <div style={{ marginBottom: 12 }}><Alerta tipo="erro">{erroEd}</Alerta></div>}
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Campo rotulo="Nome" value={formEd.nome} onChange={(e) => setFormEd({ ...formEd, nome: e.target.value })} />
+            <Campo rotulo="Email" type="email" value={formEd.email} onChange={(e) => setFormEd({ ...formEd, email: e.target.value })} />
+            <Campo rotulo="Telefone" value={formEd.telefone} onChange={(e) => setFormEd({ ...formEd, telefone: e.target.value })} />
+            <Campo rotulo="Cargo" value={formEd.cargo} onChange={(e) => setFormEd({ ...formEd, cargo: e.target.value })} placeholder="Ex: CEO, Diretor Comercial..." />
+            <Campo rotulo="Empresa" value={formEd.empresa} onChange={(e) => setFormEd({ ...formEd, empresa: e.target.value })} />
+          </div>
+          {editando.negocios > 1 && (
+            <p style={{ marginTop: 12, fontSize: 12, color: 'var(--texto-fraco)' }}>
+              Este contato reúne {editando.negocios} negócios; a alteração será aplicada a todos.
+            </p>
+          )}
+        </Modal>
       )}
     </section>
   );

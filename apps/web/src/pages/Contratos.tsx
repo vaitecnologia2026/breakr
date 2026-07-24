@@ -50,8 +50,21 @@ interface Contrato {
   vencimento: string | null;
   clienteId: string;
   planoId: string | null;
+  // Link do contrato gerado na Autentique (preenchido ao enviar para assinatura).
+  docUrl?: string | null;
+  autentiqueId?: string | null;
   cliente?: { nomeFantasia: string };
   plano?: { nome: string; tiposProjeto: string[] } | null;
+}
+
+// Link do contrato gerado (Autentique) para abrir no menu Contratos. Usa o
+// docUrl salvo; se estiver vazio mas houver autentiqueId (contratos enviados
+// antes de passarmos a gravar o docUrl), monta o link do painel pelo id.
+function linkContrato(c: Contrato): string | null {
+  if (c.docUrl && c.docUrl.trim()) return c.docUrl;
+  if (c.autentiqueId && c.autentiqueId.trim())
+    return `https://painel.autentique.com.br/documentos/${c.autentiqueId}`;
+  return null;
 }
 
 interface ClienteOpt {
@@ -259,6 +272,7 @@ function TabelaContratos({
           <thead>
             <tr>
               <Th>Cliente</Th>
+              <Th>Contrato</Th>
               <Th>Código</Th>
               <Th>Valor/mês</Th>
               <Th>Status</Th>
@@ -312,6 +326,7 @@ function LinhaContrato({
   const [executando, setExecutando] = useState(false);
   const acao = PROXIMA_ACAO[contrato.status];
   const caminho = caminhoSwitchPlanos(contrato);
+  const link = linkContrato(contrato);
 
   async function avancar() {
     if (!acao || executando) return;
@@ -343,6 +358,26 @@ function LinhaContrato({
             )}
           </div>
         </div>
+      </Td>
+      <Td>
+        {link ? (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'var(--amarelo-fagulha)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Abrir contrato ↗
+          </a>
+        ) : (
+          <span style={{ color: 'var(--texto-fraco)' }}>—</span>
+        )}
       </Td>
       <Td>
         <CodigoChip codigo={contrato.codigoUnico} />

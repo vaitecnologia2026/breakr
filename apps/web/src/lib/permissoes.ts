@@ -9,6 +9,13 @@ import type { UsuarioPublico } from '@breakr/shared';
 // Rotas que qualquer usuário autenticado sempre acessa (evita lockout).
 export const ROTAS_SEMPRE_LIBERADAS = ['/', '/perfil'];
 
+// Rotas unificadas: a antiga "/comercial" foi absorvida por "/negocios". Um perfil
+// que já liberava "/comercial" continua enxergando/acessando o quadro (agora em
+// "/negocios"), sem precisar reeditar o perfil — ninguém perde acesso.
+const ALIAS_ROTA: Record<string, string[]> = {
+  '/negocios': ['/comercial'],
+};
+
 // true = enxerga tudo (sem restrição de perfil).
 export function veTudo(u: UsuarioPublico | null | undefined): boolean {
   if (!u) return true;
@@ -22,7 +29,9 @@ export function veTudo(u: UsuarioPublico | null | undefined): boolean {
 export function podeVerMenu(u: UsuarioPublico | null | undefined, para: string): boolean {
   if (veTudo(u)) return true;
   if (ROTAS_SEMPRE_LIBERADAS.includes(para)) return true;
-  return (u?.permissoes ?? []).includes(para);
+  const perms = u?.permissoes ?? [];
+  if (perms.includes(para)) return true;
+  return (ALIAS_ROTA[para] ?? []).some((alias) => perms.includes(alias));
 }
 
 // Uma rota (pathname atual) é permitida? Considera sub-rotas:
@@ -32,8 +41,9 @@ export function rotaPermitida(u: UsuarioPublico | null | undefined, pathname: st
   if (veTudo(u)) return true;
   if (ROTAS_SEMPRE_LIBERADAS.includes(pathname)) return true;
   const perms = u?.permissoes ?? [];
+  const aliases = ALIAS_ROTA[pathname] ?? [];
   return perms.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`) || p.startsWith(`${pathname}/`),
+    (p) => pathname === p || pathname.startsWith(`${p}/`) || p.startsWith(`${pathname}/`) || aliases.includes(p),
   );
 }
 

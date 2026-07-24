@@ -8,17 +8,30 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { api } from '../lib/api';
 import { comDemo, mockSeDemo } from '../lib/demo';
 import { EstadoCarregando, EstadoErro, PainelVazio, Overlay, BotaoPrimario, BotaoSecundario, MensagemErro } from '../components/primitivos';
-import { Card, Th, Td } from '../components/ui';
+import { Card, Th, Td, Btn, Campo, Modal, Alerta } from '../components/ui';
 
 interface Cliente {
   id: string;
   nomeFantasia: string;
+  cnpj?: string | null;
   website?: string | null;
+  segmento?: string | null;
+  porte?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  empresaMae?: string | null;
 }
 
 interface Empresa {
+  id: string;
   nome: string;
+  cnpj: string;
   website: string;
+  segmento: string;
+  porte: string;
+  cidade: string;
+  estado: string;
+  empresaMae: string;
 }
 
 const MOCK_CLIENTES: Cliente[] = [
@@ -31,7 +44,17 @@ const POR_PAGINA = 50;
 
 function empresasDeClientes(clientes: Cliente[]): Empresa[] {
   return clientes
-    .map((c) => ({ nome: c.nomeFantasia, website: c.website?.trim() || '—' }))
+    .map((c) => ({
+      id: c.id,
+      nome: c.nomeFantasia,
+      cnpj: c.cnpj?.trim() || '—',
+      website: c.website?.trim() || '—',
+      segmento: c.segmento?.trim() || '—',
+      porte: c.porte?.trim() || '—',
+      cidade: c.cidade?.trim() || '—',
+      estado: c.estado?.trim() || '—',
+      empresaMae: c.empresaMae?.trim() || '—',
+    }))
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
@@ -60,6 +83,12 @@ export function Empresas() {
   const [maeFoco, setMaeFoco] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
+
+  // Edição de uma empresa existente (PATCH no cliente subjacente).
+  const [editando, setEditando] = useState<Empresa | null>(null);
+  const [formEd, setFormEd] = useState<{ nome: string; cnpj: string; website: string; segmento: string; porte: string; cidade: string; estado: string; empresaMae: string }>({ nome: '', cnpj: '', website: '', segmento: '', porte: '', cidade: '', estado: '', empresaMae: '' });
+  const [salvandoEd, setSalvandoEd] = useState(false);
+  const [erroEd, setErroEd] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -95,8 +124,8 @@ export function Empresas() {
   }, [busca]);
 
   function exportarCsv() {
-    const cab = ['Empresa', 'Website'];
-    const linhas = filtradas.map((e) => [e.nome, e.website].map(escaparCsv).join(','));
+    const cab = ['Empresa', 'CNPJ', 'Website'];
+    const linhas = filtradas.map((e) => [e.nome, e.cnpj, e.website].map(escaparCsv).join(','));
     const csv = '﻿' + [cab.join(','), ...linhas].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -135,10 +164,17 @@ export function Empresas() {
     setSalvando(true);
     setErroForm(null);
     try {
-      // O backend não tem entidade Empresa: cria via /comercial/leads com empresa=Nome.
-      await api.post('/comercial/leads', {
-        nome: nome.trim(),
-        empresa: nome.trim(),
+      // Cria a empresa como Cliente — a lista de Empresas vem de /clientes, então
+      // criar um lead não a faria aparecer. Persiste os campos com coluna real.
+      await api.post('/clientes', {
+        nomeFantasia: nome.trim(),
+        cnpj: cnpj.trim() || undefined,
+        website: site.trim() || undefined,
+        segmento: segmento.trim() || undefined,
+        porte: porte.trim() || undefined,
+        cidade: cidade.trim() || undefined,
+        estado: estado.trim() || undefined,
+        empresaMae: empresaMae.trim() || undefined,
       });
       setModalNova(false);
       resetFormNova();
@@ -148,6 +184,52 @@ export function Empresas() {
       setErroForm(Array.isArray(msg) ? msg.join(' ') : msg ?? 'Não foi possível criar a empresa.');
     } finally {
       setSalvando(false);
+    }
+  }
+
+  // Abre o modal de edição com os valores atuais da empresa (— vira vazio).
+  function abrirEdicao(emp: Empresa) {
+    setErroEd(null);
+    setFormEd({
+      nome: emp.nome === '—' ? '' : emp.nome,
+      cnpj: emp.cnpj === '—' ? '' : emp.cnpj,
+      website: emp.website === '—' ? '' : emp.website,
+      segmento: emp.segmento === '—' ? '' : emp.segmento,
+      porte: emp.porte === '—' ? '' : emp.porte,
+      cidade: emp.cidade === '—' ? '' : emp.cidade,
+      estado: emp.estado === '—' ? '' : emp.estado,
+      empresaMae: emp.empresaMae === '—' ? '' : emp.empresaMae,
+    });
+    setEditando(emp);
+  }
+
+  // Salva a empresa: atualiza o cliente subjacente (PATCH) e recarrega.
+  async function salvarEdicao() {
+    if (!editando) return;
+    const nome = formEd.nome.trim();
+    if (nome.length < 2) {
+      setErroEd('Informe o nome da empresa (mínimo 2 caracteres).');
+      return;
+    }
+    setSalvandoEd(true);
+    setErroEd(null);
+    try {
+      await api.patch(`/clientes/${editando.id}`, {
+        nomeFantasia: nome,
+        cnpj: formEd.cnpj.trim(),
+        website: formEd.website.trim(),
+        segmento: formEd.segmento.trim(),
+        porte: formEd.porte.trim(),
+        cidade: formEd.cidade.trim(),
+        estado: formEd.estado.trim(),
+        empresaMae: formEd.empresaMae.trim(),
+      });
+      setEditando(null);
+      await carregar();
+    } catch {
+      setErroEd('Não foi possível salvar a empresa. Tente novamente.');
+    } finally {
+      setSalvandoEd(false);
     }
   }
 
@@ -209,24 +291,28 @@ export function Empresas() {
             <table className="brk-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <Th>Empresa</Th><Th>Website</Th>
+                  <Th>Empresa</Th><Th>CNPJ</Th><Th>Website</Th><Th>Ações</Th>
                 </tr>
               </thead>
               <tbody>
                 {visiveis.length === 0 ? (
                   <tr>
-                    <Td>—</Td><Td>—</Td>
+                    <Td>—</Td><Td>—</Td><Td>—</Td><Td>—</Td>
                   </tr>
                 ) : (
                   visiveis.map((emp, i) => (
-                    <tr key={`${emp.nome}-${i}`}>
+                    <tr key={`${emp.id}-${i}`}>
                       <Td>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--superficie-4)', color: 'var(--laranja-brasa)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>{emp.nome.charAt(0).toUpperCase()}</span>
                           {emp.nome}
                         </span>
                       </Td>
+                      <Td>{emp.cnpj}</Td>
                       <Td>{emp.website}</Td>
+                      <Td>
+                        <Btn variante="secondary" tamanho="sm" onClick={() => abrirEdicao(emp)}>Editar</Btn>
+                      </Td>
                     </tr>
                   ))
                 )}
@@ -387,6 +473,31 @@ export function Empresas() {
             </button>
           </form>
         </Overlay>
+      )}
+
+      {editando && (
+        <Modal
+          titulo="Editar empresa"
+          onFechar={() => { if (!salvandoEd) setEditando(null); }}
+          rodape={
+            <>
+              <Btn variante="ghost" onClick={() => setEditando(null)} disabled={salvandoEd}>Cancelar</Btn>
+              <Btn variante="primary" onClick={salvarEdicao} disabled={salvandoEd}>{salvandoEd ? 'Salvando…' : 'Salvar'}</Btn>
+            </>
+          }
+        >
+          {erroEd && <div style={{ marginBottom: 12 }}><Alerta tipo="erro">{erroEd}</Alerta></div>}
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Campo rotulo="Empresa" value={formEd.nome} onChange={(e) => setFormEd({ ...formEd, nome: e.target.value })} />
+            <Campo rotulo="CNPJ" value={formEd.cnpj} onChange={(e) => setFormEd({ ...formEd, cnpj: e.target.value })} placeholder="00.000.000/0001-00" />
+            <Campo rotulo="Site" value={formEd.website} onChange={(e) => setFormEd({ ...formEd, website: e.target.value })} placeholder="https://..." />
+            <Campo rotulo="Segmento" value={formEd.segmento} onChange={(e) => setFormEd({ ...formEd, segmento: e.target.value })} placeholder="Ex: Tecnologia" />
+            <Campo rotulo="Porte" value={formEd.porte} onChange={(e) => setFormEd({ ...formEd, porte: e.target.value })} placeholder="MEI, Micro, Pequena, Média, Grande" />
+            <Campo rotulo="Cidade" value={formEd.cidade} onChange={(e) => setFormEd({ ...formEd, cidade: e.target.value })} placeholder="São Paulo" />
+            <Campo rotulo="Estado" value={formEd.estado} onChange={(e) => setFormEd({ ...formEd, estado: e.target.value })} placeholder="SP" />
+            <Campo rotulo="Empresa Mãe" value={formEd.empresaMae} onChange={(e) => setFormEd({ ...formEd, empresaMae: e.target.value })} placeholder="Empresa mãe (opcional)" />
+          </div>
+        </Modal>
       )}
     </section>
   );

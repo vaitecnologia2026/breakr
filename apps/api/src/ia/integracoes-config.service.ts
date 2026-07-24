@@ -12,6 +12,13 @@ interface IntegracaoEntry {
   senha?: string | null;
   // URL do webhook n8n do Asaas (dispara a cobranca ao criar o contrato).
   webhook?: string | null;
+  // Liga/desliga o disparo do webhook n8n do Asaas SEM apagar a URL salva.
+  // Ausente (configs antigas) = ligado, para nao alterar o comportamento atual.
+  webhookAtivo?: boolean;
+  // Em modo Sandbox (testes), habilita o envio da nota fiscal (Speed) para
+  // permitir testar o fluxo de NF. Ausente/false = nao emite NF nos testes.
+  // Fora do sandbox (producao) este flag e ignorado (NF emite normalmente).
+  emitirNotaTeste?: boolean;
   // Google Agenda: JSON de credenciais do Google (Service Account OU cliente
   // OAuth Web), calendario alvo e e-mail a impersonar (Service Account). Para o
   // fluxo OAuth guarda tambem o refresh token e o e-mail da conta conectada.
@@ -46,7 +53,7 @@ interface Integracoes {
 }
 
 interface IntegracoesPublicas {
-  asaas: { temChave: boolean; preview: string | null; sandbox: boolean; webhook: string | null };
+  asaas: { temChave: boolean; preview: string | null; sandbox: boolean; webhook: string | null; webhookAtivo: boolean; emitirNotaTeste: boolean };
   speed: { temChave: boolean; preview: string | null };
   autentique: { temChave: boolean; preview: string | null };
   whatsapp: { temToken: boolean; preview: string | null; instancia: string | null };
@@ -88,7 +95,7 @@ export class IntegracoesConfigService {
   async obter(): Promise<IntegracoesPublicas> {
     const integ = await this.lerParametros();
     return {
-      asaas: { temChave: !!integ.asaas.apiKey, preview: this.mascarar(integ.asaas.apiKey), sandbox: integ.asaas.sandbox ?? false, webhook: integ.asaas.webhook ?? null },
+      asaas: { temChave: !!integ.asaas.apiKey, preview: this.mascarar(integ.asaas.apiKey), sandbox: integ.asaas.sandbox ?? false, webhook: integ.asaas.webhook ?? null, webhookAtivo: integ.asaas.webhookAtivo ?? true, emitirNotaTeste: integ.asaas.emitirNotaTeste ?? false },
       speed: { temChave: !!integ.speed.apiKey, preview: this.mascarar(integ.speed.apiKey) },
       autentique: { temChave: !!integ.autentique.apiKey, preview: this.mascarar(integ.autentique.apiKey) },
       whatsapp: { temToken: !!integ.whatsapp.apiKey, preview: this.mascarar(integ.whatsapp.apiKey), instancia: integ.whatsapp.instancia ?? null },
@@ -175,6 +182,8 @@ export class IntegracoesConfigService {
     asaasApiKey?: string;
     asaasSandbox?: boolean;
     asaasWebhook?: string;
+    asaasWebhookAtivo?: boolean;
+    asaasEmitirNotaTeste?: boolean;
     speedApiKey?: string;
     autentiqueToken?: string;
     whatsappToken?: string;
@@ -204,6 +213,8 @@ export class IntegracoesConfigService {
         apiKey: limpavel(dto.asaasApiKey, integ.asaas.apiKey),
         sandbox: dto.asaasSandbox ?? integ.asaas.sandbox ?? false,
         webhook: limpavel(dto.asaasWebhook, integ.asaas.webhook),
+        webhookAtivo: dto.asaasWebhookAtivo ?? integ.asaas.webhookAtivo ?? true,
+        emitirNotaTeste: dto.asaasEmitirNotaTeste ?? integ.asaas.emitirNotaTeste ?? false,
       },
       speed: { apiKey: limpavel(dto.speedApiKey, integ.speed.apiKey) },
       autentique: { apiKey: limpavel(dto.autentiqueToken, integ.autentique.apiKey) },

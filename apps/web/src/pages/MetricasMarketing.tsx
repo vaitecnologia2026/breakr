@@ -15,6 +15,14 @@ interface Metricas {
   porMembro: MembroLinha[];
   porCliente: ClienteLinha[];
   evolucaoMensal: { mes: string; concluidos: number }[];
+  esforcoTipos?: {
+    totalPecas: number;
+    pecasComTipo: number;
+    esforcoPrevistoMin: number;
+    esforcoPrevistoHoras: number;
+    diasConcluirTotal: number;
+    diasConcluirMedia: number | null;
+  };
 }
 interface OpcoesFiltro {
   squads: { id: string; nome: string }[];
@@ -110,7 +118,14 @@ export function MetricasMarketing() {
               <Kpi titulo="Em aberto" valor={dados.geral.emAberto} />
               <Kpi titulo="No prazo" valor={dados.geral.taxaNoPrazo === null ? '—' : `${dados.geral.taxaNoPrazo}%`} />
               <Kpi titulo="Retrabalho" valor={dados.geral.totalRetrabalho} />
+              <Kpi titulo="Esforço previsto (peças)" valor={`${dados.esforcoTipos?.esforcoPrevistoHoras ?? 0}h`} />
+              <Kpi titulo="Dias previstos (soma)" valor={dados.esforcoTipos?.diasConcluirTotal ?? 0} />
             </div>
+            {dados.esforcoTipos && dados.esforcoTipos.pecasComTipo > 0 && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--texto-fraco)' }}>
+                Esforço/dias previstos contabilizados a partir do tipo de tarefa de {dados.esforcoTipos.pecasComTipo} peça(s) (média {dados.esforcoTipos.diasConcluirMedia ?? '—'} dia(s)).
+              </div>
+            )}
           </section>
 
           {/* Evolução mensal */}

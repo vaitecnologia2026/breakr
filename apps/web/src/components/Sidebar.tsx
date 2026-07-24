@@ -123,7 +123,6 @@ const GRUPOS: NavGroup[] = [
     icone: <IcoUsers />,
     collapsible: true,
     items: [
-      { para: '/comercial',  rotulo: 'Comercial',  icone: <IcoBriefcase /> },
       { para: '/meu-painel', rotulo: 'Meu Painel', icone: <IcoLayout /> },
       { para: '/metricas',   rotulo: 'Métricas',   icone: <IcoTrendingUp /> },
       { para: '/negocios',   rotulo: 'Negócios',   icone: <IcoBriefcase /> },

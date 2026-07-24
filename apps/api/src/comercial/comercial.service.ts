@@ -51,6 +51,7 @@ export class ComercialService {
         empresa: dto.empresa,
         email: dto.email,
         telefone: dto.telefone,
+        cargo: dto.cargo,
         origem: dto.origem,
         observacao: dto.observacao,
         responsavelId: dto.responsavelId,
@@ -257,6 +258,7 @@ export class ComercialService {
     if (dto.empresa !== undefined) data.empresa = dto.empresa;
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.telefone !== undefined) data.telefone = dto.telefone;
+    if (dto.cargo !== undefined) data.cargo = dto.cargo;
     if (dto.observacao !== undefined) data.observacao = dto.observacao;
     if (dto.valorEstimado !== undefined) {
       data.valorEstimado = dto.valorEstimado === null || dto.valorEstimado === ''

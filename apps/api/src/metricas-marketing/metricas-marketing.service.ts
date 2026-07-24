@@ -130,6 +130,10 @@ export class MetricasMarketingService {
       evolucaoMensal.push({ mes: chave, concluidos: mensalMap.get(chave) ?? 0 });
     }
 
+    // Esforço/dias previstos das PEÇAS DE CONTEÚDO a partir do tipo de tarefa de
+    // cada uma (Conteudo.tipoTarefaId -> TipoTarefa). Respeita os mesmos filtros.
+    const esforcoTipos = await this.agregarEsforcoTipos({ squadId, clienteId });
+
     return {
       filtros: { squadId: squadId ?? null, clienteId: clienteId ?? null, meses },
       geral: {
@@ -143,6 +147,48 @@ export class MetricasMarketingService {
       porMembro,
       porCliente,
       evolucaoMensal,
+      esforcoTipos,
+    };
+  }
+
+  // Contabiliza esforço previsto (min/horas) e dias para concluir das peças de
+  // conteúdo pelo seu tipo de tarefa. Somente leitura.
+  private async agregarEsforcoTipos(filtros: { squadId?: string; clienteId?: string }) {
+    const conteudos = await this.prisma.conteudo.findMany({
+      where: {
+        ...(filtros.squadId ? { squadId: filtros.squadId } : {}),
+        ...(filtros.clienteId ? { clienteId: filtros.clienteId } : {}),
+      },
+      select: { tipoTarefaId: true },
+    });
+    const ids = [
+      ...new Set(conteudos.map((c) => c.tipoTarefaId).filter((x): x is string => !!x)),
+    ];
+    const tipos = ids.length
+      ? await this.prisma.tipoTarefa.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, diasConcluir: true, esforcoPrevistoMin: true },
+        })
+      : [];
+    const mapa = new Map(tipos.map((t) => [t.id, t]));
+    let pecasComTipo = 0;
+    let esforcoPrevistoMin = 0;
+    let diasConcluirTotal = 0;
+    for (const c of conteudos) {
+      const t = c.tipoTarefaId ? mapa.get(c.tipoTarefaId) : undefined;
+      if (!t) continue;
+      pecasComTipo += 1;
+      esforcoPrevistoMin += t.esforcoPrevistoMin ?? 0;
+      diasConcluirTotal += t.diasConcluir ?? 0;
+    }
+    return {
+      totalPecas: conteudos.length,
+      pecasComTipo,
+      esforcoPrevistoMin,
+      esforcoPrevistoHoras: Math.round((esforcoPrevistoMin / 60) * 10) / 10,
+      diasConcluirTotal,
+      diasConcluirMedia:
+        pecasComTipo > 0 ? Math.round((diasConcluirTotal / pecasComTipo) * 10) / 10 : null,
     };
   }
 

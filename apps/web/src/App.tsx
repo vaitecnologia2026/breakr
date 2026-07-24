@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Bloqueio } from './pages/Bloqueio';
 
 // Ative para desabilitar todos os acessos e exibir apenas os logos.
@@ -20,7 +20,6 @@ import { Conteudos } from './pages/Conteudos';
 import { Trafego } from './pages/Trafego';
 import Qualidade from './pages/Qualidade';
 import { Projetos } from './pages/Projetos';
-import { Comercial } from './pages/Comercial';
 import { Coordenacao } from './pages/Coordenacao';
 import { MeuPainel } from './pages/MeuPainel';
 import { Negocios } from './pages/Negocios';
@@ -109,7 +108,9 @@ export function App() {
         }
       >
         <Route index element={<Inicio />} />
-        <Route path="comercial" element={<Comercial />} />
+        {/* Telas unificadas: a antiga "Comercial" foi absorvida por "Negócios".
+            A rota é mantida como redirect para não quebrar links/atalhos antigos. */}
+        <Route path="comercial" element={<Navigate to="/negocios" replace />} />
         <Route path="coordenacao" element={<Coordenacao />} />
         <Route path="meu-painel" element={<MeuPainel />} />
         <Route path="negocios" element={<Negocios />} />

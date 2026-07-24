@@ -279,6 +279,17 @@ export function PainelTiposTarefa() {
               ))}
             </tbody>
           </table>
+          {/* Totais contabilizados dos tipos de tarefa (esforço previsto e dias). */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, padding: '10px 14px', borderTop: '1px solid var(--borda)', background: 'var(--superficie-2)', fontSize: 12.5, color: 'var(--texto-suave)' }}>
+            <span><strong>{tipos.length}</strong> tipo{tipos.length === 1 ? '' : 's'}</span>
+            <span>Esforço previsto total: <strong>{formatEsforco(tipos.reduce((s, t) => s + (t.esforcoPrevistoMin ?? 0), 0))}</strong></span>
+            <span>Dias para concluir (soma): <strong>{tipos.reduce((s, t) => s + (t.diasConcluir ?? 0), 0)}</strong></span>
+            {(() => {
+              const comDias = tipos.filter((t) => t.diasConcluir != null);
+              const media = comDias.length ? Math.round((comDias.reduce((s, t) => s + (t.diasConcluir ?? 0), 0) / comDias.length) * 10) / 10 : null;
+              return <span>Média de dias: <strong>{media ?? '—'}</strong></span>;
+            })()}
+          </div>
         </div>
       )}
 

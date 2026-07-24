@@ -31,6 +31,36 @@ export class CriarClienteDto {
   telefone?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  segmento?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  porte?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  cidade?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  estado?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  empresaMae?: string;
+
+  @IsOptional()
   @IsUUID()
   planoId?: string;
 

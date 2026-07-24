@@ -1,6 +1,6 @@
 // Adapter real do Asaas (cobranças / financeiro).
 // Ativa quando ASAAS_API_KEY estiver no ambiente.
-// ASAAS_SANDBOX=true usa sandbox.asaas.com em vez de api.asaas.com.
+// ASAAS_SANDBOX=true usa api-sandbox.asaas.com em vez de api.asaas.com.
 import { Injectable, Logger } from '@nestjs/common';
 import { AsaasCobranca, AsaasCobrancaInput, AsaasPort } from '../ports';
 
@@ -13,7 +13,7 @@ export class AsaasService implements AsaasPort {
   constructor(apiKey: string, sandbox = false) {
     this.key = apiKey;
     this.base = sandbox
-      ? 'https://sandbox.asaas.com/api/v3'
+      ? 'https://api-sandbox.asaas.com/v3'
       : 'https://api.asaas.com/v3';
   }
 

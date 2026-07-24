@@ -32,6 +32,11 @@ export class AtualizarLeadDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
+  cargo?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(2000)
   observacao?: string;
 

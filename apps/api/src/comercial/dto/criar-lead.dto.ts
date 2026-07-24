@@ -33,6 +33,11 @@ export class CriarLeadDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
+  cargo?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(40)
   origem?: string;
 

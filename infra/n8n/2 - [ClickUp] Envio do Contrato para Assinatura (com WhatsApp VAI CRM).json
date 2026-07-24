@@ -1,0 +1,948 @@
+{
+  "name": "2 - [ClickUp] Envio do Contrato para Assinatura",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Gatilho\nTarefa movida para \"Avaliação & Assinatura\" na Lista Gestão Contratual\n",
+        "height": 300,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "0bc9372a-be7d-458b-9528-5d567861890e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "id": "={{ $json.body.payload.id }}"
+      },
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        112
+      ],
+      "id": "b072fa78-5bed-441e-acdf-f8639ceb5713",
+      "name": "Busca Contrato",
+      "credentials": {
+        "clickUpApi": {
+          "id": "SIljFEwRvh9AJlja",
+          "name": "ClickUp | Breakr"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Busca Contrato').item.json.custom_fields[3].value }}",
+          "mode": "url"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf",
+              "drawingsToFormat": "application/pdf",
+              "slidesToFormat": "application/pdf",
+              "sheetsToFormat": "application/pdf"
+            }
+          },
+          "fileName": "contrato.pdf"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        352,
+        112
+      ],
+      "id": "f1ab7078-e6d8-4379-a1fe-421deb7fa20c",
+      "name": "Converte para PDF",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "SP5TjSuLfXMOKULi",
+          "name": "{Google Drive} Gestão Breakr"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.autentique.com.br/v2/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "operations",
+              "value": "={\n  \"query\": \"mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) { createDocument(document: $document, signers: $signers, file: $file) { id name refusable sortable created_at signatures { public_id name email created_at action { name } link { short_link } user { id name email } } } }\",\n  \"variables\": {\n    \"document\": {\n      \"name\": \"{{ $json.name }}\",\n      \"message\": \"Olá, {{ $('Busca Dados Fiscais').item.json.custom_fields[13].value }}. Segue nosso contrato para assinatura. Qualquer dúvida, estou à disposição, atenciosamente: Franciele.\",\n      \"reminder\": \"DAILY\",\n      \"sortable\": false,\n      \"refusable\": false,\n      \"footer\": \"BOTTOM\",\n      \"deadline_at\": \"{{ $today.plus({days: 7}).endOf('day').toFormat(\"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\") }}\",\n      \"new_signature_style\": true,\n      \"ignore_cpf\": false,\n      \"configs\": {\n        \"notification_finished\": true,\n        \"notification_signed\": false\n      },\n      \"locale\": {\n        \"language\": \"pt-BR\",\n        \"country\": \"BR\",\n        \"timezone\": \"America/Sao_Paulo\",\n        \"date_format\": \"DD_MM_YYYY\"\n      }\n    },\n    \"signers\": [\n      {\n        \"name\": \"{{ $json.custom_fields[13].value }}\",\n        \"email\": \"{{ $json.custom_fields[9].value }}\",\n        \"action\": \"SIGN\"\n      },\n      {\n        \"name\": \"Gustavo Costa\",\n        \"email\": \"financeiro@breakr.com.br\",\n        \"action\": \"SIGN\"\n      }\n    ]\n  }\n}\n"
+            },
+            {
+              "name": "map",
+              "value": "={{ JSON.stringify({ \"0\": [\"variables.file\"] }) }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "0",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "52d688ed-1cab-4e51-a8ca-c0ff9ad31f04",
+      "name": "Criar Doc (Autentique)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nrsxGFyAGuOqII3D",
+          "name": "Autentique | contato@gustavofcosta.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "id": "={{ $json.custom_fields[2].value[0].id }}"
+      },
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        112
+      ],
+      "id": "3269c7fb-dc19-4e54-b467-a87b580e17e7",
+      "name": "Busca Dados do Cliente",
+      "credentials": {
+        "clickUpApi": {
+          "id": "SIljFEwRvh9AJlja",
+          "name": "ClickUp | Breakr"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "402473ec-102a-412b-8e96-a5e7aa41868f//envios-de-contratos-pt2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -544,
+        144
+      ],
+      "id": "546219ff-a6c9-47fd-bbac-059604f388e0",
+      "name": "Webhook",
+      "webhookId": "402473ec-102a-412b-8e96-a5e7aa41868f"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "id": "={{ $('Busca Contrato').item.json.custom_fields[4].value[0].id }}"
+      },
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        144,
+        112
+      ],
+      "id": "5d4e909a-94da-4b26-a7bb-c0adcaea1f73",
+      "name": "Busca Dados Fiscais",
+      "credentials": {
+        "clickUpApi": {
+          "id": "SIljFEwRvh9AJlja",
+          "name": "ClickUp | Breakr"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "44ee83d0-b89c-4e2c-9295-8765b1f10bd1",
+              "leftValue": "={{ $json.data.createDocument.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        112
+      ],
+      "id": "40a345b2-2c70-4f47-9417-156c54ad5f33",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        992,
+        128
+      ],
+      "id": "3aa52b11-123c-4715-aa45-e6f4b3a79357",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "id": "={{ $('Busca Contrato').item.json.id }}",
+        "updateFields": {
+          "content": "=Link do Contrato: https://painel.autentique.com.br/documentos/{{ $json.data.createDocument.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        -96
+      ],
+      "id": "5ec8af1b-a73d-4f86-ae4c-6e97d1dd5ee7",
+      "name": "Salva Link do Contrato",
+      "credentials": {
+        "clickUpApi": {
+          "id": "SIljFEwRvh9AJlja",
+          "name": "ClickUp | Breakr"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 📲 Envio por WhatsApp (VAI CRM)\nApós criar o documento no Autentique, envia ao WhatsApp Financeiro do cadastro UMA mensagem com o link de assinatura do contrato + o link da cobrança (boleto/PIX do Asaas). Não usa e-mail.\n\nFluxo ADITIVO: parte do fim de \"Salva Link do Contrato\" e não altera o envio de assinatura existente.\n\nRequer no n8n a credencial **VAI CRM API** (Header Auth: `Authorization` = `Bearer vai_<seu_token>`). Base: https://api.vaicrm.com.br",
+        "height": 340,
+        "width": 480,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        -460
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d0",
+      "name": "Sticky Note WhatsApp"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fiscais = ($('Busca Dados Fiscais').item.json.custom_fields) || [];\nconst getF = (id) => { const x = fiscais.find(c => c.id === id); return x ? (x.value || '') : ''; };\nconst cnpj = String(getF('7b1e3ea4-84d3-424a-bc76-c9006ea189ae')).replace(/\\D/g, '');\nconst phone = String(getF('0dd166e0-b4db-4c20-b28d-869678140c39')).replace(/\\D/g, '');\nconst nome = getF('59792628-850e-4b4a-a436-42aabf27f3c7') || ($('Busca Contrato').item.json.name || 'Cliente');\nconst cd = ($('Criar Doc (Autentique)').item.json.data && $('Criar Doc (Autentique)').item.json.data.createDocument) || {};\nconst sigs = cd.signatures || [];\nlet linkContrato = '';\nfor (const s of sigs) { if (s && s.link && s.link.short_link) { linkContrato = s.link.short_link; break; } }\nreturn [{ json: { cnpj, phone, nome, linkContrato } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d1",
+      "name": "Prepara Envio WhatsApp"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.asaas.com/v3/customers?cpfCnpj={{ $json.cnpj }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "asaasApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1488,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d2",
+      "name": "Busca Cliente Asaas",
+      "credentials": {
+        "asaasApi": {
+          "id": "PbT67qYGgVV7rQEg",
+          "name": "[ASAAS] Produção"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.asaas.com/v3/payments?customer={{ ($json.data && $json.data[0] ? $json.data[0].id : '') }}&limit=10",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "asaasApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d3",
+      "name": "Busca Cobranca Asaas",
+      "credentials": {
+        "asaasApi": {
+          "id": "PbT67qYGgVV7rQEg",
+          "name": "[ASAAS] Produção"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Prepara Envio WhatsApp').item.json;\nconst pays = ($('Busca Cobranca Asaas').item.json.data) || [];\nlet linkCobranca = '';\nfor (const it of pays) { if (it && it.invoiceUrl) { linkCobranca = it.invoiceUrl; break; } }\nconst content = `Olá, ${p.nome}! Tudo bem?\\n\\nSegue o seu contrato para assinatura e a cobrança para pagamento:\\n\\n📄 Contrato (assinar): ${p.linkContrato}\\n💳 Cobrança (boleto/PIX): ${linkCobranca}\\n\\nQualquer dúvida, estamos à disposição. Atenciosamente, Equipe Breakr.`;\nreturn [{ json: { phone: p.phone, content, nome: p.nome, linkContrato: p.linkContrato, linkCobranca } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d4",
+      "name": "Monta Mensagem WhatsApp"
+    },
+    {
+      "parameters": {
+        "url": "https://api.vaicrm.com.br/channels?type=whatsapp",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2064,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d5",
+      "name": "VAI CRM Canal",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "VAI_CRM_API_PLACEHOLDER",
+          "name": "VAI CRM API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vaicrm.com.br/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"name\": $json.nome, \"phone\": $json.phone, \"channel\": \"whatsapp\", \"identifier\": $json.phone } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2256,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d6",
+      "name": "VAI CRM Contato",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "VAI_CRM_API_PLACEHOLDER",
+          "name": "VAI CRM API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vaicrm.com.br/chats",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"contactId\": $json.id, \"channelId\": (($('VAI CRM Canal').item.json.data && $('VAI CRM Canal').item.json.data[0]) ? $('VAI CRM Canal').item.json.data[0].id : (Array.isArray($('VAI CRM Canal').item.json) && $('VAI CRM Canal').item.json[0] ? $('VAI CRM Canal').item.json[0].id : '')) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2448,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d7",
+      "name": "VAI CRM Chat",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "VAI_CRM_API_PLACEHOLDER",
+          "name": "VAI CRM API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.vaicrm.com.br/chats/{{ $json.id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": $('Monta Mensagem WhatsApp').item.json.content, \"type\": \"text\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        -96
+      ],
+      "id": "d1a00000-0000-4000-9000-0000000000d8",
+      "name": "VAI CRM Enviar Mensagem",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "VAI_CRM_API_PLACEHOLDER",
+          "name": "VAI CRM API"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.breakr.com.br",
+            "user-agent": "axios/0.24.0",
+            "content-length": "4710",
+            "accept": "application/json, text/plain, */*",
+            "content-type": "application/json",
+            "traceparent": "00-6a4414bf000000000e1f2dbdad17d339-46ee05751e28efc2-00",
+            "tracestate": "dd=t.ksr:0.01;t.tid:6a4414bf00000000;t.dm:-3;s:-1;p:46ee05751e28efc2",
+            "x-b3-parentspanid": "0e1f2dbdad17d339",
+            "x-b3-sampled": "0",
+            "x-b3-spanid": "46ee05751e28efc2",
+            "x-b3-traceid": "6a4414bf000000000e1f2dbdad17d339",
+            "x-datadog-parent-id": "5111028627687403458",
+            "x-datadog-sampling-priority": "-1",
+            "x-datadog-tags": "_dd.p.tid=6a4414bf00000000,_dd.p.ksr=0.01",
+            "x-datadog-trace-id": "1017582333485110073",
+            "x-forwarded-for": "3.17.107.235",
+            "x-forwarded-host": "webhook.breakr.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "1542bdad7f5f",
+            "x-real-ip": "3.17.107.235",
+            "accept-encoding": "gzip"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "auto_id": "48f139b0-10f0-4b0b-b706-4ef2ef80baf6:main",
+            "trigger_id": "48b8d000-4a5d-4f94-be3a-0dc06076403a",
+            "date": "2026-06-30T19:10:56.158Z",
+            "payload": {
+              "id": "86aja4j21",
+              "name": "FERNANDA CRISTINA DOS SANTOS COMERCIO DE ALIMENTOS LTDA #86aja4j21",
+              "content": "{\"ops\":[{\"insert\":\"\\n\",\"attributes\":{\"block-id\":\"block-44549b1a-d76e-4f2b-b4eb-80ff74f1239f\"}}]}",
+              "lower_name": "fernanda cristina dos santos comercio de alimentos ltda #86aja4j21",
+              "html_content": null,
+              "text_content": "",
+              "content_size": "none",
+              "sprint_points": null,
+              "coverimage": null,
+              "priority": null,
+              "personal_priority": [],
+              "draft_uuid": null,
+              "custom_id": null,
+              "custom_type": 1022,
+              "status_id": "sc901305345114_lIGt2o2f",
+              "workspace_id": "9013332405",
+              "subcategory": "901305345114",
+              "direct_parent": null,
+              "root_parent": null,
+              "merged_to": null,
+              "subtask_sort": null,
+              "subtask_sort_dir": null,
+              "reccurence": {
+                "v1": {
+                  "recurring": false,
+                  "recur_type": null,
+                  "recur_next": null,
+                  "recur_new_status": null,
+                  "recur_due_date": null,
+                  "recur_data": null,
+                  "recur_rule": null,
+                  "recur_task": null,
+                  "recur_skip_missed": false,
+                  "recur_on_status": null,
+                  "recur_on": null,
+                  "recur_copy_original": false,
+                  "recur_time": false,
+                  "recur_immediately": false,
+                  "recur_until": null,
+                  "recur_dst": null,
+                  "recur_tz_offset": null,
+                  "recur_tz": null,
+                  "recur_daily": false,
+                  "recur_ignore_today": false
+                },
+                "v2": {
+                  "set_time": false,
+                  "create_new_task": false,
+                  "periodically": false,
+                  "simple_settings": false,
+                  "ignore_weekends": false,
+                  "recur_on_schedule": false,
+                  "reschedule_on_due_date_change": false
+                }
+              },
+              "privacy": {
+                "private": false,
+                "public": false,
+                "public_token": null,
+                "public_permission_level": null,
+                "public_fields": null,
+                "public_share_expires_on": null,
+                "public_sharing": false,
+                "seo_optimized": false,
+                "made_public_by": null,
+                "made_public_time": null
+              },
+              "templating": {
+                "template": false,
+                "original_subcat": null,
+                "template_name": null,
+                "team_id": null,
+                "template_field_ids": null,
+                "permanent_template_id": null,
+                "visibility": null
+              },
+              "states": {
+                "is_archived": false,
+                "is_deleted": false,
+                "is_encrypted": false
+              },
+              "time_mgmt": {
+                "is_summary_task": false,
+                "start_date": "1782802800000",
+                "start_date_time": false,
+                "date_closed": null,
+                "date_created": "1782837759521",
+                "date_updated": "1782846654824",
+                "due_date": "1814338800000",
+                "due_date_time": false,
+                "date_deleted": null,
+                "date_active": null,
+                "date_unstarted": null,
+                "date_done": null,
+                "date_delegated": null,
+                "time_estimate": null,
+                "time_estimate_string": null,
+                "time_spent": null,
+                "sent_due_date_notif": false,
+                "duration": {
+                  "days": 262
+                },
+                "duration_is_elapsed": false
+              },
+              "checklists": [],
+              "ownership": {
+                "created_by_email": null,
+                "owner": 96752330,
+                "creator": 96752330,
+                "deleted_by": null,
+                "source": "api",
+                "delegator": null,
+                "form_id": null,
+                "merged_to": null
+              },
+              "subtask_ids": [],
+              "tags": [
+                "marketing | implementação"
+              ],
+              "fields": [
+                {
+                  "field_id": "432a73b5-f8bd-454c-925f-f7b6079d9997",
+                  "value": [
+                    "86aj9fdpw"
+                  ],
+                  "value_deleted": false,
+                  "value_options": null,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 18
+                },
+                {
+                  "field_id": "668a8a86-8307-4858-a2ed-13fbf12b12d8",
+                  "value": [
+                    "86aja4j06"
+                  ],
+                  "value_deleted": false,
+                  "value_options": null,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 18
+                },
+                {
+                  "field_id": "a6646e45-68c0-4b52-b61d-1326edc5b4f7",
+                  "value": [
+                    "86aja4hy0"
+                  ],
+                  "value_deleted": false,
+                  "value_options": null,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 18
+                },
+                {
+                  "field_id": "0dd166e0-b4db-4c20-b28d-869678140c39",
+                  "value": "+55",
+                  "value_options": null,
+                  "value_deleted": false,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 3
+                },
+                {
+                  "field_id": "1947a55e-f678-4c94-b5a0-325d8a12ea0f",
+                  "value": "fd80e802-2c7f-4d9c-b055-5709f2fbe15d",
+                  "value_options": null,
+                  "value_deleted": false,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 1
+                },
+                {
+                  "field_id": "38b75c81-35ab-46bf-86a1-1c19262f11aa",
+                  "value": "coltrofernanda@gmail.com",
+                  "value_options": null,
+                  "value_deleted": false,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 15
+                },
+                {
+                  "field_id": "3fe442c3-937e-4e91-976d-01b2946a5d8c",
+                  "value": "+55",
+                  "value_options": null,
+                  "value_deleted": false,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 3
+                },
+                {
+                  "field_id": "c1b34f90-87af-490b-bfd9-784cb2afa7c8",
+                  "value": "https://docs.google.com/document/d/1j4k1KC1pV0CVWU78FghHmjdL9d4Yz9uorw6iBi7FR1o/edit",
+                  "value_options": null,
+                  "value_deleted": false,
+                  "value_richtext": null,
+                  "reasoning": null,
+                  "task_id": "86aja4j21",
+                  "type": 0
+                }
+              ],
+              "lists": [
+                {
+                  "list_id": "901305345114",
+                  "type": "home"
+                }
+              ],
+              "users": [
+                {
+                  "userid": 82119360,
+                  "type": "assigned"
+                },
+                {
+                  "userid": 82119360,
+                  "type": "watcher"
+                },
+                {
+                  "userid": 96752330,
+                  "type": "owner"
+                },
+                {
+                  "userid": 96752330,
+                  "type": "creator"
+                }
+              ],
+              "groups": [],
+              "related_tasks": [],
+              "related_tasks_count": {
+                "dependsOn": 0,
+                "dependedBy": 0
+              },
+              "attachments": [],
+              "docs": [],
+              "_version_vector": {
+                "workspace_id": 9013332405,
+                "object_type": "task",
+                "object_id": "86aja4j21",
+                "vector": [
+                  {
+                    "master_id": 17,
+                    "version": 1782846654842000,
+                    "deleted": false
+                  }
+                ]
+              }
+            }
+          },
+          "webhookUrl": "https://webhook.breakr.com.br/webhook/402473ec-102a-412b-8e96-a5e7aa41868f//envios-de-contratos-pt2",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Busca Contrato": {
+      "main": [
+        [
+          {
+            "node": "Busca Dados do Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Doc (Autentique)": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converte para PDF": {
+      "main": [
+        [
+          {
+            "node": "Criar Doc (Autentique)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Dados do Cliente": {
+      "main": [
+        [
+          {
+            "node": "Busca Dados Fiscais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Busca Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Dados Fiscais": {
+      "main": [
+        [
+          {
+            "node": "Converte para PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Salva Link do Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Criar Doc (Autentique)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva Link do Contrato": {
+      "main": [
+        [
+          {
+            "node": "Prepara Envio WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara Envio WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Busca Cliente Asaas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Cliente Asaas": {
+      "main": [
+        [
+          {
+            "node": "Busca Cobranca Asaas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Cobranca Asaas": {
+      "main": [
+        [
+          {
+            "node": "Monta Mensagem WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monta Mensagem WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "VAI CRM Canal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VAI CRM Canal": {
+      "main": [
+        [
+          {
+            "node": "VAI CRM Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VAI CRM Contato": {
+      "main": [
+        [
+          {
+            "node": "VAI CRM Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VAI CRM Chat": {
+      "main": [
+        [
+          {
+            "node": "VAI CRM Enviar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8bd08b58-2f0f-42c7-9616-7c3b3e9bd500",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a672162b9bc99a2ac7372b3401678f01b528029abd0774c4f1d6c1881b0fa55c"
+  },
+  "id": "eRyGDAdG7mKk66T4",
+  "tags": [
+    {
+      "updatedAt": "2025-03-11T19:48:12.695Z",
+      "createdAt": "2025-03-11T19:48:12.695Z",
+      "id": "b7dO6iLrLo2uGZ79",
+      "name": "ClickUp"
+    },
+    {
+      "updatedAt": "2025-05-03T00:29:09.960Z",
+      "createdAt": "2025-05-03T00:29:09.960Z",
+      "id": "u6rT9SGbZ8d1KQHy",
+      "name": "Comercial"
+    },
+    {
+      "updatedAt": "2025-05-09T19:02:36.826Z",
+      "createdAt": "2025-05-09T19:02:36.826Z",
+      "id": "VpWupkfCy8dRrRRb",
+      "name": "Juridico"
+    },
+    {
+      "updatedAt": "2025-05-10T00:21:39.258Z",
+      "createdAt": "2025-05-10T00:21:39.258Z",
+      "id": "2Pf81Ed9ufFMLXSs",
+      "name": "Contratos"
+    }
+  ]
+}

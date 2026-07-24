@@ -1,0 +1,659 @@
+{
+  "name": "1 - [Break] Envio da Cobrança",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Envio da Cobrança (Asaas)\nRecebe o cadastro do Breakr (corpo do POST em `$json.body.*`) e cria o cliente + a assinatura mensal no Asaas. Responde ao Breakr com o link da 1ª fatura.\n\nForma de pagamento: `forma_pagamento = CARTAO` → CREDIT_CARD; senão → BOLETO (a fatura já oferece boleto + PIX).\n\nConfigure a URL deste webhook em: Breakr → Configurações → Integrações → Asaas → \"Webhook Asaas (n8n)\".",
+        "height": 260,
+        "width": 460,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        512
+      ],
+      "id": "295d686f-78ef-4903-87cf-941fd85a9490",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Webhook Cobrança').item.json.body.razao_social }}",
+        "cpfCnpj": "={{ $('Webhook Cobrança').item.json.body.cnpj_formatado || $('Webhook Cobrança').item.json.body.cnpj }}",
+        "email": "={{ $('Webhook Cobrança').item.json.body.email }}",
+        "additionalFields": {
+          "province": "={{ $('Webhook Cobrança').item.json.body.bairro }}",
+          "mobilePhone": "={{ $('Webhook Cobrança').item.json.body.whatsapp_financeiro_clean || $('Webhook Cobrança').item.json.body.whatsapp_financeiro }}",
+          "postalCode": "={{ $('Webhook Cobrança').item.json.body.cep }}",
+          "complement": "={{ $('Webhook Cobrança').item.json.body.complemento }}",
+          "company": "={{ $('Webhook Cobrança').item.json.body.nome_fantasia }}",
+          "address": "={{ $('Webhook Cobrança').item.json.body.rua }}",
+          "stateInscription": "={{ $('Webhook Cobrança').item.json.body.inscricao_estadual }}",
+          "municipalInscription": "={{ $('Webhook Cobrança').item.json.body.inscricao_municipal }}",
+          "notificationDisabled": true,
+          "addressNumber": "={{ $('Webhook Cobrança').item.json.body.numero }}"
+        }
+      },
+      "type": "@asaasbr/n8n-nodes-asaas.asaas",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        784
+      ],
+      "id": "7b7f1249-b436-47bf-8f47-87280eaf0ba3",
+      "name": "Cadastra Cliente no Asaas",
+      "credentials": {
+        "asaasApi": {
+          "id": "PbT67qYGgVV7rQEg",
+          "name": "[ASAAS] Produção"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "subscription",
+        "customer": "={{ $json.id }}",
+        "billingType": "={{ $('Webhook Cobrança').item.json.body.forma_pagamento === 'CARTAO' ? 'CREDIT_CARD' : $('Webhook Cobrança').item.json.body.forma_pagamento === 'PIX' ? 'PIX' : 'BOLETO' }}",
+        "value": "={{ $('Webhook Cobrança').item.json.body.valor_total }}",
+        "nextDueDate": "={{ $today.plus(30, 'days') }}",
+        "cycle": "MONTHLY",
+        "additionalFields": {
+          "endDate": "={{ $today.plus(Number($('Webhook Cobrança').item.json.body.duracao_meses) || 12, 'months') }}",
+          "description": "=Mensalidade de Serviço - Breakr Assessoria Gastronômica - {{ $('Webhook Cobrança').item.json.body.planos_selecionados }}",
+          "notificationDisabled": true,
+          "externalReference": "={{ $('Webhook Cobrança').item.json.body.contrato_id }}"
+        }
+      },
+      "type": "@asaasbr/n8n-nodes-asaas.asaas",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        784
+      ],
+      "id": "8f3e1975-f3bd-4ef3-8266-e7a436ba1a32",
+      "name": "Criar uma assinatura",
+      "credentials": {
+        "asaasApi": {
+          "id": "PbT67qYGgVV7rQEg",
+          "name": "[ASAAS] Produção"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "subscription",
+        "operation": "listPayments",
+        "subscriptionId": "={{ $json.id }}"
+      },
+      "type": "@asaasbr/n8n-nodes-asaas.asaas",
+      "typeVersion": 1,
+      "position": [
+        160,
+        784
+      ],
+      "id": "1dc7c1a4-6d33-49d7-85ad-aebe07059586",
+      "name": "Listar cobranças de assinatura",
+      "credentials": {
+        "asaasApi": {
+          "id": "PbT67qYGgVV7rQEg",
+          "name": "[ASAAS] Produção"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"codigo_contrato\": $('Webhook Cobrança').item.json.body.codigo_contrato, \"contrato_id\": $('Webhook Cobrança').item.json.body.contrato_id, \"asaas_customer_id\": $('Cadastra Cliente no Asaas').item.json.id, \"subscription_id\": $('Criar uma assinatura').item.json.id, \"invoiceUrl\": ($json.data && $json.data[0] ? $json.data[0].invoiceUrl : null) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        416,
+        784
+      ],
+      "id": "be4c942c-db0e-4966-be08-523de1681236",
+      "name": "Responde ao Breakr"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-breakr.vaitecnologia.com.br/integracoes/asaas/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Webhook Pagamento Asaas').item.json.body) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        1216
+      ],
+      "id": "50eb8c65-c8ae-4d4a-b8de-bb924d7879dd",
+      "name": "Notifica Breakr (pago)"
+    },
+    {
+      "parameters": {
+        "content": "## Aviso de Pagamento (Asaas → Breakr)\nRecebe o webhook do Asaas quando a cobrança é PAGA, avisa o Breakr (marca a Fatura como paga → apuração de comissões) e responde 200 (obrigatório para o Asaas não reenviar).\n\nEventos tratados como pago: `PAYMENT_RECEIVED` e `PAYMENT_CONFIRMED`.\nPayload do Asaas: `$json.body.event` + `$json.body.payment.*`.\nO nó \"Notifica Breakr (pago)\" faz POST em `/integracoes/asaas/webhook` repassando o corpo do Asaas (o `payment.externalReference` = contrato_id correlaciona a Fatura).\n\nRegistre esta URL no Asaas em: Configurações → Integrações → Webhooks (ou API `POST /v3/webhooks`) com os eventos PAYMENT_RECEIVED e PAYMENT_CONFIRMED.",
+        "height": 280,
+        "width": 460,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        1024
+      ],
+      "id": "3e655127-851e-497f-97d2-83aec89045d7",
+      "name": "Sticky Note Pagamento1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-pay-received",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "PAYMENT_RECEIVED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-pay-confirmed",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "PAYMENT_CONFIRMED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -368,
+        1312
+      ],
+      "id": "df4b82c9-5b83-4e81-8263-da2a4f8e6750",
+      "name": "Pagamento pago?1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "asg-evento",
+              "name": "evento",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-cobranca",
+              "name": "cobranca_id",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.id }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-assinatura",
+              "name": "assinatura_id",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.subscription }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-cliente",
+              "name": "cliente_id",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.customer }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-valor",
+              "name": "valor",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.value }}",
+              "type": "number"
+            },
+            {
+              "id": "asg-status",
+              "name": "status",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.status }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-forma",
+              "name": "forma_pagamento",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.billingType }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-data",
+              "name": "data_pagamento",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.paymentDate }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-ref",
+              "name": "referencia_externa",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.externalReference }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-fatura",
+              "name": "link_fatura",
+              "value": "={{ $('Webhook Pagamento Asaas').item.json.body.payment.invoiceUrl }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -96,
+        1216
+      ],
+      "id": "e240a654-9553-4b65-b939-100f9fa465c6",
+      "name": "Dados do pagamento1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"received\": true, \"paid\": true, \"event\": $('Webhook Pagamento Asaas').item.json.body.event, \"payment_id\": $('Webhook Pagamento Asaas').item.json.body.payment.id, \"status\": $('Webhook Pagamento Asaas').item.json.body.payment.status } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        416,
+        1216
+      ],
+      "id": "c4d05d02-27bc-4115-a258-5a167c3c07d7",
+      "name": "Confirma ao Asaas (pago)1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"received\": true, \"paid\": false, \"event\": $('Webhook Pagamento Asaas').item.json.body.event } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        1424
+      ],
+      "id": "03402532-0fff-4855-8239-0f4805852ea9",
+      "name": "Confirma ao Asaas (ignorado)1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "breakr-envio-da-cobranca",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        784
+      ],
+      "id": "41be4ca8-15ad-4d9d-abb8-97aab8efd9fa",
+      "name": "Webhook Cobrança",
+      "webhookId": "b1000000-0000-4000-9000-0000000000aa"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "breakr-pagamento-asaas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        1312
+      ],
+      "id": "e8a071ed-c376-426b-8ba8-fa3163f77ee7",
+      "name": "Webhook Pagamento Asaas",
+      "webhookId": "b1000000-0000-4000-9000-0000000000bb"
+    },
+    {
+      "parameters": {
+        "content": "## 🧪 Teste Sandbox (Assinatura de Contrato)\nFluxo IDÊNTICO ao de produção acima, porém com **credencial Sandbox** do Asaas e webhook próprio `breakr-envio-da-cobranca-teste`. Use SOMENTE para testes — NÃO afeta o fluxo de produção.\n\nComo testar: em Breakr → Configurações → Integrações → Asaas, ligue o **Modo Sandbox** e aponte o **\"Webhook Asaas (n8n)\"** para a URL deste webhook de teste. A resposta traz o campo extra `ambiente: \"sandbox\"`.\n\nAntes de ativar: crie no n8n a credencial **[ASAAS] Sandbox** (API key de sandbox) e selecione-a nos 3 nós \"(Sandbox)\" abaixo.",
+        "height": 320,
+        "width": 480,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        1616
+      ],
+      "id": "c1a00000-0000-4000-9000-0000000000c1",
+      "name": "Sticky Note Teste Sandbox"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "breakr-envio-da-cobranca-teste",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        1888
+      ],
+      "id": "c1a00000-0000-4000-9000-0000000000c2",
+      "name": "Webhook Cobrança (Teste Sandbox)",
+      "webhookId": "c1a00000-0000-4000-9000-0000000000cc"
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.razao_social }}",
+        "cpfCnpj": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.cnpj_formatado || $('Webhook Cobrança (Teste Sandbox)').item.json.body.cnpj }}",
+        "email": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.email }}",
+        "additionalFields": {
+          "province": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.bairro }}",
+          "mobilePhone": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.whatsapp_financeiro_clean || $('Webhook Cobrança (Teste Sandbox)').item.json.body.whatsapp_financeiro }}",
+          "postalCode": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.cep }}",
+          "complement": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.complemento }}",
+          "company": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.nome_fantasia }}",
+          "address": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.rua }}",
+          "stateInscription": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.inscricao_estadual }}",
+          "municipalInscription": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.inscricao_municipal }}",
+          "notificationDisabled": true,
+          "addressNumber": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.numero }}"
+        }
+      },
+      "type": "@asaasbr/n8n-nodes-asaas.asaas",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        1888
+      ],
+      "id": "c1a00000-0000-4000-9000-0000000000c3",
+      "name": "Cadastra Cliente no Asaas (Sandbox)",
+      "credentials": {
+        "asaasApi": {
+          "id": "ASAAS_SANDBOX_PLACEHOLDER",
+          "name": "[ASAAS] Sandbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "subscription",
+        "customer": "={{ $json.id }}",
+        "billingType": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.forma_pagamento === 'CARTAO' ? 'CREDIT_CARD' : $('Webhook Cobrança (Teste Sandbox)').item.json.body.forma_pagamento === 'PIX' ? 'PIX' : 'BOLETO' }}",
+        "value": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.valor_total }}",
+        "nextDueDate": "={{ $today.plus(30, 'days') }}",
+        "cycle": "MONTHLY",
+        "additionalFields": {
+          "endDate": "={{ $today.plus(Number($('Webhook Cobrança (Teste Sandbox)').item.json.body.duracao_meses) || 12, 'months') }}",
+          "description": "=Mensalidade de Serviço - Breakr Assessoria Gastronômica - {{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.planos_selecionados }}",
+          "notificationDisabled": true,
+          "externalReference": "={{ $('Webhook Cobrança (Teste Sandbox)').item.json.body.contrato_id }}"
+        }
+      },
+      "type": "@asaasbr/n8n-nodes-asaas.asaas",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        1888
+      ],
+      "id": "c1a00000-0000-4000-9000-0000000000c4",
+      "name": "Criar uma assinatura (Sandbox)",
+      "credentials": {
+        "asaasApi": {
+          "id": "ASAAS_SANDBOX_PLACEHOLDER",
+          "name": "[ASAAS] Sandbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "subscription",
+        "operation": "listPayments",
+        "subscriptionId": "={{ $json.id }}"
+      },
+      "type": "@asaasbr/n8n-nodes-asaas.asaas",
+      "typeVersion": 1,
+      "position": [
+        160,
+        1888
+      ],
+      "id": "c1a00000-0000-4000-9000-0000000000c5",
+      "name": "Listar cobranças de assinatura (Sandbox)",
+      "credentials": {
+        "asaasApi": {
+          "id": "ASAAS_SANDBOX_PLACEHOLDER",
+          "name": "[ASAAS] Sandbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"ambiente\": \"sandbox\", \"codigo_contrato\": $('Webhook Cobrança (Teste Sandbox)').item.json.body.codigo_contrato, \"contrato_id\": $('Webhook Cobrança (Teste Sandbox)').item.json.body.contrato_id, \"asaas_customer_id\": $('Cadastra Cliente no Asaas (Sandbox)').item.json.id, \"subscription_id\": $('Criar uma assinatura (Sandbox)').item.json.id, \"invoiceUrl\": ($json.data && $json.data[0] ? $json.data[0].invoiceUrl : null) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        416,
+        1888
+      ],
+      "id": "c1a00000-0000-4000-9000-0000000000c6",
+      "name": "Responde ao Breakr (Teste)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cadastra Cliente no Asaas": {
+      "main": [
+        [
+          {
+            "node": "Criar uma assinatura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar uma assinatura": {
+      "main": [
+        [
+          {
+            "node": "Listar cobranças de assinatura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar cobranças de assinatura": {
+      "main": [
+        [
+          {
+            "node": "Responde ao Breakr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notifica Breakr (pago)": {
+      "main": [
+        [
+          {
+            "node": "Confirma ao Asaas (pago)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagamento pago?1": {
+      "main": [
+        [
+          {
+            "node": "Dados do pagamento1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirma ao Asaas (ignorado)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados do pagamento1": {
+      "main": [
+        [
+          {
+            "node": "Notifica Breakr (pago)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Cobrança": {
+      "main": [
+        [
+          {
+            "node": "Cadastra Cliente no Asaas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Pagamento Asaas": {
+      "main": [
+        [
+          {
+            "node": "Pagamento pago?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Cobrança (Teste Sandbox)": {
+      "main": [
+        [
+          {
+            "node": "Cadastra Cliente no Asaas (Sandbox)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cadastra Cliente no Asaas (Sandbox)": {
+      "main": [
+        [
+          {
+            "node": "Criar uma assinatura (Sandbox)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar uma assinatura (Sandbox)": {
+      "main": [
+        [
+          {
+            "node": "Listar cobranças de assinatura (Sandbox)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar cobranças de assinatura (Sandbox)": {
+      "main": [
+        [
+          {
+            "node": "Responde ao Breakr (Teste)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "9d90387e-316f-4540-9222-65077e64c023",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a672162b9bc99a2ac7372b3401678f01b528029abd0774c4f1d6c1881b0fa55c"
+  },
+  "id": "oulfLh1AIfcOKAzR",
+  "tags": [
+    {
+      "updatedAt": "2025-03-11T19:48:12.695Z",
+      "createdAt": "2025-03-11T19:48:12.695Z",
+      "id": "b7dO6iLrLo2uGZ79",
+      "name": "ClickUp"
+    },
+    {
+      "updatedAt": "2025-04-04T21:29:10.615Z",
+      "createdAt": "2025-04-04T21:29:10.615Z",
+      "id": "ZBee9AhKiBUnoG9a",
+      "name": "Breakr"
+    },
+    {
+      "updatedAt": "2025-05-03T00:29:09.960Z",
+      "createdAt": "2025-05-03T00:29:09.960Z",
+      "id": "u6rT9SGbZ8d1KQHy",
+      "name": "Comercial"
+    },
+    {
+      "updatedAt": "2025-05-09T19:02:36.826Z",
+      "createdAt": "2025-05-09T19:02:36.826Z",
+      "id": "VpWupkfCy8dRrRRb",
+      "name": "Juridico"
+    },
+    {
+      "updatedAt": "2025-05-10T00:21:39.258Z",
+      "createdAt": "2025-05-10T00:21:39.258Z",
+      "id": "2Pf81Ed9ufFMLXSs",
+      "name": "Contratos"
+    },
+    {
+      "updatedAt": "2026-07-10T21:21:03.511Z",
+      "createdAt": "2026-07-10T21:21:03.511Z",
+      "id": "QjW8ii8Jm0lvuowC",
+      "name": "Financeiro"
+    }
+  ]
+}

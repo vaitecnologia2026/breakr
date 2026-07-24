@@ -45,6 +45,14 @@ interface Painel {
   capacidade: { membros: Membro[]; squads: CargaSquad[]; limiteSobrecarga: number };
   alertas: Alerta[];
   resumoAlertas: { total: number; alta: number; media: number; baixa: number };
+  esforcoTipos?: {
+    totalPecas: number;
+    pecasComTipo: number;
+    esforcoPrevistoMin: number;
+    esforcoPrevistoHoras: number;
+    diasConcluirTotal: number;
+    diasConcluirMedia: number | null;
+  };
 }
 interface OpcoesFiltro {
   squads: { id: string; nome: string }[];
@@ -178,6 +186,11 @@ export function DashboardMarketing() {
             <p style={{ color: 'var(--texto-suave)', marginTop: 0 }}>
               {dados.producao.totalMateriais} materiais no pipeline · {dados.producao.totalParados} parado(s) há mais de {dados.parametros.paradoHoras}h.
             </p>
+            {dados.esforcoTipos && dados.esforcoTipos.pecasComTipo > 0 && (
+              <p style={{ color: 'var(--texto-suave)', marginTop: 0, fontSize: 12.5 }}>
+                Esforço previsto das peças: <strong>{dados.esforcoTipos.esforcoPrevistoHoras}h</strong> · Dias para concluir (soma): <strong>{dados.esforcoTipos.diasConcluirTotal}</strong> · contabilizado de {dados.esforcoTipos.pecasComTipo} peça(s) por tipo de tarefa.
+              </p>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
               {dados.producao.etapas.map((e) => (
                 <div key={e.status} style={{

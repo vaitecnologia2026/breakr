@@ -4,7 +4,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AutentiqueAssinaturaInput, AutentiqueDocumento, AutentiquePort } from '../ports';
 
-const ENDPOINT = 'https://api.autentique.com.br/2/graphql';
+const ENDPOINT = 'https://api.autentique.com.br/v2/graphql';
 
 @Injectable()
 export class AutentiqueService implements AutentiquePort {

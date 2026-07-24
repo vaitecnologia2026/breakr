@@ -14,6 +14,10 @@ import { ContratoPdfService } from './contrato-pdf.service';
 import { ContratoDocxService, EntregavelContrato, TipoContrato } from './contrato-docx.service';
 import { CriarContratoDto } from './dto/criar-contrato.dto';
 import { CriarContratoLeadDto } from './dto/criar-contrato-lead.dto';
+import { execFile } from 'child_process';
+import { mkdtemp, writeFile, readFile, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 @Injectable()
 export class ContratosService {
@@ -169,11 +173,30 @@ export class ContratosService {
         where: { id: '00000000-0000-0000-0000-000000000001' },
       });
       const params = (cfg?.parametros as Record<string, unknown>) ?? {};
-      const integ = (params.integracoes as { asaas?: { webhook?: string | null } }) ?? {};
+      const integ = (params.integracoes as { asaas?: { webhook?: string | null; webhookAtivo?: boolean } }) ?? {};
+      // Botao liga/desliga: se webhookAtivo === false, o disparo fica desabilitado
+      // mesmo com a URL salva. Ausente (configs antigas) = ligado.
+      if (integ.asaas?.webhookAtivo === false) return null;
       const url = integ.asaas?.webhook?.trim();
       return url ? url : null;
     } catch {
       return null;
+    }
+  }
+
+  // Flag de modo Sandbox (testes) do Asaas (Configuracoes -> Integracoes). Enviada
+  // no payload do webhook n8n para o fluxo de assinatura poder rotear para o
+  // ambiente/credenciais sandbox nos testes. Ausente/erro = producao (false).
+  private async lerSandboxAsaas(): Promise<boolean> {
+    try {
+      const cfg = await this.prisma.config.findUnique({
+        where: { id: '00000000-0000-0000-0000-000000000001' },
+      });
+      const params = (cfg?.parametros as Record<string, unknown>) ?? {};
+      const integ = (params.integracoes as { asaas?: { sandbox?: boolean } }) ?? {};
+      return integ.asaas?.sandbox ?? false;
+    } catch {
+      return false;
     }
   }
 
@@ -203,8 +226,12 @@ export class ContratosService {
 
       const digitos = (v?: string | null) => (v ?? '').replace(/\D/g, '');
       const planosSel = planos.map((lp) => lp.plano.nome).filter(Boolean).join(', ');
+      const sandboxAtivo = await this.lerSandboxAsaas();
 
       const payload = {
+        // Modo Sandbox (testes): sinaliza ao fluxo n8n de assinatura para rotear ao
+        // ambiente/credenciais sandbox do Asaas nos testes (false = producao).
+        sandbox: sandboxAtivo,
         // Id unico do cadastro — identifica a qual cadastro as informacoes pertencem.
         cadastro_codigo: cad?.codigoUnico ?? '',
         // Dados do Cadastro Completo (nomes que o fluxo n8n do Asaas espera).
@@ -338,6 +365,31 @@ export class ContratosService {
     return { buffer, nomeArquivo: `contrato-${contrato.codigoUnico}.docx` };
   }
 
+  // Converte o .docx gerado em PDF via LibreOffice headless (soffice). Cada conversao
+  // usa um diretorio e um perfil temporarios proprios (isola de execucoes concorrentes)
+  // e limpa tudo ao final. O conteudo do contrato (template Word) e preservado — muda
+  // apenas o formato (Word -> PDF) para enviar ao Autentique.
+  private async docxParaPdf(docxBuffer: Buffer): Promise<Buffer> {
+    const dir = await mkdtemp(join(tmpdir(), 'contrato-pdf-'));
+    const entrada = join(dir, 'contrato.docx');
+    const saida = join(dir, 'contrato.pdf');
+    const perfil = `file://${join(dir, 'lo-profile')}`;
+    try {
+      await writeFile(entrada, docxBuffer);
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          'soffice',
+          ['--headless', `-env:UserInstallation=${perfil}`, '--convert-to', 'pdf', '--outdir', dir, entrada],
+          { timeout: 60000 },
+          (erro) => (erro ? reject(erro) : resolve()),
+        );
+      });
+      return await readFile(saida);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
   // Envia o contrato (.docx gerado) para assinatura no Autentique, para o contato
   // cadastrado no negocio (Cadastro Completo). Reaproveita o gerarDocx e o token
   // configurado em Configuracoes -> Integracoes. Segue a logica do fluxo oficial.
@@ -359,11 +411,15 @@ export class ContratosService {
 
     const { buffer, nomeArquivo } = await this.gerarDocx(id);
 
+    // Converte o .docx completo em PDF antes de enviar ao Autentique (fiel ao Word).
+    const pdfBuffer = await this.docxParaPdf(buffer);
+    const nomeArquivoPdf = nomeArquivo.replace(/\.docx$/i, '.pdf');
+
     const doc = await this.autentique.enviarParaAssinatura({
       nomeDocumento: `Contrato ${contrato.codigoUnico} — ${contrato.cliente.nomeFantasia}`,
-      arquivoBase64: buffer.toString('base64'),
-      nomeArquivo,
-      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      arquivoBase64: pdfBuffer.toString('base64'),
+      nomeArquivo: nomeArquivoPdf,
+      mimeType: 'application/pdf',
       mensagem: `Olá, ${nomeSignatario}. Segue nosso contrato para assinatura. Qualquer dúvida, estou à disposição, atenciosamente: Franciele.`,
       signatarios: [
         { nome: nomeSignatario, email: emailSignatario },
@@ -375,7 +431,10 @@ export class ContratosService {
       where: { id },
       data: {
         autentiqueId: doc.id,
-        docUrl: doc.linkAssinatura,
+        // Link do contrato para exibir no menu Contratos: usa o link de assinatura
+        // quando a Autentique o expoe; senao, o link do painel do documento (sempre
+        // disponivel a partir do id retornado), para nao ficar vazio.
+        docUrl: doc.linkAssinatura ?? `https://painel.autentique.com.br/documentos/${doc.id}`,
         status: 'AGUARDANDO_ASSINATURA',
       },
     });
@@ -475,7 +534,10 @@ export class ContratosService {
       where: { id },
       data: {
         autentiqueId: doc.id,
-        docUrl: doc.linkAssinatura,
+        // Link do contrato para exibir no menu Contratos: usa o link de assinatura
+        // quando a Autentique o expoe; senao, o link do painel do documento (sempre
+        // disponivel a partir do id retornado), para nao ficar vazio.
+        docUrl: doc.linkAssinatura ?? `https://painel.autentique.com.br/documentos/${doc.id}`,
         status: 'AGUARDANDO_ASSINATURA',
       },
     });

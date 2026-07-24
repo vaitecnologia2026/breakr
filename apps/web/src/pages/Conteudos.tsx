@@ -196,6 +196,15 @@ export function Conteudos() {
   const podeCriarCampanha = ['SUPERADMIN', 'ADMIN', 'ESTRATEGISTA', 'CS'].includes(usuario?.cargo ?? '');
   const [modalCampanha, setModalCampanha] = useState(false);
   const [sucessoCampanha, setSucessoCampanha] = useState<string | null>(null);
+  // Contabilização de esforço/dias previstos das peças pelo tipo de tarefa.
+  const [resumoEsforco, setResumoEsforco] = useState<{
+    totalPecas: number;
+    pecasComTipo: number;
+    esforcoPrevistoMin: number;
+    esforcoPrevistoHoras: number;
+    diasConcluirTotal: number;
+    diasConcluirMedia: number | null;
+  } | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -214,6 +223,13 @@ export function Conteudos() {
 
   useEffect(() => {
     carregar();
+  }, []);
+
+  useEffect(() => {
+    api
+      .get<typeof resumoEsforco>('/conteudos/resumo-esforco')
+      .then(({ data }) => setResumoEsforco(data))
+      .catch(() => setResumoEsforco(null));
   }, []);
 
   const clientesUnicos = Array.from(
@@ -305,6 +321,14 @@ export function Conteudos() {
 
       {aba === 'funil' && (
         <>
+      {resumoEsforco && resumoEsforco.pecasComTipo > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, padding: '10px 14px', margin: '10px 0', border: '1px solid var(--borda)', borderRadius: 10, background: 'var(--superficie-2)', fontSize: 12.5, color: 'var(--texto-suave)' }}>
+          <span>Esforço previsto total: <strong>{resumoEsforco.esforcoPrevistoHoras}h</strong></span>
+          <span>Dias para concluir (soma): <strong>{resumoEsforco.diasConcluirTotal}</strong></span>
+          <span>Média de dias: <strong>{resumoEsforco.diasConcluirMedia ?? '—'}</strong></span>
+          <span>Peças contabilizadas: <strong>{resumoEsforco.pecasComTipo}</strong> de {resumoEsforco.totalPecas}</span>
+        </div>
+      )}
       <div className="brk-filtros">
         <div className="brk-search">
           <span className="brk-search-icon" aria-hidden="true">
