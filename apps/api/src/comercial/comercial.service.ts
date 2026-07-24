@@ -248,11 +248,12 @@ export class ComercialService {
     return this.obter(id);
   }
 
-  // Atualiza os campos do negocio (aba/RESUMO da tela de detalhe): empresa,
+  // Atualiza os campos do negocio (aba/RESUMO da tela de detalhe): nome, empresa,
   // email, telefone, observacao (contato), valor, previsao e etiquetas.
   async atualizar(id: string, dto: AtualizarLeadDto): Promise<Lead> {
     await this.obter(id);
     const data: Prisma.LeadUpdateInput = {};
+    if (dto.nome !== undefined) data.nome = dto.nome;
     if (dto.empresa !== undefined) data.empresa = dto.empresa;
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.telefone !== undefined) data.telefone = dto.telefone;
