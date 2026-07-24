@@ -14,6 +14,11 @@ export class AtualizarLeadDto {
   @IsOptional()
   @IsString()
   @MaxLength(120)
+  nome?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
   empresa?: string;
 
   @IsOptional()
