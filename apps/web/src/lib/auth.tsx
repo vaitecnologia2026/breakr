@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { LoginResponse, UsuarioPublico } from '@breakr/shared';
 import { api, TOKEN_KEY, EVENTO_SESSAO_EXPIRADA } from './api';
+import { inicializarPush, encerrarPush } from './push';
 
 /**
  * Contexto de autenticação do Breakr OS.
@@ -47,7 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api
       .get<UsuarioPublico>('/usuarios/me')
       .then(({ data }) => {
-        if (ativo) setUsuario(data);
+        if (ativo) {
+          setUsuario(data);
+          // Sessão restaurada: (re)registra o push no app nativo.
+          void inicializarPush();
+        }
       })
       .catch(() => {
         // Token inválido/expirado: limpa a sessão.
@@ -84,9 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(TOKEN_KEY, data.token);
     setToken(data.token);
     setUsuario(data.usuario);
+    // Registra o push (app nativo) agora que há JWT salvo.
+    void inicializarPush();
   }
 
   function logout(): void {
+    // Remove o token de push ANTES de limpar o JWT (a chamada precisa do Bearer).
+    void encerrarPush();
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUsuario(null);
