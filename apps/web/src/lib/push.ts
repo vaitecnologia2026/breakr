@@ -28,12 +28,30 @@ export async function inicializarPush(): Promise<void> {
   if (!listenersRegistrados) {
     listenersRegistrados = true;
 
-    // Token FCM recebido: guarda e envia para a API.
+    // Token recebido: guarda e envia para a API.
+    // No iOS o evento 'registration' entrega o APNs hex (64 chars), que o
+    // firebase-admin no backend REJEITA. O AppDelegate salva o FCM token real
+    // em Preferences (UserDefaults `CapacitorStorage.fcmToken`); aqui fazemos
+    // poll por até 5s para usar o FCM token em vez do APNs hex.
     await PushNotifications.addListener('registration', async (token) => {
       try {
-        localStorage.setItem(PUSH_TOKEN_KEY, token.value);
+        let tokenReal = token.value;
+
+        if (Capacitor.getPlatform() === 'ios') {
+          const { Preferences } = await import('@capacitor/preferences');
+          for (let tentativa = 0; tentativa < 10; tentativa++) {
+            const { value: fcm } = await Preferences.get({ key: 'fcmToken' });
+            if (fcm && fcm.length > 80) {
+              tokenReal = fcm;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+
+        localStorage.setItem(PUSH_TOKEN_KEY, tokenReal);
         await api.post('/push/subscribe', {
-          token: token.value,
+          token: tokenReal,
           plataforma: Capacitor.getPlatform(), // 'android' | 'ios'
         });
       } catch {
