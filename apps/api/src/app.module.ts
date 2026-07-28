@@ -10,6 +10,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { HealthModule } from './health/health.module';
 import { AutomacaoModule } from './automacao/automacao.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
+import { PushModule } from './push/push.module';
 import { IntegracoesModule } from './integracoes/integracoes.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { PlanosModule } from './planos/planos.module';
@@ -86,6 +87,8 @@ import { TiposTarefaModule } from './tipos-tarefa/tipos-tarefa.module';
     HealthModule,
     AutomacaoModule,
     NotificacoesModule,
+    // Push notifications (FCM) para o app mobile.
+    PushModule,
     IntegracoesModule,
     ClientesModule,
     PlanosModule,

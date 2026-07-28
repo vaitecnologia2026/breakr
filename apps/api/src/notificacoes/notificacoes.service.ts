@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Cargo } from '@breakr/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificacoesGateway } from './notificacoes.gateway';
+import { PushService } from '../push/push.service';
 
 export interface NovaNotificacao {
   titulo: string;
@@ -24,6 +25,7 @@ export class NotificacoesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificacoesGateway,
+    private readonly push: PushService,
   ) {}
 
   async criar(usuarioId: string, dados: NovaNotificacao) {
@@ -38,6 +40,8 @@ export class NotificacoesService {
     });
     // Empurra em tempo real para as conexoes abertas do usuario.
     this.gateway.emitirParaUsuario(usuarioId, notificacao);
+    // Push nativo (app mobile) — fire-and-forget, nunca quebra o fluxo.
+    void this.push.enviarParaUsuario(usuarioId, dados);
     return notificacao;
   }
 
@@ -78,6 +82,7 @@ export class NotificacoesService {
     };
     for (const u of usuarios) {
       this.gateway.emitirParaUsuario(u.id, payload);
+      void this.push.enviarParaUsuario(u.id, dados);
     }
     return { enviadas: usuarios.length };
   }
@@ -107,6 +112,7 @@ export class NotificacoesService {
     };
     for (const u of usuarios) {
       this.gateway.emitirParaUsuario(u.id, payload);
+      void this.push.enviarParaUsuario(u.id, dados);
     }
     return { enviadas: usuarios.length };
   }

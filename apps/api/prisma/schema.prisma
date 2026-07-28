@@ -106,6 +106,9 @@ model Usuario {
   // Notificacoes recebidas
   notificacoes Notificacao[]
 
+  // Tokens de push (FCM) dos dispositivos do usuario (app mobile)
+  pushTokens PushToken[]
+
   // Pecas de conteudo sob responsabilidade do usuario (Fase 2)
   conteudosResponsavel Conteudo[]  @relation("ConteudoResponsavel")
   avaliacoesRecebidas  Avaliacao[] @relation("AvaliacaoResponsavel")
@@ -501,6 +504,22 @@ model Notificacao {
 
   @@index([usuarioId, lida])
   @@map("notificacao")
+}
+
+/// Token de push (FCM) de um dispositivo do usuario. Registrado pelo app mobile
+/// (Capacitor + @capacitor/push-notifications) apos permissao. Unico por token;
+/// o mesmo usuario pode ter varios dispositivos.
+model PushToken {
+  id         String   @id @default(uuid())
+  usuarioId  String   @map("usuario_id")
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  plataforma String   @default("android") // android | ios | web
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([usuarioId])
+  @@map("push_token")
 }
 
 // ============================================================
