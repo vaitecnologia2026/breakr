@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Breakr</string>
+    <string name="title_activity_main">Breakr</string>
+    <string name="package_name">com.vaitecnologia.breakr</string>
+    <string name="custom_url_scheme">com.vaitecnologia.breakr</string>
+</resources>

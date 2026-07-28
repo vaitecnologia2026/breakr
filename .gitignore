@@ -30,6 +30,20 @@ coverage/
 .cache/
 .vite/
 
+# Capacitor / Android — arquivos sensiveis e artefatos de build
+apps/web/android/key.properties
+apps/web/android/app/*.keystore
+apps/web/android/app/*.jks
+apps/web/android/app/google-services.json
+apps/web/android/.gradle/
+apps/web/android/local.properties
+apps/web/android/app/build/
+apps/web/android/build/
+apps/web/android/capacitor-cordova-android-plugins/build/
+apps/web/ios/App/Pods/
+apps/web/ios/App/build/
+apps/web/ios/App/App/GoogleService-Info.plist
+
 # OS / editor
 .DS_Store
 Thumbs.db
